@@ -21,6 +21,7 @@
     "test:oidc": "node test-oidc.mjs",
     "test:cli": "node test-cli.mjs",
     "test:redact": "node test-redact.mjs",
+    "test:federation": "node test-federation.mjs",
     "test:desktop-setup": "node test-desktop-setup-ui.mjs",
     "test:backup": "node test-cli-backup.mjs",
     "test:backup-scheduler": "node test-cli-backup-scheduler.mjs",

@@ -1511,7 +1511,7 @@ async function checkPendingNotifications() {
   try {
     const data = await api('/api/state'); const pending = data.pending || []; const ids = new Set(pending.map((entry) => entry.id))
     if (pendingInitialized) {
-      for (const entry of pending) if (!knownPending.has(entry.id)) showBrowserNotification('Secrets Broker 授权请求', (entry.agent || 'Agent') + ' 请求读取「' + entry.name + '」', entry.id)
+      for (const entry of pending) if (!knownPending.has(entry.id)) showBrowserNotification('Secrets Broker 授权请求', (pendingAgentLabel(entry)) + ' 请求读取「' + entry.name + '」', entry.id)
     }
     knownPending = ids; pendingInitialized = true
     if (app.data) {
@@ -2789,6 +2789,14 @@ function renderAgents() {
   box.innerHTML = '<div class="ios-group"><div class="ios-group-head"><span>共 ' + agents.length + ' 个 Agent</span></div>' +
     '<div class="ios-card">' + rows + '</div></div>'
 }
+// Federated requests carry the downstream identity separately: agent is the
+// namespaced broker subject, not a human-readable name.
+function pendingAgentLabel(request) {
+  if (!request?.gatewayId) return request?.agent || 'Agent'
+  const downstream = request.downstreamClientName || request.downstreamClientId || 'client'
+  return downstream + ' (' + (request.downstreamClientId || '?') + ') via ' + request.gatewayId
+}
+
 function renderPending() {
   const pending = app.data.pending || []
   const body = pending.map((request) => {
@@ -2802,7 +2810,7 @@ function renderPending() {
       + '<button class="ios-chip danger" data-decide="deny" data-id="' + esc(request.id) + '">拒绝</button>'
     return '<div class="ios-row ios-row--stack">' +
       '<span class="ios-ico" data-kind="' + (isFill ? 'web' : 'api') + '">' + IOS_PERSON + '</span>' +
-      '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(request.agent) +
+      '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(pendingAgentLabel(request)) +
       '</span><span class="ios-tag">' + esc(pendingActionLabel(request)) + '</span></div>' +
       '<div class="ios-sub">条目 ' + esc(request.name) + '</div>' +
       (originLine ? '<div class="ios-sub">' + esc(originLine) + '</div>' : '') +
@@ -2826,7 +2834,7 @@ function pendingDetailHtml(entry) {
     ? (origin ? '<div><span class="hint">目标 origin</span><br><code>' + esc(origin) + '</code></div>'
       : '<div><b style="color:var(--danger)">目标无效（缺少 origin），无法批准</b></div>')
     : ''
-  return '<div><b>' + esc(entry.agent || 'Agent') + '</b> 请求' + esc(pendingActionLabel(entry))
+  return '<div><b>' + esc(pendingAgentLabel(entry)) + '</b> 请求' + esc(pendingActionLabel(entry))
     + ' <code>' + esc(entry.name) + '</code></div>' + target
     + '<div class="hint">' + esc(entry.createdAt ? new Date(entry.createdAt).toLocaleString('zh-CN', { hour12: false }) : '') + '</div>'
 }

@@ -13,6 +13,7 @@ import { vault2Status, vault2Init, vault2Unlock, vault2List, vault2ListPlain, va
 import { publicKeyFingerprint } from './envelope.js'
 import { generateVapid, vapidAuthorization } from './webpush.js'
 import { scrubSecret } from './redact.js'
+import { verifyGatewayJwt, federatedAgent } from './federation.js'
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -1315,6 +1316,14 @@ async function resolveAgent(request, env) {
   if (!match) return null
   const token = match[1]
   const state = await loadState(env)
+  // A JWT-shaped token is a gateway assertion, never a broker agent token.
+  // If verification fails it must 401 rather than fall through to the hash
+  // lookup, or a forged gateway token could be treated as an opaque agent key.
+  if (token.split('.').length === 3) {
+    const payload = await verifyGatewayJwt(token, env)
+    if (!payload) return null
+    return { ...federatedAgent(payload), state, federation: payload }
+  }
   const hash = await sha256Base64(token)
   for (const [name, agent] of Object.entries(state.agents)) {
     if (!constantTimeEqual(encoder.encode(agent.hash), encoder.encode(hash))) {
@@ -3899,7 +3908,7 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
     // classification check and the plaintext policy in one step. Scope is still
     // required — "免审批" means "don't ask me again", not "any Agent may read
     // this". A revoked/expired capability was already returned as decisive.
-    const noApprovalInScope = action === 'secret.read' && state.policies?.[name]?.noApproval === true
+    const noApprovalInScope = action === 'secret.read' && agent.federated !== true && state.policies?.[name]?.noApproval === true
       && agentInScope(agent, state.itemGroups, name)
     // An active auto-approval rule is a deliberate "yes" from the operator for
     // this agent, time-boxed. It makes the request eligible, which is exactly
@@ -3960,13 +3969,13 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
       // than just the credential. An approval without an origin is a blank
       // cheque, so the origin is recorded for both and checked when it decides.
       const bindsTarget = action === 'secret.fill' || action === 'secret.use'
-      const entry = { id: pendingId, agent: agentName, name, account: session.email, action, createdAt: nowIso(), targetOrigin: bindsTarget ? String(target?.origin ?? origin ?? '') : '', ...(action === 'secret.materialize' ? { target: { path: String(target?.path ?? ''), key: String(target?.key ?? '') } } : {}) }
+      const entry = { id: pendingId, agent: agentName, name, account: session.email, action, createdAt: nowIso(), targetOrigin: bindsTarget ? String(target?.origin ?? origin ?? '') : '', ...(agent.federated ? { gatewayId: agent.gatewayId, downstreamClientId: agent.downstreamClientId, downstreamClientName: agent.downstreamClientName, downstreamClientType: agent.downstreamClientType, requestId: agent.federationRequestId } : {}), ...(action === 'secret.materialize' ? { target: { path: String(target?.path ?? ''), key: String(target?.key ?? '') } } : {}) }
       await updateState(env, (next) => { next.pending[pendingId] = entry; next.requestRate ??= {}; if (createRequest) next.requestRate[rateKey] = Date.now(); if (itemId) { next.itemIds ??= {}; next.itemIds[name] = itemId } return next })
       await addAudit(env, { event: 'request.create', agent: agentName, name })
       // An active auto-approval rule answers it now instead of asking. It is
       // time-boxed and audited with source 'auto-rule', so a grant made while
       // the operator was away is never indistinguishable from their own click.
-      if (autoRuleActive(state, agentName)) {
+      if (!agent.federated && autoRuleActive(state, agentName)) {
         const auto = await decidePending(env, pendingId, 'once', 'auto-rule')
         await addAudit(env, { event: 'request.auto-approve', agent: agentName, name, action, source: 'auto-rule' })
         if (auto && !auto.denied && !auto.error) {
@@ -4445,7 +4454,7 @@ export default {
     if (url.pathname === '/api/plugin/pending' && request.method === 'GET') {
       if (!pluginAuthorized(request, env)) return fail('unauthorized', 401)
       const state = await loadState(env)
-      return json({ pending: Object.values(state.pending ?? {}).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, action: entry.action, targetOrigin: entry.targetOrigin ?? '', createdAt: entry.createdAt })), count: Object.keys(state.pending ?? {}).length })
+      return json({ pending: Object.values(state.pending ?? {}).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, action: entry.action, targetOrigin: entry.targetOrigin ?? '', createdAt: entry.createdAt, ...(entry.gatewayId ? { gatewayId: entry.gatewayId, downstreamClientId: entry.downstreamClientId, downstreamClientName: entry.downstreamClientName, downstreamClientType: entry.downstreamClientType } : {}) })), count: Object.keys(state.pending ?? {}).length })
     }
     // Read-only: which agents are using which credentials, derived from the audit
     // trail and the live capabilities. This is the "who is using my keys" fact
@@ -4529,7 +4538,7 @@ export default {
           count: ids.length,
           ids,
           signature: ids.join(','),
-          pending: Object.values(state.pending ?? {}).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, action: entry.action ?? '', createdAt: entry.createdAt ?? '' })),
+          pending: Object.values(state.pending ?? {}).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, action: entry.action ?? '', createdAt: entry.createdAt ?? '', ...(entry.gatewayId ? { gatewayId: entry.gatewayId, downstreamClientId: entry.downstreamClientId, downstreamClientName: entry.downstreamClientName, downstreamClientType: entry.downstreamClientType } : {}) })),
         }
       }
       let current = await snapshot()
@@ -7571,6 +7580,7 @@ const TOOL_META = {
         ].filter((tool) => !Array.isArray(resolved.agent.tools) || !resolved.agent.tools.length || resolved.agent.tools.includes(tool.name)).map((tool) => ({ ...tool, annotations: TOOL_META[tool.name] ?? {} })) })
       }
       if (body.method === 'tools/call') {
+        if (resolved.agent.service) return result({ content: [{ type: 'text', text: 'a gateway service identity may only list tools' }], isError: true })
         const name = body.params?.name
         const args = body.params?.arguments ?? {}
         // Trailing spaces are the most common reason a correct name reads as "no access".
