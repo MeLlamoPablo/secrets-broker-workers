@@ -1385,7 +1385,7 @@ function grantStatusForAgent(state, agent, agentName, name, itemId) {
   if (findPending(state, agentName, name, 'secret.read')) return 'pending'
   const cap = state.capabilities?.[capabilityKey(agentName, itemId, 'secret.read')]
   const capLive = cap && !cap.revokedAt && !(cap.expiresAt && cap.expiresAt < Date.now()) && (cap.maxReads == null || (cap.reads ?? 0) < cap.maxReads)
-  if (capLive || activeGrant(state, agentName, name) || state.policies?.[name]?.noApproval === true) return 'granted'
+  if (capLive || activeGrant(state, agentName, name) || (agent.federated !== true && state.policies?.[name]?.noApproval === true)) return 'granted'
   return 'none'
 }
 
@@ -3636,7 +3636,7 @@ export function authorizeSecretAction(state, { agent, agentName, itemId, itemNam
   const subjectId = agentName
   const key = capabilityKey(subjectId, itemId, action)
   let cap = state.capabilities?.[key] ?? null
-  if (!cap) cap = migrateLegacyCapability(state, { subjectId, accountId, itemId, itemName, action, createdBy: 'legacy-migration', noApproval: state.policies?.[itemName]?.noApproval === true })
+  if (!cap) cap = migrateLegacyCapability(state, { subjectId, accountId, itemId, itemName, action, createdBy: 'legacy-migration', noApproval: agent?.federated !== true && state.policies?.[itemName]?.noApproval === true })
   const sameAccount = !cap || !cap.accountId || !accountId || String(cap.accountId).toLowerCase() === String(accountId).toLowerCase()
   const legacyScope = Boolean(agent?.legacy) && agentInScope(agent, state.itemGroups, itemName)
   const legacyDecision = action === 'secret.read' && legacyScope
