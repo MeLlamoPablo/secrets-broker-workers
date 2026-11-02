@@ -13,7 +13,7 @@ const stub = ns.get(ns.idFromName('global'))
 const base = { agents: {}, oauthClients: {}, oauthCodes: {}, oauthTokens: {}, oauthAgentProfiles: {}, policies: {}, grants: {}, pending: {}, audit: [], settings: { notifications: {}, vaultEmail: 'a@b.invalid' }, itemGroups: {}, security: {} }
 const getState = () => stub.fetch('https://do/state').then((r) => r.json()).then((p) => p.state)
 const cookie = String((await mf.dispatchFetch('https://broker.test/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: 'p' }) })).headers.get('set-cookie') || '').split(';')[0]
-const register = () => mf.dispatchFetch('https://broker.test/oauth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ client_name: 'race', redirect_uris: ['http://127.0.0.1:9999/cb'] }) }).then((r) => r.json())
+const register = (ip) => mf.dispatchFetch('https://broker.test/oauth/register', { method: 'POST', headers: { 'content-type': 'application/json', ...(ip ? { 'cf-connecting-ip': ip } : {}) }, body: JSON.stringify({ client_name: 'race', redirect_uris: ['http://127.0.0.1:9999/cb'] }) }).then(async (r) => ({ status: r.status, body: await r.json() }))
 
 // X1: an agent that is about to expire so the reminder batch has real work
 {
@@ -29,12 +29,18 @@ const register = () => mf.dispatchFetch('https://broker.test/oauth/register', { 
   await stub.fetch('https://do/state/mutate', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'set', path: ['agents', 'expiring'], value: { hash: 'h', allow: [], groups: [], allowAll: true, write: false, legacy: false, account: 'a@b.invalid', createdAt: '2024-01-01', expiresAt: Date.now() + 2 * 86400e3 } }] }) })
   let lost = 0
   for (let i = 0; i < 30; i += 1) {
-    const reg = register()
+    // A distinct source address per round keeps the open-registration limiter
+    // (ten per IP per fifteen minutes) out of the measurement. This case is
+    // about concurrent writes, and with one shared address the last twenty
+    // registrations are 429s, so "lost" would count a rate limit rather than a
+    // dropped write.
+    const reg = register('203.0.113.' + (i + 1))
     const churn = Array.from({ length: 6 }, () => mf.dispatchFetch('https://broker.test/api/state', { headers: { cookie } }))
-    const body = await reg
+    const res = await reg
     await Promise.all(churn)
     const st = await getState()
-    if (!Object.keys(st.oauthClients || {}).includes(body.client_id)) lost += 1
+    const kept = Object.keys(st.oauthClients || {}).includes(res.body?.client_id)
+    if (res.status !== 201 || !kept) lost += 1
   }
   if (lost === 0) pass('X2 30 concurrent rounds lost no registration')
   else fail('X2', 'lost=' + lost)
