@@ -92,6 +92,62 @@ jobs:
             printf '::error::%s\n' "$line"
           done
           true
+  # The hybrid permission model broke three runs in a row and, because it sat
+  # at step 16 of security-tests, every suite behind it was skipped. It gets
+  # its own job so its result is visible on its own and cannot short-circuit
+  # the rest of the security suite.
+  permissions-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Prepare CI log directory
+        run: mkdir -p "$RUNNER_TEMP/ci-logs"
+      - name: Hybrid secret.read/use model (Miniflare)
+        shell: bash
+        run: npm run test:actions 2>&1 | tee "$RUNNER_TEMP/ci-logs/actions.log"
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: permissions-model-logs
+          path: ${{ runner.temp }}/ci-logs
+          if-no-files-found: warn
+          retention-days: 7
+      # Artifacts need a token to download; the step summary does not, so the
+      # failing suite's tail is readable straight from the run page.
+      - name: Publish failing suite log tail
+        if: failure()
+        shell: bash
+        run: |
+          dir="$RUNNER_TEMP/ci-logs"
+          [ -d "$dir" ] || exit 0
+          shopt -s nullglob
+          logs=("$dir"/*.log)
+          [ ${#logs[@]} -gt 0 ] || exit 0
+          # The job stops at the first broken suite, so its log is the newest
+          # one. Ninety logs in the summary would bury the only interesting one.
+          newest=$(ls -t "${logs[@]}" | head -n 1)
+          [ -s "$newest" ] || exit 0
+          {
+            echo "### $(basename "$newest")"
+            echo '```'
+            tail -n 80 "$newest"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # A job only shows ten annotations, so spend them on the lines that
+          # name the failure instead of the whole tail. Strip \r and % first:
+          # both break the workflow-command syntax GitHub parses here.
+          tail -n 80 "$newest" | tr -d '\r' | tr -d '%' | grep -E 'FAIL|Error|AssertionError|expected|received' | head -n 10 | while IFS= read -r line; do
+            printf '::error::%s\n' "$line"
+          done
+          true
   security-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -136,9 +192,6 @@ jobs:
       - name: Agent permission matrix (Miniflare)
         shell: bash
         run: npm run test:permissions 2>&1 | tee "$RUNNER_TEMP/ci-logs/permissions.log"
-      - name: Hybrid secret.read/use model (Miniflare)
-        shell: bash
-        run: npm run test:actions 2>&1 | tee "$RUNNER_TEMP/ci-logs/actions.log"
       - name: Admin API authorization (Miniflare)
         shell: bash
         run: npm run test:admin-api 2>&1 | tee "$RUNNER_TEMP/ci-logs/admin-api.log"
