@@ -34,9 +34,13 @@ for (const sql of [
   `CREATE TABLE IF NOT EXISTS ciphers (id TEXT PRIMARY KEY, user_id TEXT, type INTEGER, folder_id TEXT, name TEXT, notes TEXT, data TEXT, key TEXT, favorite INTEGER, reprompt INTEGER, created_at TEXT, updated_at TEXT, deleted_at TEXT, archived_at TEXT, organization_id TEXT)`,
   `INSERT OR REPLACE INTO users (id, email, key, kdf_type, kdf_iterations, created_at) VALUES ('u1', 'vault@example.invalid', 'k', 0, 600000, '2024-01-01')`,
 ]) await db.exec(sql)
+// The sealed form of the password, so a refusal can be checked for echoing
+// ciphertext as well as plaintext.
+let PASSWORD_CIPHER = ''
 {
   const E = Buffer.alloc(32, 1), M = Buffer.alloc(32, 2)
   const data = { login: { username: await encryptStr('alice', E, M), password: await encryptStr(PASSWORD, E, M), totp: '', uris: [] }, fields: [] }
+  PASSWORD_CIPHER = data.login.password
   await db.prepare('INSERT OR REPLACE INTO ciphers (id,user_id,type,folder_id,name,notes,data,key,favorite,reprompt,created_at,updated_at,deleted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .bind(ITEM_ID, 'u1', 1, null, await encryptStr(ITEM, E, M), await encryptStr('', E, M), JSON.stringify(data), null, 0, 0, '2024-01-01', '2024-01-01', null)
     .run()
@@ -500,14 +504,31 @@ async function classify(kind, origins, actions) {
   else fail('G21', 'the explicit grant was ignored: ' + t.slice(0, 120))
 }
 
-// G22/G23: "don't ask me again" is an answer about one vault. A policy that
-// names another account must not open this one, and the same policy made here
-// must still work.
+// G22/G22b/G23: "don't ask me again" is an answer about one vault. A policy
+// that names another account must not open this one — the refusal is what
+// matters, not which sentence it uses. Nor may a foreign policy ride the legacy
+// in-scope path past the approval gate and still reach the value.
 {
   await seedState({ policies: { [ITEM]: { noApproval: true, accountId: 'other@example.invalid' } } })
-  const t = toolText(await mcp('get_secret', { name: ITEM }))
-  if (!t.includes(PASSWORD) && /account/i.test(t)) pass('G22 a no-approval policy made in another vault is ignored')
-  else fail('G22', t.slice(0, 140))
+  const res = await mcp('get_secret', { name: ITEM })
+  const raw = JSON.stringify(res.body)
+  const t = toolText(res)
+  const refusal = /not allowed|denied|forbidden|不能读明文/i.test(t)
+  if (!raw.includes(PASSWORD) && !raw.includes(PASSWORD_CIPHER) && refusal) pass('G22 a no-approval policy made in another vault is refused')
+  else fail('G22', JSON.stringify({ refusal, plaintext: raw.includes(PASSWORD), ciphertext: raw.includes(PASSWORD_CIPHER), text: t.slice(0, 100) }))
+}
+{
+  // Same item, same foreign policy, but the Agent is legacy and in scope: the
+  // old scope path may skip the approval prompt, and the read guard must still
+  // refuse because the policy was not made in this vault.
+  await seedState({
+    policies: { [ITEM]: { noApproval: true, accountId: 'other@example.invalid' } },
+    agents: { [AGENT]: { hash, allow: [ITEM], groups: [], allowAll: false, write: false, legacy: true, account: ACCT, createdAt: '2024-01-01' } },
+  })
+  const res = await mcp('get_secret', { name: ITEM })
+  const t = toolText(res)
+  if (!t.includes(PASSWORD) && /不能读明文|not allowed|denied|forbidden/i.test(t)) pass("G22b a legacy in-scope agent cannot borrow another vault's no-approval policy")
+  else fail('G22b', t.slice(0, 140))
 }
 {
   await seedState({ policies: { [ITEM]: { noApproval: true, accountId: ACCT } } })
