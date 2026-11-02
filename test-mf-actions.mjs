@@ -189,13 +189,25 @@ const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
   await putSession()
   const r9 = await mcp('get_secret', { name: 'plain-item' })
   void r9
-  // shadowAudit is fire-and-forget; give the DO write a moment to land.
-  await new Promise((r) => setTimeout(r, 500))
-  const state = await getState()
-  const shadow = (state.audit || []).filter((e) => e.event === 'policy.shadow-mismatch')
+  // shadowAudit is fire-and-forget, so its DO write can land well after the
+  // response. Poll for it instead of guessing a fixed delay: one slow CI runner
+  // is otherwise enough to turn this into a timeout-sized flake.
+  const deadline = Date.now() + 20_000
+  const readShadow = async () => {
+    const next = await getState()
+    return (next.audit || []).filter((e) => e.event === 'policy.shadow-mismatch')
+  }
+  let shadow = await readShadow()
+  while (shadow.length === 0 && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 300))
+    shadow = await readShadow()
+  }
   const safe = shadow.every((e) => !JSON.stringify(e).includes(PLAINTEXT) && e.value === undefined)
   if (shadow.length > 0 && safe) pass('A9 shadow mode records policy mismatch with no secret material')
-  else fail('A9', JSON.stringify({ count: shadow.length, safe }).slice(0, 200))
+  else {
+    const state = await getState()
+    fail('A9', JSON.stringify({ count: shadow.length, safe, audit: (state.audit || []).slice(-5), settings: state.settings }).slice(0, 600))
+  }
 }
 
 await mf.dispose()
