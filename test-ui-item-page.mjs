@@ -114,8 +114,12 @@ const server = http.createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r))
 const base = 'http://127.0.0.1:' + server.address().port
 
+// Same resolution order as the fixed-layout and mobile suites: the CI job
+// exports CHROME_PATH from setup-chrome, then CHROME_BIN, then the usual
+// platform install paths.
 function findChrome() {
-  const candidate = [process.env.CHROME_BIN, 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  const candidate = [process.env.CHROME_PATH, process.env.CHROME_BIN,
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
     'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe', '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser',
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
@@ -124,14 +128,19 @@ function findChrome() {
 
 const chrome = findChrome()
 if (!chrome) {
-  console.log('SKIP  ui item page (no Chrome found; set CHROME_BIN to run it)')
+  console.log('SKIP  ui item page (no Chrome found; set CHROME_PATH or CHROME_BIN to run it)')
   server.close()
   process.exit(0)
 }
 
 const port = 9333 + Math.floor(Math.random() * 200)
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sb-ui-profile-'))
-const child = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+// --no-sandbox is what the other browser suites use: the GitHub runner has no
+// usable sandbox, so Chrome dies before the debugging port opens and every
+// fetch to it fails with ECONNREFUSED. --disable-dev-shm-usage avoids the
+// small /dev/shm of containerised runners.
+const child = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
+  '--no-first-run', '--no-default-browser-check',
   `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore' })
 
 let ws
