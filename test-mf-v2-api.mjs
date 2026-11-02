@@ -4,6 +4,7 @@
 import { Miniflare } from 'miniflare'
 import { readFileSync, readdirSync } from 'node:fs'
 import { newDeviceKeypair, unwrapDekDevice, dekFingerprint } from './src/envelope.js'
+import { wrapWithKek, b64ToBytes } from './src/crypto.js'
 
 const results = []
 const pass = (n) => { results.push({ n, ok: true }); console.log('PASS  ' + n) }
@@ -319,6 +320,69 @@ let deviceId = ''
   const honest = run.status === 200 ? Number.isFinite(run.body.imported) && Number.isFinite(run.body.total) : (run.status === 423 && String(run.body.error || '').includes('cipher vault'))
   if (honest && kept && (after.body.items ?? []).length >= (before.body.items ?? []).length) pass('I2 import reports its counts and keeps the items this vault already had')
   else fail('I2', JSON.stringify({ status: run.status, body: run.body, kept }).slice(0, 240))
+}
+
+// H1-H4: plain=1 is the same disclosure as a single secret read, so it needs the
+// second factor once per unlock when TOTP is enrolled.
+const base32 = (text) => {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  const out = []
+  let value = 0
+  let bits = 0
+  for (const character of String(text).toUpperCase().replace(/=+$/, '')) {
+    const index = alphabet.indexOf(character)
+    if (index < 0) continue
+    value = (value << 5) | index
+    bits += 5
+    if (bits >= 8) { out.push((value >>> (bits - 8)) & 0xff); bits -= 8 }
+  }
+  return new Uint8Array(out)
+}
+const totpCode = async (secret, time = Date.now()) => {
+  const key = await crypto.subtle.importKey('raw', base32(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
+  const counter = Math.floor(time / 30000)
+  const buffer = new Uint8Array(8)
+  let value = counter
+  for (let i = 7; i >= 0; i -= 1) { buffer[i] = value & 0xff; value = Math.floor(value / 256) }
+  const digest = new Uint8Array(await crypto.subtle.sign('HMAC', key, buffer))
+  const offset = digest[19] & 0x0f
+  const binary = ((digest[offset] & 0x7f) << 24) | ((digest[offset + 1] & 0xff) << 16) | ((digest[offset + 2] & 0xff) << 8) | (digest[offset + 3] & 0xff)
+  return String(binary % 1000000).padStart(6, '0')
+}
+const TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
+{
+  const state = await stub.fetch('https://state/state').then((r) => r.json()).then((p) => p.state)
+  state.security = { ...(state.security ?? {}), totpEnabled: true, totpSecretWrapped: await wrapWithKek(new TextEncoder().encode(TOTP_SECRET), b64ToBytes(KEK)) }
+  await stub.fetch('https://state/state', { method: 'PUT', body: JSON.stringify(state) })
+  // A fresh unlock, so no earlier plaintext pass carries over.
+  await call('/api/v2/lock', { method: 'POST' })
+  await call('/api/v2/unlock', { method: 'POST', body: { password: MASTER } })
+  const refused = await call('/api/v2/items?plain=1')
+  const ok = refused.status === 428 && String(refused.body.error || '').includes('plaintext-needs-totp')
+  if (ok) pass('H1 plain=1 without a code refuses with 428 when TOTP is enrolled')
+  else fail('H1', JSON.stringify({ status: refused.status, body: refused.body }))
+}
+{
+  const plainCode = await totpCode(TOTP_SECRET)
+  const { status, body } = await call('/api/v2/items?plain=1&code=' + plainCode)
+  const open = (body.items ?? []).find((row) => row.payload?.name === 'panel-item')
+  const ok = status === 200 && Boolean(open)
+  if (ok) pass('H2 plain=1 accepts the TOTP code and returns the decrypted names')
+  else fail('H2', JSON.stringify({ status, body }).slice(0, 240))
+}
+{
+  const repeat = await call('/api/v2/items?plain=1')
+  const ok = repeat.status === 200
+  if (ok) pass('H3 the pass is remembered for this unlock, so the panel is not prompted twice')
+  else fail('H3', 'status ' + repeat.status)
+}
+{
+  await call('/api/v2/lock', { method: 'POST' })
+  await call('/api/v2/unlock', { method: 'POST', body: { password: MASTER } })
+  const after = await call('/api/v2/items?plain=1')
+  const ok = after.status === 428
+  if (ok) pass('H4 a new unlock forgets the previous plaintext pass')
+  else fail('H4', 'status ' + after.status)
 }
 
 await mf.dispose()

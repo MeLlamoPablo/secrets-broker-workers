@@ -60,7 +60,7 @@ export function createBridge({ brokerUrl, staticToken = '', onApproval = handleA
     if (result.status >= 400 && !result.text) {
       throw new Error(`broker answered ${result.status}`)
     }
-    if (result.text) onApproval(result.text)
+    if (result.text) onApproval(result.text, brokerUrl, opener)
     return result.text
   }
 

@@ -75,7 +75,7 @@ export async function openItem(dek, id, ciphertext) {
 }
 
 export async function wrapDekPassword(dek, password, options = {}) {
-  const iterations = Math.max(100000, Number(options.iterations) || ITERATIONS)
+  const iterations = Math.min(ITERATIONS, Math.max(ITERATIONS, Number(options.iterations) || ITERATIONS))
   const salt = options.salt ? base64ToBytes(options.salt) : crypto.getRandomValues(new Uint8Array(SALT_BYTES))
   const kek = await derivePasswordKek(password, salt, iterations)
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES))
@@ -86,7 +86,11 @@ export async function wrapDekPassword(dek, password, options = {}) {
 export async function unwrapDekPassword(envelope, password) {
   const box = typeof envelope === 'string' ? JSON.parse(envelope) : envelope
   if (!box || box.kind !== 'password') throw new Error('not a password envelope')
-  const kek = await derivePasswordKek(password, base64ToBytes(box.salt), Number(box.iterations) || ITERATIONS)
+  // Never trust the stored cost from a database row: a tampered blob must not
+  // be able to drive PBKDF2 far above the ceiling the Workers runtime accepts
+  // (or below the strength this format was written with).
+  const iterations = Math.min(ITERATIONS, Math.max(ITERATIONS, Number(box.iterations) || ITERATIONS))
+  const kek = await derivePasswordKek(password, base64ToBytes(box.salt), iterations)
   const dek = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: base64ToBytes(box.iv) },
     kek,

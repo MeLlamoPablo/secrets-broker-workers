@@ -2,6 +2,7 @@
 // should bounce through /login with a next= return target, and /login must
 // honour next when already signed in.
 import { Miniflare } from 'miniflare'
+import { createHash } from 'node:crypto'
 const results = []
 const pass = (n) => { results.push({ n, ok: true }); console.log('PASS  ' + n) }
 const fail = (n, d) => { results.push({ n, ok: false, d }); console.log('FAIL  ' + n + ' :: ' + d) }
@@ -132,6 +133,36 @@ const follow = async (url, headers = {}) => {
   const quiet = again.includes('已经在本站确认过') && !again.includes('name="remember_app"')
   if (trusted && quiet) pass('O9 记住 marks the client and the next visit is quiet')
   else fail('O9', JSON.stringify({ trusted, quiet }))
+}
+
+// O11: an authorization code is single use. The second exchange must fail, and
+// the code must be gone from the state rather than merely rejected.
+{
+  await seed()
+  const cookie = await loginCookie()
+  const verifier = 'oauth-pkce-verifier-' + 'x'.repeat(30)
+  const challenge = createHash('sha256').update(verifier).digest('base64url')
+  const form = 'client_id=' + CLIENT + '&redirect_uri=' + encodeURIComponent(REDIRECT) + '&code_challenge=' + challenge + '&code_challenge_method=S256&decision=allow&state=xyz'
+  const approve = await mf.dispatchFetch('https://broker.test/oauth/authorize', {
+    method: 'POST', redirect: 'manual',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
+    body: form,
+  })
+  const code = new URL(approve.headers.get('location') || 'https://x.example/').searchParams.get('code') || ''
+  const exchange = () => mf.dispatchFetch('https://broker.test/oauth/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: CLIENT, redirect_uri: REDIRECT, code_verifier: verifier }).toString(),
+  })
+  const first = await exchange()
+  const firstBody = await first.json().catch(() => ({}))
+  const second = await exchange()
+  const secondBody = await second.json().catch(() => ({}))
+  const st = await getState()
+  const ok = first.status === 200 && Boolean(firstBody.access_token) &&
+    second.status === 400 && secondBody.error === 'invalid_grant' && !st.oauthCodes?.[code]
+  if (ok) pass('O11 an authorization code is consumed once and a second exchange fails')
+  else fail('O11', JSON.stringify({ status: [first.status, second.status], first: Object.keys(firstBody), second: secondBody, left: Object.keys(st.oauthCodes ?? {}).length }))
 }
 
 await mf.dispose()

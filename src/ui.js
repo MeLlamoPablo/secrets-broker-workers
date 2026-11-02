@@ -884,7 +884,7 @@ const cat = (a, b) => { const out = new Uint8Array(a.length + b.length); out.set
 async function hmac(keyBytes, data) { const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); return new Uint8Array(await crypto.subtle.sign('HMAC', key, data)) }
 async function pbkdf2(password, salt, iterations) { const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']); return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(salt), iterations }, key, 256)) }
 async function hkdf(prk, info, length) { const key = await crypto.subtle.importKey('raw', prk, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); const infoBytes = enc.encode(info); const out = new Uint8Array(length); let prev = new Uint8Array(0), offset = 0, counter = 1; while (offset < length) { const input = new Uint8Array(prev.length + infoBytes.length + 1); input.set(prev); input.set(infoBytes, prev.length); input[input.length - 1] = counter; prev = new Uint8Array(await crypto.subtle.sign('HMAC', key, input)); const n = Math.min(prev.length, length - offset); out.set(prev.slice(0, n), offset); offset += n; counter++ } return out }
-async function decryptBw(text, encKey, macKey) { const dot = text.indexOf('.'); const type = Number(text.slice(0, dot)); const parts = text.slice(dot + 1).split('|'); const iv = unb64(parts[0]), ct = unb64(parts[1]); if (type === 2) { const expected = await hmac(macKey, cat(iv, ct)); const mac = unb64(parts[2]); if (!expected.every((b, i) => b === mac[i])) throw new Error('MAC 校验失败') } const key = await crypto.subtle.importKey('raw', encKey, { name: 'AES-CBC' }, false, ['decrypt']); return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, key, ct)) }
+async function decryptBw(text, encKey, macKey) { const dot = text.indexOf('.'); const type = Number(text.slice(0, dot)); const parts = text.slice(dot + 1).split('|'); const iv = unb64(parts[0]), ct = unb64(parts[1]); if (type === 1 || type === 2) { if (!macKey || !parts[2]) throw new Error('缺少 MAC'); const expected = await hmac(macKey, cat(iv, ct)); const mac = unb64(parts[2]); if (!expected.every((b, i) => b === mac[i])) throw new Error('MAC 校验失败') } else if (type !== 0 && type !== 4) { throw new Error('不支持的密文类型') } const key = await crypto.subtle.importKey('raw', encKey, { name: 'AES-CBC' }, false, ['decrypt']); return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, key, ct)) }
 function setDbDown(message) {
   const el = document.getElementById('db-down')
   if (!el) return
@@ -944,6 +944,28 @@ function askYes(message, { yes = '删除', no = '取消' } = {}) {
     document.addEventListener('keydown', onKey)
     document.body.appendChild(wrap)
     wrap.querySelector('.ask__no').focus()
+  })
+}
+
+// Same in-page prompt as askYes, but returns the typed value. prompt() itself
+// is unreliable inside the desktop WebView, and the plaintext item list needs a
+// 6-digit code the first time it is opened in an unlock session.
+function askCode(message) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div')
+    wrap.className = 'ask'
+    wrap.innerHTML = '<div class="ask__text"></div><input class="ask__code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><div class="ask__row"><button class="ask__no">取消</button><button class="ask__yes">确定</button></div>'
+    wrap.querySelector('.ask__text').textContent = message
+    const input = wrap.querySelector('.ask__code')
+    input.style.cssText = 'display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:10px 12px;border:1px solid #d0d5dd;border-radius:10px;font-size:15px'
+    const done = (answer) => { wrap.remove(); document.removeEventListener('keydown', onKey); resolve(answer) }
+    const onKey = (event) => { if (event.key === 'Escape') done('') }
+    wrap.querySelector('.ask__no').onclick = () => done('')
+    wrap.querySelector('.ask__yes').onclick = () => done(input.value.replace(/\s+/g, ''))
+    input.onkeydown = (event) => { if (event.key === 'Enter') done(input.value.replace(/\s+/g, '')) }
+    document.addEventListener('keydown', onKey)
+    document.body.appendChild(wrap)
+    input.focus()
   })
 }
 
@@ -2176,7 +2198,17 @@ async function loadVault2(withItems = true) {
     renderVault2Devices(devices)
     if (!status.unlocked) { box.classList.add('hidden'); box.innerHTML = ''; return }
     if (!withItems) return
-    const plain = await api('/api/v2/items?plain=1')
+    let plain
+    try {
+      plain = await api('/api/v2/items?plain=1')
+    } catch (error) {
+      // 428 means this unlock has not passed the second factor for the plaintext
+      // listing yet. Ask once; the server remembers the pass for this session.
+      if (error.status !== 428) throw error
+      const code = await askCode('条目列表包含明文名称。请输入 6 位验证码：')
+      if (!/^\d{6}$/.test(code)) throw new Error('需要 6 位验证码才能显示条目')
+      plain = await api('/api/v2/items?plain=1', { headers: { 'x-totp-code': code } })
+    }
     const rows = (plain.items || []).filter((row) => !row.deletedAt)
     box.innerHTML = rows.length
       ? '<div class="ios-group">' + rows.slice(0, 200).map((row) => {

@@ -34,16 +34,19 @@ const object = (value) => value && typeof value === 'object' && !Array.isArray(v
 function readAll() {
   const file = localFile()
   try {
-    const stat = fs.statSync(file)
-    if (cached && stat.mtimeMs === cachedMtime) return cached
-    const value = object(JSON.parse(unprotectSecret(file)))
+    // On macOS/Linux the entry lives in the OS keychain, not in `file`, so a
+    // missing file is normal and must not skip the keychain lookup.
+    let mtime = 0
+    try { mtime = fs.statSync(file).mtimeMs } catch {}
+    if (cached && mtime === cachedMtime) return cached
+    const value = object(JSON.parse(unprotectSecret(file) || 'null'))
     if (value) {
       cached = value
-      cachedMtime = stat.mtimeMs
+      cachedMtime = mtime
       return value
     }
   } catch {}
-  // Migrate the 0.2.12 plaintext file once; keep it if DPAPI cannot be used.
+  // Migrate the 0.2.12 plaintext file once; keep it only if no OS store exists.
   try {
     const stat = fs.statSync(legacyFile())
     if (cached && stat.mtimeMs === cachedMtime) return cached
@@ -51,9 +54,10 @@ function readAll() {
     if (!value) return {}
     if (protectSecret(file, JSON.stringify(value, null, 2))) {
       fs.rmSync(legacyFile(), { force: true })
-      const saved = fs.statSync(file)
+      let savedMtime = 0
+      try { savedMtime = fs.statSync(file).mtimeMs } catch {}
       cached = value
-      cachedMtime = saved.mtimeMs
+      cachedMtime = savedMtime
     }
     return value
   } catch {
@@ -67,7 +71,8 @@ function writeAll(all) {
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
   if (protectSecret(file, text)) {
     fs.rmSync(legacyFile(), { force: true })
-    cachedMtime = fs.statSync(file).mtimeMs
+    cachedMtime = 0
+    try { cachedMtime = fs.statSync(file).mtimeMs } catch {}
   } else {
     fs.rmSync(file, { force: true })
     fs.writeFileSync(legacyFile(), text, { mode: 0o600 })

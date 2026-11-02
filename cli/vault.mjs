@@ -39,9 +39,8 @@ function saveDevice(record) {
   // JSON file: hand it to the OS store and keep only a pointer here.
   const key = saved.privateJwk
   delete saved.privateJwk
-  if (key && protectSecret(KEY_FILE, JSON.stringify(key))) saved.privateKeyStore = 'dpapi'
-  // shortcut: only Windows has an OS store wired here; macOS and Linux keep the
-  // key in the file until store.mjs grows a keychain path for it.
+  if (key && protectSecret(KEY_FILE, JSON.stringify(key))) saved.privateKeyStore = 'os'
+  // With no OS store at all the key stays in the 0600 file, as before.
   else if (key) saved.privateJwk = key
   writeFileSync(FILE, JSON.stringify(saved, null, 2), { mode: 0o600 })
 }

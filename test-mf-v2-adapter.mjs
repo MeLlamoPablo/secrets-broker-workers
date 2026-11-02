@@ -265,6 +265,26 @@ let createdId = ''
   else fail('A15', JSON.stringify({ updated, payload: row?.payload }).slice(0, 400))
 }
 
+// A16: the unauthenticated MCP surface is throttled per address. Only failed
+// authentication counts, so a busy valid agent never throttles itself.
+{
+  const state = await getState()
+  state.security = { ...(state.security ?? {}), loginAttempts: { '203.0.113.9\u0000mcp-auth': { first: Date.now(), count: 40, last: Date.now() } } }
+  await putState(state)
+  const refused = await mf.dispatchFetch(BASE + '/mcp', {
+    method: 'POST',
+    headers: { 'cf-connecting-ip': '203.0.113.9', authorization: 'Bearer not-a-real-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+  })
+  const stillWorks = await mf.dispatchFetch(BASE + '/mcp', {
+    method: 'POST',
+    headers: { 'cf-connecting-ip': '203.0.113.9', authorization: 'Bearer ' + AUTH, 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'ping' }),
+  })
+  if (refused.status === 429 && stillWorks.status === 200) pass('A16 /mcp throttles failed auth per address but not a valid agent')
+  else fail('A16', JSON.stringify({ refused: refused.status, valid: stillWorks.status }))
+}
+
 await mf.dispose()
 const passed = results.filter((r) => r.ok).length
 console.log('\n==== v2 adapter ' + passed + '/' + results.length + ' passed ====')

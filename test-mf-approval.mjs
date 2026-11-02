@@ -4,7 +4,7 @@
 // revocation or maxReads? It must not. These tests drive the real /mcp tool
 // under Miniflare with synthetic data only.
 import { Miniflare } from 'miniflare'
-import { wrapWithKek, encryptStr } from './src/crypto.js'
+import { wrapWithKek, encryptStr, hmacToken } from './src/crypto.js'
 
 const results = []
 const pass = (n) => { results.push({ n, ok: true }); console.log('PASS  ' + n) }
@@ -144,6 +144,34 @@ const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
   const t = textOf(r)
   if (!t.includes('secret.use')) pass('P7 read path unaffected by use policy (regression)')
   else fail('P7', t.slice(0, 120))
+}
+
+// P8: the signed /approve link is now a confirmation page. A GET must not decide
+// anything: link scanners and chat unfurlers fetch every URL they see.
+{
+  const id = 'pending-approve-get'
+  await putState(baseState({ pending: { [id]: { id, agent: 'approval-agent', name: 'approval-item', action: 'secret.read', account: 'vault@example.invalid', requestedAt: '2024-01-01T00:00:00.000Z' } } }))
+  const cookieKey = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('cookie:' + SESSION_KEK)))
+  const exp = Date.now() + 3600e3
+  const sig = await hmacToken(cookieKey, `${id}:deny:${exp}`)
+  const before = await getState()
+  const page = await mf.dispatchFetch('https://broker.test/approve?id=' + encodeURIComponent(id) + '&d=deny&exp=' + exp + '&sig=' + encodeURIComponent(sig), { redirect: 'manual' })
+  const html = await page.text()
+  const after = await getState()
+  const untouched = JSON.stringify(after.pending ?? {}) === JSON.stringify(before.pending ?? {}) && JSON.stringify(after.grants ?? {}) === JSON.stringify(before.grants ?? {})
+  const ok = page.status === 200 && html.includes('<form method="post" action="/approve"') && untouched
+  if (ok) pass('P8 a GET on the approve link only renders the confirmation form')
+  else fail('P8', JSON.stringify({ status: page.status, untouched, form: html.includes('/approve"') }).slice(0, 300))
+  // P9: the button in that form is what performs the decision.
+  const decided = await mf.dispatchFetch('https://broker.test/approve', {
+    method: 'POST', redirect: 'manual',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ id, d: 'deny', exp: String(exp), sig, ch: 'notification' }).toString(),
+  })
+  const decidedState = await getState()
+  const gone = !(decidedState.pending ?? {})[id]
+  if (decided.status === 200 && gone) pass('P9 the POST from that form performs the decision')
+  else fail('P9', JSON.stringify({ status: decided.status, gone }))
 }
 
 await mf.dispose()

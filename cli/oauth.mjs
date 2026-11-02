@@ -48,6 +48,10 @@ export async function login(brokerUrl, options = {}) {
   const codePromise = new Promise((resolve, reject) => {
     settle = { resolve, reject }
   })
+  // The state binds the callback to this login attempt. Without it any local
+  // process (or a stale tab) can hand this listener a code it did not request.
+  const state = b64url(crypto.randomBytes(24))
+  let settled = false
 
   const listener = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
@@ -56,6 +60,22 @@ export async function login(brokerUrl, options = {}) {
       res.end('not found')
       return
     }
+    const received = url.searchParams.get('state')
+    if (!received || received !== state) {
+      res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+      res.end('state mismatch')
+      if (!settled) {
+        settled = true
+        settle.reject(new Error('OAuth state mismatch'))
+      }
+      return
+    }
+    if (settled) {
+      res.writeHead(409)
+      res.end('already completed')
+      return
+    }
+    settled = true
     const error = url.searchParams.get('error')
     const code = url.searchParams.get('code')
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
@@ -101,7 +121,7 @@ export async function login(brokerUrl, options = {}) {
     authUrl.searchParams.set('redirect_uri', redirectUri)
     authUrl.searchParams.set('response_type', 'code')
     authUrl.searchParams.set('scope', 'secrets.read')
-    authUrl.searchParams.set('state', b64url(crypto.randomBytes(24)))
+    authUrl.searchParams.set('state', state)
     authUrl.searchParams.set('code_challenge', challenge)
     authUrl.searchParams.set('code_challenge_method', 'S256')
 

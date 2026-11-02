@@ -64,7 +64,7 @@ await check('D1 the pairing file keeps no readable private key', () => {
   const record = JSON.parse(raw)
   if (process.platform === 'win32') {
     assert.ok(!record.privateJwk, 'the private key is still in the file')
-    assert.equal(record.privateKeyStore, 'dpapi')
+    assert.equal(record.privateKeyStore, 'os')
     assert.ok(fs.existsSync(path.join(home, 'device-key.dpapi')), 'the OS store holds nothing')
   } else {
     assert.ok(record.privateJwk, 'without an OS store the key has to stay in the file')

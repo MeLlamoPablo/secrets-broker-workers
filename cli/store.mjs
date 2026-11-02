@@ -37,10 +37,20 @@ function dpapiFile(name = 'oauth') {
  * to do instead of silently writing plaintext.
  */
 export function protectSecret(file, value) {
-  if (keychainName() !== 'dpapi') return false
+  const backend = keychainName()
+  if (!backend) return false
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.writeFileSync(file, dpapi('protect', value), { mode: 0o600 })
+    if (backend === 'dpapi') {
+      fs.writeFileSync(file, dpapi('protect', value), { mode: 0o600 })
+      return true
+    }
+    // Keychain/secret-tool entries are addressed by service+account, so the
+    // service has to differ per secret file or the device key and the local
+    // agent tokens would overwrite each other.
+    if (!keychainSet(backend, value, keychainService(file))) return false
+    // The readable copy that older versions wrote must not survive the upgrade.
+    try { fs.rmSync(file, { force: true }) } catch {}
     return true
   } catch {
     return false
@@ -48,14 +58,16 @@ export function protectSecret(file, value) {
 }
 
 export function unprotectSecret(file) {
-  if (keychainName() !== 'dpapi') {
-    process.stderr.write('[secrets-broker] DPAPI unavailable: powershell not found\n')
+  const backend = keychainName()
+  if (!backend) {
+    process.stderr.write('[secrets-broker] no OS secret store (Keychain/secret-tool/DPAPI) available\n')
     return ''
   }
   try {
-    return dpapi('unprotect', fs.readFileSync(file, 'utf8'))
+    if (backend === 'dpapi') return dpapi('unprotect', fs.readFileSync(file, 'utf8'))
+    return keychainGet(backend, keychainService(file))
   } catch (error) {
-    process.stderr.write('[secrets-broker] DPAPI unprotect failed: ' + String(error?.message ?? error) + '\n')
+    process.stderr.write('[secrets-broker] unprotect failed: ' + String(error?.message ?? error) + '\n')
     return ''
   }
 }
@@ -131,22 +143,26 @@ function keychainName() {
   return ''
 }
 
-function keychainGet(name) {
+function keychainService(file) {
+  return file ? SERVICE + ':' + path.basename(file) : SERVICE
+}
+
+function keychainGet(name, service = SERVICE) {
   try {
-    if (name === 'keychain' && process.platform === 'darwin') return run('security', ['find-generic-password', '-s', SERVICE, '-a', account(), '-w'])
-    if (name === 'keychain' && process.platform === 'linux') return run('secret-tool', ['lookup', 'service', SERVICE, 'account', account()])
+    if (name === 'keychain' && process.platform === 'darwin') return run('security', ['find-generic-password', '-s', service, '-a', account(), '-w'])
+    if (name === 'keychain' && process.platform === 'linux') return run('secret-tool', ['lookup', 'service', service, 'account', account()])
     if (name === 'dpapi') return dpapi('unprotect', fs.readFileSync(dpapiFile(), 'utf8'))
   } catch {}
   return ''
 }
 
-function keychainSet(name, value) {
+function keychainSet(name, value, service = SERVICE) {
   if (name === 'keychain' && process.platform === 'darwin') {
-    run('security', ['add-generic-password', '-U', '-s', SERVICE, '-a', account(), '-w', value])
+    run('security', ['add-generic-password', '-U', '-s', service, '-a', account(), '-w', value])
     return true
   }
   if (name === 'keychain' && process.platform === 'linux') {
-    run('secret-tool', ['store', '--label=Secrets Broker token', 'service', SERVICE, 'account', account()], value)
+    run('secret-tool', ['store', '--label=Secrets Broker', 'service', service, 'account', account()], value)
     return true
   }
   if (name === 'dpapi') {
@@ -157,10 +173,10 @@ function keychainSet(name, value) {
   return false
 }
 
-function keychainDelete(name) {
+function keychainDelete(name, service = SERVICE) {
   try {
-    if (name === 'keychain' && process.platform === 'darwin') run('security', ['delete-generic-password', '-s', SERVICE, '-a', account()])
-    else if (name === 'keychain' && process.platform === 'linux') run('secret-tool', ['clear', 'service', SERVICE, 'account', account()])
+    if (name === 'keychain' && process.platform === 'darwin') run('security', ['delete-generic-password', '-s', service, '-a', account()])
+    else if (name === 'keychain' && process.platform === 'linux') run('secret-tool', ['clear', 'service', service, 'account', account()])
     else if (name === 'dpapi') fs.rmSync(dpapiFile(), { force: true })
   } catch {}
 }

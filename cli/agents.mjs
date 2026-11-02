@@ -452,9 +452,15 @@ export function applyPlan(planResult) {
   if (!planResult || (planResult.action !== 'create' && planResult.action !== 'update')) return planResult
   const file = planResult.file
   fs.mkdirSync(path.dirname(file), { recursive: true })
-  if (fs.existsSync(file)) fs.copyFileSync(file, file + '.secrets-broker.bak')
+  if (fs.existsSync(file)) {
+    const backup = file + '.secrets-broker.bak'
+    fs.copyFileSync(file, backup)
+    // The backup carries the same agent token as the config; keep it private.
+    try { fs.chmodSync(backup, 0o600) } catch {}
+  }
   const tmp = file + '.secrets-broker.tmp'
   fs.writeFileSync(tmp, planResult.content, 'utf8')
+  try { fs.chmodSync(tmp, 0o600) } catch {}
   fs.renameSync(tmp, file)
   return planResult
 }

@@ -8,6 +8,7 @@
  */
 import { log, openBrowser } from './approval.mjs'
 import { writeSecretToFile } from './write.mjs'
+import path from 'node:path'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -60,6 +61,16 @@ export async function runMaterialize({ bridge, name, path: targetPath, key, open
     job = JSON.parse(redeemed.text)
   }
 
-  const written = writeSecretToFile({ path: job.path, key: job.key, value: job.value })
-  return { ...written, key: job.key }
+  // Never write where the broker says instead of where the user asked: a
+  // compromised or buggy broker response must not be able to redirect the
+  // materialised secret to another file.
+  const target = path.resolve(targetPath)
+  if (path.resolve(String(job.path ?? '')) !== target) {
+    throw new Error(`broker returned a different target path (${job.path || '(none)'}); refusing to write`)
+  }
+  if (String(job.key ?? '') !== key) {
+    throw new Error(`broker returned a different key name (${job.key || '(none)'}); refusing to write`)
+  }
+  const written = writeSecretToFile({ path: target, key, value: job.value })
+  return { ...written, key }
 }

@@ -44,12 +44,15 @@ const q = '?response_type=code&client_id=' + id + '&redirect_uri=' + encodeURICo
   if (r.status === 200 && html.includes('decision')) pass('L4 valid session renders consent')
   else fail('L4', JSON.stringify({ status: r.status }))
 }
-// L5: login issues a SameSite=None cookie
+// L5: the panel cookie is Lax; a /oauth-scoped companion is None for embedded
+// consent forms.
 {
   const r = await mf.dispatchFetch('https://broker.test/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: PASS }) })
   const sc = r.headers.get('set-cookie') || ''
-  if (sc.includes('SameSite=None')) pass('L5 login cookie is SameSite=None')
-  else fail('L5', sc.slice(0, 90))
+  const panel = (/broker_admin=[^;,]*;([^,]*)/.exec(sc) || [])[1] || ''
+  const consent = (/broker_consent=[^;,]*;([^,]*)/.exec(sc) || [])[1] || ''
+  if (panel.includes('SameSite=Lax') && consent.includes('SameSite=None') && consent.includes('Path=/oauth')) pass('L5 panel cookie is Lax, consent cookie is None and /oauth-scoped')
+  else fail('L5', sc.slice(0, 140))
 }
 // L6: after clearing, a fresh login works end to end (approve yields a code)
 {

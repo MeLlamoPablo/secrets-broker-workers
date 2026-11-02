@@ -87,7 +87,8 @@ Usage
                                  decrypt the vault into a file (mode 0600)
   secrets-broker push --from FILE
                                  seal that file again and upload it
-  secrets-broker rekey --password P --cookie C
+  secrets-broker rekey --cookie C [--password P | --password-stdin]
+                                (or BROKER_VAULT_PASSWORD; stdin avoids shell history)
                                  re-encrypt the vault under a new key (revokes what an old key could read)
   secrets-broker cache [--clear]
                                  show (or drop) the local ciphertext copy the daemon falls back to
@@ -577,13 +578,20 @@ async function main() {
       return index >= 0 ? argv[index + 1] : ''
     }
     const cookie = flag('--cookie') || process.env.BROKER_ADMIN_COOKIE || ''
-    const password = flag('--password') || process.env.BROKER_VAULT_PASSWORD || ''
+    let password = flag('--password') || process.env.BROKER_VAULT_PASSWORD || ''
+    if (!password && argv.includes('--password-stdin')) {
+      // A password on argv is visible to other users through the process list.
+      // Piping it keeps it out of shell history and ps output.
+      const chunks = []
+      for await (const chunk of process.stdin) chunks.push(chunk)
+      password = Buffer.concat(chunks).toString('utf8').trim()
+    }
     if (!cookie) {
       process.stderr.write('rekey needs an admin session: pass --cookie or BROKER_ADMIN_COOKIE\n')
       return 2
     }
     if (!password) {
-      process.stderr.write('rekey needs the vault master password: pass --password or BROKER_VAULT_PASSWORD\n')
+      process.stderr.write('rekey needs the vault master password: pass --password, --password-stdin, or BROKER_VAULT_PASSWORD\n')
       return 2
     }
     try {

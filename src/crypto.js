@@ -71,11 +71,14 @@ export async function decryptBw(cipherString, encKey, macKey) {
   const parts = cipherString.slice(dot + 1).split('|')
   const iv = b64ToBytes(parts[0])
   const cipher = b64ToBytes(parts[1])
-  if (type === 2) {
+  if (type === 1 || type === 2) {
+    // Type 1 and type 2 both append an HMAC-SHA256 over iv|cipher. Type 1 was
+    // previously decrypted without checking it, so a tampered blob could yield
+    // attacker-chosen plaintext.
     if (!macKey || !parts[2]) throw new Error('missing MAC')
     const expected = await hmacSha256(macKey, concatBytes(iv, cipher))
     if (!constantTimeEqual(expected, b64ToBytes(parts[2]))) throw new Error('MAC mismatch')
-  } else if (![0, 1, 4].includes(type)) {
+  } else if (![0, 4].includes(type)) {
     throw new Error('unsupported cipher type')
   }
   const key = await crypto.subtle.importKey('raw', encKey, { name: 'AES-CBC' }, false, ['decrypt'])

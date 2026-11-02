@@ -51,8 +51,17 @@ export function openBrowser(url) {
  * @param {string} text
  * @returns {string[]}
  */
-export function approvalUrls(text) {
+export function approvalUrls(text, brokerUrl = '') {
   if (typeof text !== 'string' || !text) return []
+  let expectedHost = ''
+  let expectedProtocol = ''
+  if (brokerUrl) {
+    try {
+      const broker = new URL(brokerUrl)
+      expectedHost = broker.hostname.toLowerCase()
+      expectedProtocol = broker.protocol
+    } catch {}
+  }
   const found = text.match(/https?:\/\/[^\s"'<>)\]]+/g) || []
   const urls = []
   for (const raw of found) {
@@ -62,6 +71,13 @@ export function approvalUrls(text) {
     } catch {
       continue
     }
+    // A tool result can quote any URL, including one the agent is filling into.
+    // Only the configured broker host (and scheme) may be opened; otherwise a
+    // crafted result can send the operator to an attacker-controlled "approval"
+    // page. Port is left out because the approval link may legitimately point
+    // at a differently published port of the same broker.
+    if (expectedHost && url.hostname.toLowerCase() !== expectedHost) continue
+    if (expectedProtocol && url.protocol !== expectedProtocol) continue
     if (!url.pathname.endsWith('/approve')) continue
     if (!url.searchParams.get('id') || !url.searchParams.get('sig')) continue
     if (!urls.includes(url.toString())) urls.push(url.toString())
@@ -72,10 +88,11 @@ export function approvalUrls(text) {
 /**
  * Open every approval link in a result, and tell the human what is waiting.
  * @param {string} text
+ * @param {string} [brokerUrl] only links on this origin are opened
  * @param {(url: string) => boolean} [opener]
  */
-export function handleApprovals(text, opener = openBrowser) {
-  const urls = approvalUrls(text)
+export function handleApprovals(text, brokerUrl = '', opener = openBrowser) {
+  const urls = approvalUrls(text, brokerUrl)
   for (const url of urls) {
     log('approval needed:', url)
     opener(url)
