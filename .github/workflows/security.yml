@@ -160,6 +160,21 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      # The geometry suites (layout2, mobile, ui-item-page) shell out to a real
+      # browser. ubuntu-latest does not ship Chrome, and the suites used to hard
+      # code a Windows path, so they reported "chrome produced no measurement".
+      # Stable is enough for --headless=new --dump-dom and avoids version drift.
+      - name: Set up Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      # Publish the resolved binary through $GITHUB_ENV so every later step sees
+      # it without repeating the steps.* context in each step's env.
+      - name: Export Chrome path for the browser suites
+        run: |
+          echo "CHROME_PATH=${{ steps.setup-chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
+          echo "CHROME_BIN=${{ steps.setup-chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
       - run: npm ci --no-audit --no-fund
       - name: Prepare CI log directory
         run: mkdir -p "$RUNNER_TEMP/ci-logs"

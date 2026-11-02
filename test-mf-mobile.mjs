@@ -7,7 +7,23 @@ const pass = (n) => { results.push({ n, ok: true }); console.log('PASS  ' + n) }
 const fail = (n, d) => { results.push({ n, ok: false, d }); console.log('FAIL  ' + n + ' :: ' + d) }
 const ui = fs.readFileSync('src/ui.js', 'utf8')
 const globe = fs.readFileSync('src/globe/index.js', 'utf8')
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+// Same resolution as the fixed-layout suite: CI exports CHROME_PATH from
+// setup-chrome, Windows dev boxes use the default install path, and a missing
+// binary produces an explicit SKIP instead of a false geometry failure.
+const CHROME = [
+  process.env.CHROME_PATH,
+  process.env.CHROME_BIN,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+].find((candidate) => candidate && fs.existsSync(candidate)) || ''
+const skipBrowser = (n) => {
+  console.log('SKIP  ' + n + ' :: no Chrome binary (set CHROME_PATH or CHROME_BIN)')
+  results.push({ n, ok: true, skipped: true })
+}
 
 // M1: the account menu is anchored so it cannot leave the screen
 {
@@ -56,9 +72,12 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
   const file = path.join(os.tmpdir(), 'dsh-mobile-test.html')
   fs.writeFileSync(file, page, 'utf8')
   const url = 'file:///' + file.replace(/\\/g, '/')
-  const out = spawnSync(CHROME, ['--headless=new','--disable-gpu','--no-sandbox','--virtual-time-budget=4000','--window-size=390,844','--dump-dom', url], { encoding: 'utf8', maxBuffer: 67108864 })
+  const out = CHROME
+    ? spawnSync(CHROME, ['--headless=new','--disable-gpu','--no-sandbox','--virtual-time-budget=4000','--window-size=390,844','--dump-dom', url], { encoding: 'utf8', maxBuffer: 67108864 })
+    : { stdout: '', status: null }
   const m = /<pre id="M">([\s\S]*?)<\/pre>/.exec(String(out.stdout || ''))
-  if (!m) fail('M5', 'no browser output')
+  if (!m && !CHROME) skipBrowser('M5 phone: agents table scroll')
+  else if (!m) fail('M5', 'no browser output')
   else {
     const d = JSON.parse(m[1])
     if (d.canScroll && d.tableW > d.boxW) pass('M5 phone: agents table scrolls sideways (' + d.tableW + ' > ' + d.boxW + ')')

@@ -6,7 +6,24 @@ const results = []
 const pass = (n) => { results.push({ n, ok: true }); console.log('PASS  ' + n) }
 const fail = (n, d) => { results.push({ n, ok: false, d }); console.log('FAIL  ' + n + ' :: ' + d) }
 const ui = fs.readFileSync('src/ui.js', 'utf8')
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+// Chrome is not guaranteed on every machine: CI installs one and exports
+// CHROME_PATH, a dev box usually has the default install path. Resolve both
+// before running the geometry checks; when neither is present the check is
+// skipped loudly rather than reported as a layout regression.
+const CHROME = [
+  process.env.CHROME_PATH,
+  process.env.CHROME_BIN,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+].find((candidate) => candidate && fs.existsSync(candidate)) || ''
+const skipBrowser = (n) => {
+  console.log('SKIP  ' + n + ' :: no Chrome binary (set CHROME_PATH or CHROME_BIN)')
+  results.push({ n, ok: true, skipped: true })
+}
 
 // S1: the overview reads headline, widgets, work, trend, ranking, share, globe, activity
 {
@@ -74,10 +91,13 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
   const file = path.join(os.tmpdir(), 'dsh-layout-check.html')
   fs.writeFileSync(file, fixture, 'utf8')
   const url = 'file:///' + file.replace(/\\/g, '/')
-  const out = spawnSync(CHROME, ['--headless=new','--disable-gpu','--no-sandbox','--virtual-time-budget=5000','--window-size=1440,900','--dump-dom', url], { encoding: 'utf8', maxBuffer: 67108864 })
+  const out = CHROME
+    ? spawnSync(CHROME, ['--headless=new','--disable-gpu','--no-sandbox','--virtual-time-budget=5000','--window-size=1440,900','--dump-dom', url], { encoding: 'utf8', maxBuffer: 67108864 })
+    : { stdout: '', status: null }
   const html = String(out.stdout || '')
   const m = /<pre id="M">([\s\S]*?)<\/pre>/.exec(html)
-  if (!m) { fail('S5', 'chrome produced no measurement (status ' + out.status + ')') }
+  if (!m && !CHROME) skipBrowser('S5 browser: panel geometry')
+  else if (!m) { fail('S5', 'chrome produced no measurement (status ' + out.status + ')') }
   else {
     const d = JSON.parse(m[1])
     const same = new Set([d.c1.h, d.c2.h, d.c3.h, d.c4.h]).size === 1
@@ -130,11 +150,14 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 </script></body></html>`
     const file = path.join(os.tmpdir(), 'dsh-dash-fold-' + process.pid + '.html')
     fs.writeFileSync(file, fixture, 'utf8')
-    const out = spawnSync(CHROME, ['--headless=new','--disable-gpu','--no-sandbox','--virtual-time-budget=4000',
-      '--window-size=1280,900','--dump-dom','file:///' + file.replace(/\\/g, '/')],
-    { encoding: 'utf8', maxBuffer: 67108864 })
+    const out = CHROME
+      ? spawnSync(CHROME, ['--headless=new','--disable-gpu','--no-sandbox','--virtual-time-budget=4000',
+        '--window-size=1280,900','--dump-dom','file:///' + file.replace(/\\/g, '/')],
+      { encoding: 'utf8', maxBuffer: 67108864 })
+      : { stdout: '', status: null }
     const m = /<pre id="M">([\s\S]*?)<\/pre>/.exec(String(out.stdout || ''))
-    if (!m) fail('S7', 'chrome produced no measurement (status ' + out.status + ')')
+    if (!m && !CHROME) skipBrowser('S7 browser: dashboard fold')
+    else if (!m) fail('S7', 'chrome produced no measurement (status ' + out.status + ')')
     else {
       const d = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'))
       if (d.trend > 0 && d.row2 <= d.fold) pass('S7 1280x900: both dashboard rows above the fold (row2 bottom ' + d.row2 + ' of ' + d.fold + ')')
