@@ -65,7 +65,7 @@ jobs:
           retention-days: 7
       # Artifacts need a token to download; the step summary does not, so the
       # failing suite's tail is readable straight from the run page.
-      - name: Publish failure log tails
+      - name: Publish failing suite log tail
         if: failure()
         shell: bash
         run: |
@@ -74,14 +74,24 @@ jobs:
           shopt -s nullglob
           logs=("$dir"/*.log)
           [ ${#logs[@]} -gt 0 ] || exit 0
-          for f in "${logs[@]}"; do
-            echo "### $(basename "$f")" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            tail -n 80 "$f" >> "$GITHUB_STEP_SUMMARY"
-            echo >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            tail -n 80 "$f" | sed 's/^/::error::/'
+          # The job stops at the first broken suite, so its log is the newest
+          # one. Ninety logs in the summary would bury the only interesting one.
+          newest=$(ls -t "${logs[@]}" | head -n 1)
+          [ -s "$newest" ] || exit 0
+          {
+            echo "### $(basename "$newest")"
+            echo '```'
+            tail -n 80 "$newest"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # A job only shows ten annotations, so spend them on the lines that
+          # name the failure instead of the whole tail. Strip \r and % first:
+          # both break the workflow-command syntax GitHub parses here.
+          tail -n 80 "$newest" | tr -d '\r' | tr -d '%' | grep -E 'FAIL|Error|AssertionError|expected|received' | head -n 10 | while IFS= read -r line; do
+            printf '::error::%s\n' "$line"
           done
+          true
   security-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -355,7 +365,7 @@ jobs:
           retention-days: 7
       # Artifacts need a token to download; the step summary does not, so the
       # failing suite's tail is readable straight from the run page.
-      - name: Publish failure log tails
+      - name: Publish failing suite log tail
         if: failure()
         shell: bash
         run: |
@@ -364,11 +374,21 @@ jobs:
           shopt -s nullglob
           logs=("$dir"/*.log)
           [ ${#logs[@]} -gt 0 ] || exit 0
-          for f in "${logs[@]}"; do
-            echo "### $(basename "$f")" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            tail -n 80 "$f" >> "$GITHUB_STEP_SUMMARY"
-            echo >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            tail -n 80 "$f" | sed 's/^/::error::/'
+          # The job stops at the first broken suite, so its log is the newest
+          # one. Ninety logs in the summary would bury the only interesting one.
+          newest=$(ls -t "${logs[@]}" | head -n 1)
+          [ -s "$newest" ] || exit 0
+          {
+            echo "### $(basename "$newest")"
+            echo '```'
+            tail -n 80 "$newest"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # A job only shows ten annotations, so spend them on the lines that
+          # name the failure instead of the whole tail. Strip \r and % first:
+          # both break the workflow-command syntax GitHub parses here.
+          tail -n 80 "$newest" | tr -d '\r' | tr -d '%' | grep -E 'FAIL|Error|AssertionError|expected|received' | head -n 10 | while IFS= read -r line; do
+            printf '::error::%s\n' "$line"
           done
+          true
