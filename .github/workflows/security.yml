@@ -235,9 +235,9 @@ jobs:
       - name: Globe empty state
         shell: bash
         run: npm run test:globe-empty 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-empty.log"
-      - name: Globe per-request arcs
-        shell: bash
-        run: npm run test:globe-arcs 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-arcs-2.log"
+      # "Globe per-request arcs" used to run test:globe-arcs a second time under
+      # a globe-arcs-2.log name. It is the same script as "Globe arcs" above, so
+      # the copy is gone; fan-out is a different suite and stays.
       - name: Globe arc fan-out
         shell: bash
         run: npm run test:globe-fanout 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-fanout.log"
