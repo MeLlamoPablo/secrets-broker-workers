@@ -7707,6 +7707,9 @@ export default {
         consumed = false
         if (!next.oauthCodes?.[code]) return next
         delete next.oauthCodes[code]
+        // The code was present in the snapshot this write commits, so the
+        // exchange won the race and must return the token it just minted.
+        consumed = true
         next.oauthTokens[hash] = { hash, agent: agentName, clientId: entry.clientId, account, createdAt: nowIso(), expiresAt }
         next.oauthAgentProfiles ??= {}
         const profile = next.oauthAgentProfiles[agentName] ??= { alias: next.oauthClients?.[entry.clientId]?.clientName ?? '', note: entry.clientId, allow: [], groups: [], allowAll: false, write: false, legacy: false }
