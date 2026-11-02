@@ -1,7 +1,9 @@
 // The permission behaviours the operator asked for:
-//   N1 a no-approval item is a real bypass: an Agent in scope reads it even
-//      with no capability, no classification and no plaintext policy.
-//   N2 that read is logged at warn level, so the console can show it red.
+//   N1 "don't ask me again" skips the approval prompt, not the authorisation:
+//      a no-approval item is still refused while the Agent holds no grant.
+//   N2 that refusal is recorded as a denied attempt and is not logged as a read.
+//   N1b the grant is the missing piece: with one, the same read goes through
+//      and no approval prompt is raised. The policy only removed the question.
 //   N3 an out-of-scope request is recorded as a denied attempt with a reason,
 //      instead of vanishing — and it still refuses.
 //   N4 the consent page does not open a plaintext policy unless asked, and the
@@ -58,11 +60,11 @@ const TOKEN = 'perm-agent-token'
 await putState({
   agents: { 'in-scope': { hash: await hash(TOKEN), allow: [OPEN], groups: [], allowAll: false, write: false, legacy: false, account: ACCT, createdAt: '2024-01-01' } },
   oauthClients: {}, oauthCodes: {}, oauthTokens: {}, oauthAgentProfiles: {},
-  policies: { [OPEN]: { noApproval: true } }, grants: {}, pending: {}, audit: [], itemGroups: {}, security: {},
+  policies: { [OPEN]: { noApproval: true, accountId: ACCT } }, grants: {}, pending: {}, audit: [], itemGroups: {}, security: {},
   settings: { notifications: {}, vaultEmail: ACCT, requireClassification: true },
   capabilities: {}, actionGrants: {}, usePolicies: {}, deniedAttempts: {},
   itemIds: { [OPEN]: OPEN_ID, [SHUT]: SHUT_ID },
-  // Deliberately NOT classified: no approval must still let it through.
+  // Deliberately NOT classified: the grant is what must let it through.
   credentialKinds: {}, fillPolicies: {}, plaintextReadPolicies: {},
 })
 const plain = JSON.stringify({ email: ACCT, symEncKey: Buffer.alloc(32, 1).toString('base64'), symMacKey: Buffer.alloc(32, 2).toString('base64'), expiresAt: 0 })
@@ -75,21 +77,64 @@ const mcp = async (name, args) => {
   return JSON.stringify(await r.json().catch(() => ({})))
 }
 
-// N1: no-approval really bypasses: unclassified, no policy, no capability.
+// N1: a no-approval policy is an answer about the approval prompt, not a grant.
+// The item is unclassified and has no plaintext policy either, so a refusal is
+// the only correct answer — and it must be an authorisation refusal, not a
+// lookup or scope error.
+const refused = (text) => /not allowed|denied|forbidden/i.test(text) && !/not found|没有名为/i.test(text)
 {
   const text = await mcp('get_secret', { name: OPEN })
-  if (text.includes(SECRET)) pass('N1 a no-approval item is read even though it is unclassified with no policy')
+  if (!text.includes(SECRET) && refused(text)) pass('N1 a no-approval item without a grant is refused')
   else fail('N1', text.slice(0, 240))
 }
 
-// N2: that read is logged at warn level so the console paints it red.
+// N1c: the stricter form of N1, stated as its own regression guard so a future
+// "policy means yes" shortcut cannot pass by accident. All the conditions that
+// used to justify the bypass are true here — the policy names this very vault,
+// and the Agent is in scope — and the read must still be refused, because the
+// one thing missing is the grant.
 {
   const state = await getState()
-  // The event name is now uniform ('secret.read') and the risk lives in fields,
-  // so statistics cannot skip exactly the reads that skipped the checks.
-  const entry = (state.audit || []).find((e) => e.event === 'secret.read' && e.noApproval === true)
-  if (entry && entry.severity === 'warn' && entry.mode === 'no-approval') pass('N2 a no-approval read is logged as secret.read with warn severity')
-  else fail('N2', JSON.stringify(entry))
+  const policyAccount = String(state.policies?.[OPEN]?.accountId ?? '').toLowerCase()
+  const current = String(state.settings?.vaultEmail ?? '').toLowerCase()
+  const inScope = (state.agents?.['in-scope']?.allow ?? []).includes(OPEN)
+  const hasGrant = Boolean(state.capabilities?.['in-scope\u0000' + OPEN_ID + '\u0000secret.read'])
+  const text = await mcp('get_secret', { name: OPEN })
+  if (policyAccount === current && current && inScope && !hasGrant && !text.includes(SECRET) && refused(text)) {
+    pass('N1c an owned policy plus an in-scope Agent is still refused while the grant is missing')
+  } else {
+    fail('N1c', JSON.stringify({ policyAccount, current, inScope, hasGrant, read: text.includes(SECRET) }).slice(0, 240))
+  }
+}
+
+// N2: the refusal is remembered as a denial and never logged as a read, so the
+// audit trail cannot report access that did not happen.
+{
+  const state = await getState()
+  const denied = Object.values(state.deniedAttempts || {}).find((d) => d.name === OPEN && d.action === 'secret.read')
+  const reads = (state.audit || []).filter((e) => e.event === 'secret.read' && e.name === OPEN)
+  // The code separates "in scope but no grant" from "not in scope" in the audit.
+  if (denied && denied.reason && denied.reasonCode === 'no-grant' && reads.length === 0) pass('N2 the refusal is recorded as a no-grant denial, never as a read')
+  else fail('N2', JSON.stringify({ denied, reads }).slice(0, 240))
+}
+
+// N1b: add the grant. The same Agent now reads the same unclassified item, and
+// the policy's only remaining effect is that nobody was asked.
+{
+  const state = await getState()
+  state.capabilities = state.capabilities ?? {}
+  state.capabilities['in-scope\u0000' + OPEN_ID + '\u0000secret.read'] = {
+    id: 'in-scope\u0000' + OPEN_ID + '\u0000secret.read', subjectId: 'in-scope', accountId: ACCT, itemId: OPEN_ID, itemName: OPEN,
+    action: 'secret.read', mode: 'preapproved', createdAt: '2024-01-01', createdBy: 'test', expiresAt: null, maxUses: null,
+    usedCount: 0, revokedAt: null, revokedBy: null, approvalId: null, policyVersion: 1,
+  }
+  await putState(state)
+  const text = await mcp('get_secret', { name: OPEN })
+  const after = await getState()
+  const entry = (after.audit || []).find((e) => e.event === 'secret.read' && e.name === OPEN)
+  const asked = Object.values(after.pending || {}).some((p) => p.name === OPEN)
+  if (text.includes(SECRET) && !asked && entry?.mode === 'grant') pass('N1b a grant makes the no-approval item readable without an approval prompt')
+  else fail('N1b', JSON.stringify({ read: text.includes(SECRET), asked, entry }).slice(0, 240))
 }
 
 // N3: an out-of-scope request is remembered with a reason, and still refused.
@@ -98,7 +143,7 @@ const mcp = async (name, args) => {
   const state = await getState()
   const denied = Object.values(state.deniedAttempts || {}).find((d) => d.name === SHUT)
   const refused = !text.includes('shut-value')
-  if (refused && denied && denied.reason && denied.action === 'secret.read') pass('N3 an out-of-scope read is recorded with a reason and still refused')
+  if (refused && denied && denied.reason && denied.reasonCode === 'not-in-scope' && denied.action === 'secret.read') pass('N3 an out-of-scope read is recorded as not-in-scope and still refused')
   else fail('N3', JSON.stringify({ refused, denied, text: text.slice(0, 160) }))
 }
 

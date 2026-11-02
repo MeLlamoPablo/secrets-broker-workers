@@ -531,10 +531,27 @@ async function classify(kind, origins, actions) {
   else fail('G22b', t.slice(0, 140))
 }
 {
+  // An owned policy is still only an answer about the approval prompt: no
+  // capability and no legacy grant means no authorisation, so this must stay a
+  // refusal. This is the assertion that keeps the old bypass from coming back.
   await seedState({ policies: { [ITEM]: { noApproval: true, accountId: ACCT } } })
+  const res = await mcp('get_secret', { name: ITEM })
+  const raw = JSON.stringify(res.body)
+  const t = toolText(res)
+  const refusal = /not allowed|denied|forbidden|不能读明文/i.test(t)
+  if (!raw.includes(PASSWORD) && !raw.includes(PASSWORD_CIPHER) && refusal) pass('G23 an owned no-approval policy with no grant is still refused')
+  else fail('G23', JSON.stringify({ refusal, plaintext: raw.includes(PASSWORD), text: t.slice(0, 100) }))
+}
+{
+  // Compatibility: a legacy Agent already in scope keeps its old read path; the
+  // policy only removes the approval prompt.
+  await seedState({
+    policies: { [ITEM]: { noApproval: true, accountId: ACCT } },
+    agents: { [AGENT]: { hash, allow: [ITEM], groups: [], allowAll: false, write: false, legacy: true, account: ACCT, createdAt: '2024-01-01' } },
+  })
   const t = toolText(await mcp('get_secret', { name: ITEM }))
-  if (t.includes(PASSWORD)) pass('G23 a no-approval policy made here still reads')
-  else fail('G23', t.slice(0, 140))
+  if (t.includes(PASSWORD)) pass('G23b a legacy in-scope agent keeps its no-approval read')
+  else fail('G23b', t.slice(0, 140))
 }
 
 await mf.dispose()

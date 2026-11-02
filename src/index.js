@@ -3273,21 +3273,31 @@ function plaintextReadAllowed(state, itemId, { noApproval = false, granted = fal
     return { ok: true, granted: true }
   }
   if (noApproval) {
-    // No-approval is the operator's standing "yes" for this item, made knowing
-    // what it is. It bypasses the approval prompt, so it must also satisfy the
-    // read guard: an item marked no-approval that still cannot be read is a
-    // switch that does nothing.
+    // No-approval is the operator's standing "don't ask me again", which is an
+    // answer about the approval prompt and not about authorisation. This branch
+    // therefore only finishes a read that is already authorised through the
+    // legacy scope path: the stored Agent is legacy and the item is in its
+    // allow list. A capability read never arrives here (`granted` returns
+    // above), and a non-legacy Agent with no grant is refused instead of
+    // inheriting an authorisation from the policy.
     //
     // It is also the one path with no grant to carry an account, so the policy
     // itself has to say which vault it was made for. Without that, a name that
     // exists in two vaults would carry the permission from one into the other.
-    const policyAccount = String(state.policies?.[itemNameOf(state, itemId)]?.accountId ?? '').toLowerCase()
+    const itemName = itemNameOf(state, itemId)
+    const who = agent ? state.agents?.[agent] : null
+    const legacyAuthorized = Boolean(itemName) && Boolean(who?.legacy) && agentInScope(who, state.itemGroups, itemName)
+    const policyAccount = String(state.policies?.[itemName]?.accountId ?? '').toLowerCase()
     const current = String(state.settings?.vaultEmail ?? '').toLowerCase()
     // A policy without an account is only trusted while no account is selected
     // (single-vault legacy). As soon as a vault is known, a name-only policy
     // cannot prove it belongs here and is refused.
-    if (!policyAccount) return current ? { ok: false, reason: 'account-mismatch' } : { ok: true, noApproval: true }
+    if (!policyAccount) {
+      if (current) return { ok: false, reason: 'account-mismatch' }
+      return legacyAuthorized ? { ok: true, noApproval: true } : { ok: false, reason: 'no-read-grant' }
+    }
     if (current && policyAccount !== current) return { ok: false, reason: 'account-mismatch' }
+    if (!legacyAuthorized) return { ok: false, reason: 'no-read-grant' }
     return { ok: true, noApproval: true }
   }
   return { ok: false, reason: 'no-read-grant' }
@@ -4120,22 +4130,25 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
     // is decisive. Never fall through to approval, legacy grants or legacy
     // scope — that would resurrect access the operator already withdrew.
     if (decision.capabilityDecisive) return { status: 'forbidden', error: `capability ${decision.reason}: access denied`, reason: decision.reason }
-    // A no-approval item is a standing yes for an Agent that is already in
-    // scope: it clears the capability requirement, the approval prompt, the
-    // classification check and the plaintext policy in one step. Scope is still
-    // required — "免审批" means "don't ask me again", not "any Agent may read
-    // this". A revoked/expired capability was already returned as decisive.
-    const noApprovalInScope = action === 'secret.read' && agent.federated !== true
-      && policyNoApprovalFor(state, name, agent.account)
-      && agentInScope(agent, state.itemGroups, name)
+    // "Don't ask me again" answers the approval prompt, not the authorisation
+    // question: a no-approval item still needs a capability or a legacy grant.
+    // It therefore has no say here — it only takes effect at the approval gate
+    // below — so a non-legacy Agent with nothing else cannot use it to clear
+    // this refusal. A revoked/expired capability was already returned as
+    // decisive.
     // An active auto-approval rule is a deliberate "yes" from the operator for
     // this agent, time-boxed. It makes the request eligible, which is exactly
     // what pressing 批准 would do — the only difference is who answered.
     const autoRuleLive = autoRuleActive(state, agentName)
-    if (!decision.grantEligible && !decision.legacy && !noApprovalInScope && !autoRuleLive && !createRequest) {
+    const inScope = Boolean(itemId) && agentInScope(agent, state.itemGroups, name)
+    if (!decision.grantEligible && !decision.legacy && !autoRuleLive && !createRequest) {
       const why = !itemId ? '当前账户里没有名为「' + name + '」的条目（名字必须与面板完全一致，空格也算）'
-        : !agentInScope(agent, state.itemGroups, name) ? '该条目不在 Agent 的可申请范围内'
+        : !inScope ? '该条目不在 Agent 的可申请范围内'
         : '在可申请范围内，但缺少这条授权'
+      // The prose is for the agent; the code is for whoever greps the audit.
+      // "not-in-scope" (未授权) and "no-grant" (缺少该条授权) are different
+      // answers and need different remedies, so both records carry both.
+      const whyCode = !itemId ? 'item-not-found' : !inScope ? 'not-in-scope' : 'no-grant'
       // Notify at most once per (agent, item, action) every 30 minutes. An Agent
       // that retries in a loop must not turn into a stream of push messages; the
       // console list still records every attempt with its count.
@@ -4147,21 +4160,21 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
         next.deniedAttempts ??= {}
         const before = next.deniedAttempts[key]
         next.deniedAttempts[key] = {
-          agent: agentName, name, itemId, account: session.email, action, reason: why,
+          agent: agentName, name, itemId, account: session.email, action, reason: why, reasonCode: whyCode,
           origin: action === 'secret.use' ? String(target?.host ?? '') : '',
           count: (before?.count ?? 0) + 1, firstAt: before?.firstAt ?? nowIso(), lastAt: nowIso(),
           notifiedAt: shouldNotify ? Date.now() : (before?.notifiedAt ?? 0),
         }
         return next
       })
-      await addAudit(env, { event: 'access.denied', agent: agentName, name, itemId, action, reason: why, source: 'agent' })
+      await addAudit(env, { event: 'access.denied', agent: agentName, name, itemId, action, reason: why, reasonCode: whyCode, source: 'agent' })
       if (shouldNotify) await notifyPending(env, origin, { id: 'deny-' + itemId, agent: agentName, name, createdAt: nowIso(), action, denied: true, reason: why }, ctx).catch(() => {})
       // Say which action was refused: "read" sent agents looking for a read
       // permission when the block was about calling the API with it.
       const verb = action === 'secret.use' ? 'use this credential (http_request)' : action === 'secret.fill' ? 'fill with this credential' : 'read this item'
       // The reason is in the message: the generic "run explain_access" line made
       // an agent investigate permissions when the name was simply misspelled.
-      return { status: 'forbidden', code: !itemId ? 'not-found' : 'not-granted', error: 'agent not allowed to ' + verb + '：' + why, reason: 'not-granted' }
+      return { status: 'forbidden', code: !itemId ? 'not-found' : 'not-granted', reason: 'not-granted', reasonCode: whyCode, error: 'agent not allowed to ' + verb + '：' + why }
     }
   }
   const policy = state.policies?.[name]
