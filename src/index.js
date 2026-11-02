@@ -3997,11 +3997,16 @@ async function explainAccess(env, { resolved, session, name, action, origin = ''
   }
 }
 
-function shadowAudit(env, state, action, agentName, itemName, itemId, newDecision, legacyDecision) {
+async function shadowAudit(env, state, action, agentName, itemName, itemId, newDecision, legacyDecision) {
   if (state.settings?.shadowPolicy !== true && env.POLICY_SHADOW !== '1') return
   if (newDecision === legacyDecision) return
   // Never include values, usernames, TOTP, request bodies or headers.
-  addAudit(env, {
+  //
+  // Awaited on purpose: the write used to be fire-and-forget, and under workerd
+  // a promise that outlives the response can be dropped, so the shadow record
+  // silently never landed in CI. The decision is already made here, so the only
+  // cost of waiting is one compare-and-swap write.
+  await addAudit(env, {
     event: 'policy.shadow-mismatch',
     action,
     agent: agentName,
@@ -4009,7 +4014,7 @@ function shadowAudit(env, state, action, agentName, itemName, itemId, newDecisio
     itemId: itemId ?? '',
     new: newDecision ? 'allow' : 'deny',
     legacy: legacyDecision ? 'allow' : 'deny',
-  }).catch(() => {})
+  })
 }
 
 function itemIdByName(state, name) {
@@ -4103,7 +4108,8 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
   const itemId = state.itemIds?.[name] ?? ''
   if (createRequest && !itemId) return { status: 'not_found', code: 'not_found', error: 'no item named "' + name + '" in this account' }
   const decision = authorizeSecretAction(state, { agent, agentName, itemId, itemName: name, action, target, accountId: session.email })
-  shadowAudit(env, state, action, agentName, name, itemId, decision.ok, decision.legacy)
+  await shadowAudit(env, state, action, agentName, name, itemId, decision.ok, decision.legacy)
+
   // A live capability that covers another site is not a grant and not a
   // refusal: it is a new question about this one, so the approval gate below
   // must run with the capability suppressed.
