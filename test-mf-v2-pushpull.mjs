@@ -28,7 +28,10 @@ const mf = new Miniflare({
 })
 
 const db = await mf.getD1Database('VAULT_DB')
-for (const file of ['migrations/0001_v2_start.sql', 'migrations/0002_v2_device_write.sql']) {
+// Keep this list in step with migrations/: 0003 adds keyrings.account_id, and
+// without it /api/v2/init fails with "table keyrings has no column named
+// account_id", the vault never unlocks and pairing returns 423.
+for (const file of ['migrations/0001_v2_start.sql', 'migrations/0002_v2_device_write.sql', 'migrations/0003_v2_account_keys.sql']) {
   const schema = readFileSync(file, 'utf8').split('\n').filter((line) => !line.trim().startsWith('--')).join('\n')
   for (const statement of schema.split(';').map((part) => part.trim()).filter(Boolean)) await db.prepare(statement).run()
 }
