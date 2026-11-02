@@ -171,11 +171,18 @@ const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
   pass('A8 synthetic plaintext is never serialized into MCP responses')
 }
 
-// A9: shadow mode records allow/deny mismatch without sensitive data
+// A9: shadow mode records allow/deny mismatch without sensitive data.
+// The mismatch has to come from something the two models actually disagree
+// about: an action grant alone is "eligible to ask", not an allow, and the
+// legacy scope path agrees with that — so the old scenario (grant, no
+// capability, legacy in scope) now ends up allowed by both models and leaves
+// nothing to audit. A revoked capability is the decisive case: the capability
+// model denies while the legacy scope still would have allowed.
 {
   await seedState({
-    agents: { 'hybrid-agent': { hash, allow: [], groups: [], allowAll: false, write: false, legacy: true, account: 'vault@example.invalid' } },
+    agents: { 'hybrid-agent': { hash, allow: [], groups: [], allowAll: true, write: false, legacy: true, account: 'vault@example.invalid' } },
     actionGrants: { 'hybrid-agent\u0000item-1': { id: 'g1', subjectId: 'hybrid-agent', accountId: 'vault@example.invalid', itemId: 'item-1', itemName: 'plain-item', actions: ['secret.read'], legacy: false, createdAt: '2024-01-01' } },
+    capabilities: { 'hybrid-agent\u0000item-1\u0000secret.read': { id: 'cap1', subjectId: 'hybrid-agent', accountId: 'vault@example.invalid', itemId: 'item-1', itemName: 'plain-item', action: 'secret.read', mode: 'preapproved', createdAt: '2024-01-01', expiresAt: null, maxUses: null, usedCount: 0, revokedAt: '2024-01-02', revokedBy: 'operator', approvalId: null, policyVersion: 1 } },
     policies: { 'plain-item': { noApproval: true } },
     settings: { requireClassification: false, notifications: {}, shadowPolicy: true },
   })
