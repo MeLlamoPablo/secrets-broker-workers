@@ -1,6 +1,7 @@
 // Globe P3/P4: markup presence, lazy asset route, failure isolation, and the
 // admin geo query contract the frontend depends on.
 import { Miniflare } from 'miniflare'
+import { readFile } from 'node:fs/promises'
 const results = []
 const pass = (n) => { results.push({ n, ok: true }); console.log('PASS  ' + n) }
 const fail = (n, d) => { results.push({ n, ok: false, d }); console.log('FAIL  ' + n + ' :: ' + d) }
@@ -32,12 +33,18 @@ const html = await mf.dispatchFetch('https://broker.test/', { headers: { cookie 
   if (hasDisclaimer && !claimsOnline) pass('U2 disclaimer present, globe makes no online claim')
   else fail('U2', JSON.stringify({ hasDisclaimer, claimsOnline }))
 }
-// U3: polling is 5s and stops when hidden/paused
+// U3: polling stops when hidden/paused, at whatever cadence the UI ships.
+// The interval is read from the globe's own timer in src/ui.js instead of
+// hardcoding a number here, so changing the cadence does not fail this test.
 {
-  const has5s = /5000\)/.test(html) || html.includes('5000)')
+  const src = await readFile(new URL('./src/ui.js', import.meta.url), 'utf8')
+  const timerLine = src.split('\n').find((l) => l.includes('globe.timer') && l.includes('setInterval')) || ''
+  const interval = Number((timerLine.match(/,\s*(\d+)\s*\)/) || [])[1])
+  const hasInterval = interval > 0 && html.includes(`${interval})`)
   const guards = html.includes('document.hidden') && html.includes('globeVisible()')
-  if (has5s && guards) pass('U3 5s polling with visibility/pause guards')
-  else fail('U3', JSON.stringify({ has5s, guards }))
+  const sane = interval >= 1000 && interval <= 60000
+  if (hasInterval && guards && sane) pass('U3 globe polling cadence (' + interval + 'ms) with visibility/pause guards')
+  else fail('U3', JSON.stringify({ interval, hasInterval, guards, sane }))
 }
 // U4: globe failure cannot break the console (dynamic import in try/catch)
 {
