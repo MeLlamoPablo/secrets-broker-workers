@@ -189,17 +189,18 @@ const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
   await putSession()
   const r9 = await mcp('get_secret', { name: 'plain-item' })
   void r9
-  // shadowAudit is fire-and-forget, so its DO write can land well after the
-  // response. Poll for it instead of guessing a fixed delay: one slow CI runner
-  // is otherwise enough to turn this into a timeout-sized flake.
-  const deadline = Date.now() + 20_000
+  // shadowAudit awaits its write now, so the record is committed before the
+  // response. A short poll only absorbs the read-after-write lag of the
+  // Durable Object storage read; five seconds is ample and keeps a real
+  // regression from looking like a slow runner.
+  const deadline = Date.now() + 5_000
   const readShadow = async () => {
     const next = await getState()
     return (next.audit || []).filter((e) => e.event === 'policy.shadow-mismatch')
   }
   let shadow = await readShadow()
   while (shadow.length === 0 && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 300))
+    await new Promise((r) => setTimeout(r, 200))
     shadow = await readShadow()
   }
   const safe = shadow.every((e) => !JSON.stringify(e).includes(PLAINTEXT) && e.value === undefined)
