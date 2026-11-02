@@ -26,25 +26,43 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Prepare CI log directory
+        run: mkdir -p "$RUNNER_TEMP/ci-logs"
       - name: v2 storage adapter (console and MCP read the v2 source)
-        run: npm run test:v2-adapter
+        shell: bash
+        run: npm run test:v2-adapter 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-adapter.log"
       - name: v2 API (init, unlock, sealed rows, TOTP-gated plaintext)
-        run: npm run test:v2-api
+        shell: bash
+        run: npm run test:v2-api 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-api.log"
       - name: v2 per-account keys, migration and isolation
-        run: npm run test:v2-accounts
+        shell: bash
+        run: npm run test:v2-accounts 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-accounts.log"
       - name: Stale cookie clearing and consent cookie split
-        run: npm run test:cookie-clearing
+        shell: bash
+        run: npm run test:cookie-clearing 2>&1 | tee "$RUNNER_TEMP/ci-logs/cookie-clearing.log"
       - name: Approval pipeline (confirm page, then POST)
-        run: npm run test:approval
+        shell: bash
+        run: npm run test:approval 2>&1 | tee "$RUNNER_TEMP/ci-logs/approval.log"
       - name: OAuth consent, login bounce and single-use codes
-        run: npm run test:oauth-consent
+        shell: bash
+        run: npm run test:oauth-consent 2>&1 | tee "$RUNNER_TEMP/ci-logs/oauth-consent.log"
       - name: Account scoping
-        run: npm run test:account-scope
+        shell: bash
+        run: npm run test:account-scope 2>&1 | tee "$RUNNER_TEMP/ci-logs/account-scope.log"
       - name: Fill task control plane
-        run: npm run test:fill-task
+        shell: bash
+        run: npm run test:fill-task 2>&1 | tee "$RUNNER_TEMP/ci-logs/fill-task.log"
       - name: Admin session durability
-        run: npm run test:session
-
+        shell: bash
+        run: npm run test:session 2>&1 | tee "$RUNNER_TEMP/ci-logs/session.log"
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miniflare-vault-logs
+          path: ${{ runner.temp }}/ci-logs
+          if-no-files-found: warn
+          retention-days: 7
   security-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -55,171 +73,264 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Prepare CI log directory
+        run: mkdir -p "$RUNNER_TEMP/ci-logs"
       # Pure unit suites (no runtime required).
       - name: OIDC unit tests
-        run: npm run test:oidc
+        shell: bash
+        run: npm run test:oidc 2>&1 | tee "$RUNNER_TEMP/ci-logs/oidc.log"
       - name: R1/R6 atomic + scope predicate
-        run: npm run test:r1-r6
+        shell: bash
+        run: npm run test:r1-r6 2>&1 | tee "$RUNNER_TEMP/ci-logs/r1-r6.log"
       - name: Plaintext credential scan (no runtime)
-        run: npm run test:scan
+        shell: bash
+        run: npm run test:scan 2>&1 | tee "$RUNNER_TEMP/ci-logs/scan.log"
       - name: Commit guard against vault values (no runtime)
-        run: npm run test:guard
+        shell: bash
+        run: npm run test:guard 2>&1 | tee "$RUNNER_TEMP/ci-logs/guard.log"
       - name: Local ciphertext cache (no runtime)
-        run: npm run test:cache
+        shell: bash
+        run: npm run test:cache 2>&1 | tee "$RUNNER_TEMP/ci-logs/cache.log"
       - name: Offline pull from the cache (no runtime)
-        run: npm run test:offline
+        shell: bash
+        run: npm run test:offline 2>&1 | tee "$RUNNER_TEMP/ci-logs/offline.log"
       - name: Pairing key never lands in a readable file (no runtime)
-        run: npm run test:devkey
+        shell: bash
+        run: npm run test:devkey 2>&1 | tee "$RUNNER_TEMP/ci-logs/devkey.log"
       # workerd-backed suites: real Durable Object storage/transaction semantics.
       - name: OIDC state replay (Miniflare)
-        run: npm run test:mcp-oidc
+        shell: bash
+        run: npm run test:mcp-oidc 2>&1 | tee "$RUNNER_TEMP/ci-logs/mcp-oidc.log"
       - name: maxReads concurrency (Miniflare)
-        run: npm run test:maxreads
+        shell: bash
+        run: npm run test:maxreads 2>&1 | tee "$RUNNER_TEMP/ci-logs/maxreads.log"
       - name: Agent permission matrix (Miniflare)
-        run: npm run test:permissions
+        shell: bash
+        run: npm run test:permissions 2>&1 | tee "$RUNNER_TEMP/ci-logs/permissions.log"
       - name: Hybrid secret.read/use model (Miniflare)
-        run: npm run test:actions
+        shell: bash
+        run: npm run test:actions 2>&1 | tee "$RUNNER_TEMP/ci-logs/actions.log"
       - name: Admin API authorization (Miniflare)
-        run: npm run test:admin-api
+        shell: bash
+        run: npm run test:admin-api 2>&1 | tee "$RUNNER_TEMP/ci-logs/admin-api.log"
       - name: Unified capabilities (Miniflare)
-        run: npm run test:capabilities
+        shell: bash
+        run: npm run test:capabilities 2>&1 | tee "$RUNNER_TEMP/ci-logs/capabilities.log"
       - name: Capability admin API (Miniflare)
-        run: npm run test:capabilities-admin
+        shell: bash
+        run: npm run test:capabilities-admin 2>&1 | tee "$RUNNER_TEMP/ci-logs/capabilities-admin.log"
       - name: Bulk grants + agent write (Miniflare)
-        run: npm run test:batch-write
+        shell: bash
+        run: npm run test:batch-write 2>&1 | tee "$RUNNER_TEMP/ci-logs/batch-write.log"
       - name: Approval bound to its target (Miniflare)
-        run: npm run test:target-binding
+        shell: bash
+        run: npm run test:target-binding 2>&1 | tee "$RUNNER_TEMP/ci-logs/target-binding.log"
       - name: Independent review regression (Miniflare)
-        run: npm run test:review-fixes
+        shell: bash
+        run: npm run test:review-fixes 2>&1 | tee "$RUNNER_TEMP/ci-logs/review-fixes.log"
       - name: State machine edge cases (Miniflare)
-        run: npm run test:state-machine
+        shell: bash
+        run: npm run test:state-machine 2>&1 | tee "$RUNNER_TEMP/ci-logs/state-machine.log"
       - name: Capability ensure authority (Miniflare)
-        run: npm run test:ensure-authority
+        shell: bash
+        run: npm run test:ensure-authority 2>&1 | tee "$RUNNER_TEMP/ci-logs/ensure-authority.log"
       - name: Legacy scope behaviour (Miniflare)
-        run: npm run test:legacy-scope
+        shell: bash
+        run: npm run test:legacy-scope 2>&1 | tee "$RUNNER_TEMP/ci-logs/legacy-scope.log"
       - name: Migration identity + real revoke (Miniflare)
-        run: npm run test:identity-revoke
+        shell: bash
+        run: npm run test:identity-revoke 2>&1 | tee "$RUNNER_TEMP/ci-logs/identity-revoke.log"
       - name: Agent authorization extension (Miniflare)
-        run: npm run test:agent-extend
+        shell: bash
+        run: npm run test:agent-extend 2>&1 | tee "$RUNNER_TEMP/ci-logs/agent-extend.log"
       - name: OAuth client persistence (Miniflare)
-        run: npm run test:oauth-persist
+        shell: bash
+        run: npm run test:oauth-persist 2>&1 | tee "$RUNNER_TEMP/ci-logs/oauth-persist.log"
       - name: OAuth client management (Miniflare)
-        run: npm run test:oauth-clients
+        shell: bash
+        run: npm run test:oauth-clients 2>&1 | tee "$RUNNER_TEMP/ci-logs/oauth-clients.log"
       - name: OAuth re-login resume (Miniflare)
-        run: npm run test:oauth-resume
+        shell: bash
+        run: npm run test:oauth-resume 2>&1 | tee "$RUNNER_TEMP/ci-logs/oauth-resume.log"
       - name: State write safety (Miniflare)
-        run: npm run test:state-write
+        shell: bash
+        run: npm run test:state-write 2>&1 | tee "$RUNNER_TEMP/ci-logs/state-write.log"
       - name: Admin UI smoke (Miniflare)
-        run: npm run test:ui
+        shell: bash
+        run: npm run test:ui 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui.log"
       - name: Authorization reminders (Miniflare)
-        run: npm run test:reminders
+        shell: bash
+        run: npm run test:reminders 2>&1 | tee "$RUNNER_TEMP/ci-logs/reminders.log"
       - name: Item activity columns (Miniflare)
-        run: npm run test:items
+        shell: bash
+        run: npm run test:items 2>&1 | tee "$RUNNER_TEMP/ci-logs/items.log"
       - name: Scheduled reminder handler (Miniflare)
-        run: npm run test:scheduled
+        shell: bash
+        run: npm run test:scheduled 2>&1 | tee "$RUNNER_TEMP/ci-logs/scheduled.log"
       - name: Geo event storage (Miniflare)
-        run: npm run test:geo-storage
+        shell: bash
+        run: npm run test:geo-storage 2>&1 | tee "$RUNNER_TEMP/ci-logs/geo-storage.log"
       - name: Geo event capture (Miniflare)
-        run: npm run test:geo-capture
+        shell: bash
+        run: npm run test:geo-capture 2>&1 | tee "$RUNNER_TEMP/ci-logs/geo-capture.log"
       - name: Globe UI (Miniflare)
-        run: npm run test:globe-ui
+        shell: bash
+        run: npm run test:globe-ui 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-ui.log"
       - name: Globe arcs (Miniflare)
-        run: npm run test:globe-arcs
+        shell: bash
+        run: npm run test:globe-arcs 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-arcs.log"
       - name: Globe route variance
-        run: npm run test:globe-routes
+        shell: bash
+        run: npm run test:globe-routes 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-routes.log"
       - name: Globe visuals (Miniflare)
-        run: npm run test:globe-visuals
+        shell: bash
+        run: npm run test:globe-visuals 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-visuals.log"
       - name: Globe earth and danmaku (Miniflare)
-        run: npm run test:globe-earth
+        shell: bash
+        run: npm run test:globe-earth 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-earth.log"
       - name: Globe init and failure reporting (Miniflare)
-        run: npm run test:globe-init
+        shell: bash
+        run: npm run test:globe-init 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-init.log"
       - name: UI undefined-call scan
-        run: npm run test:ui-undefined
+        shell: bash
+        run: npm run test:ui-undefined 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-undefined.log"
       - name: Reported bug fixes (Miniflare)
-        run: npm run test:bugfixes
+        shell: bash
+        run: npm run test:bugfixes 2>&1 | tee "$RUNNER_TEMP/ci-logs/bugfixes.log"
       - name: Globe API guard
-        run: npm run test:globe-api
+        shell: bash
+        run: npm run test:globe-api 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-api.log"
       - name: UI polish (Miniflare)
-        run: npm run test:ui-polish
+        shell: bash
+        run: npm run test:ui-polish 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-polish.log"
       - name: Layout and naming (Miniflare)
-        run: npm run test:layout
+        shell: bash
+        run: npm run test:layout 2>&1 | tee "$RUNNER_TEMP/ci-logs/layout.log"
       - name: Panel polish (Miniflare)
-        run: npm run test:panel
+        shell: bash
+        run: npm run test:panel 2>&1 | tee "$RUNNER_TEMP/ci-logs/panel.log"
       - name: Donut legend layout
-        run: npm run test:donut
+        shell: bash
+        run: npm run test:donut 2>&1 | tee "$RUNNER_TEMP/ci-logs/donut.log"
       - name: Web fill (P1)
-        run: npm run test:fill
+        shell: bash
+        run: npm run test:fill 2>&1 | tee "$RUNNER_TEMP/ci-logs/fill.log"
       - name: Secret expiry (P3.1)
-        run: npm run test:secret-expiry
+        shell: bash
+        run: npm run test:secret-expiry 2>&1 | tee "$RUNNER_TEMP/ci-logs/secret-expiry.log"
       - name: OIDC EdDSA verification
-        run: npm run test:oidc-eddsa
+        shell: bash
+        run: npm run test:oidc-eddsa 2>&1 | tee "$RUNNER_TEMP/ci-logs/oidc-eddsa.log"
       - name: Fill UI placement
-        run: npm run test:fill-placement
+        shell: bash
+        run: npm run test:fill-placement 2>&1 | tee "$RUNNER_TEMP/ci-logs/fill-placement.log"
       - name: OIDC providers and identity binding
-        run: npm run test:oidc-providers
+        shell: bash
+        run: npm run test:oidc-providers 2>&1 | tee "$RUNNER_TEMP/ci-logs/oidc-providers.log"
       - name: Login page lists every provider
-        run: npm run test:login-providers
+        shell: bash
+        run: npm run test:login-providers 2>&1 | tee "$RUNNER_TEMP/ci-logs/login-providers.log"
       - name: Default OIDC provider is editable
-        run: npm run test:oidc-default
+        shell: bash
+        run: npm run test:oidc-default 2>&1 | tee "$RUNNER_TEMP/ci-logs/oidc-default.log"
       - name: Grant delete and restore
-        run: npm run test:grant-delete
+        shell: bash
+        run: npm run test:grant-delete 2>&1 | tee "$RUNNER_TEMP/ci-logs/grant-delete.log"
       - name: Unclassified credentials refuse plaintext
-        run: npm run test:require-classification
+        shell: bash
+        run: npm run test:require-classification 2>&1 | tee "$RUNNER_TEMP/ci-logs/require-classification.log"
       - name: Plugin usage and wait endpoints
-        run: npm run test:plugin-endpoints
+        shell: bash
+        run: npm run test:plugin-endpoints 2>&1 | tee "$RUNNER_TEMP/ci-logs/plugin-endpoints.log"
       - name: Plugin operator endpoints
-        run: npm run test:plugin-operator
+        shell: bash
+        run: npm run test:plugin-operator 2>&1 | tee "$RUNNER_TEMP/ci-logs/plugin-operator.log"
       - name: CSS integrity
-        run: npm run test:css
+        shell: bash
+        run: npm run test:css 2>&1 | tee "$RUNNER_TEMP/ci-logs/css.log"
       - name: HTML structure guard
-        run: npm run test:html-structure
+        shell: bash
+        run: npm run test:html-structure 2>&1 | tee "$RUNNER_TEMP/ci-logs/html-structure.log"
       - name: Fixed overview layout (browser)
-        run: npm run test:layout2
+        shell: bash
+        run: npm run test:layout2 2>&1 | tee "$RUNNER_TEMP/ci-logs/layout2.log"
       - name: Mobile and globe sizing
-        run: npm run test:mobile
+        shell: bash
+        run: npm run test:mobile 2>&1 | tee "$RUNNER_TEMP/ci-logs/mobile.log"
       - name: Reminder write safety (Miniflare)
-        run: npm run test:reminder-write
+        shell: bash
+        run: npm run test:reminder-write 2>&1 | tee "$RUNNER_TEMP/ci-logs/reminder-write.log"
       - name: Globe empty state
-        run: npm run test:globe-empty
+        shell: bash
+        run: npm run test:globe-empty 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-empty.log"
       - name: Globe per-request arcs
-        run: npm run test:globe-arcs
+        shell: bash
+        run: npm run test:globe-arcs 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-arcs-2.log"
       - name: Globe arc fan-out
-        run: npm run test:globe-fanout
+        shell: bash
+        run: npm run test:globe-fanout 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-fanout.log"
       - name: Item detail page (browser)
-        run: npm run test:ui-item-page
+        shell: bash
+        run: npm run test:ui-item-page 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-item-page.log"
       - name: Local bridge (cli)
-        run: npm run test:cli
+        shell: bash
+        run: npm run test:cli 2>&1 | tee "$RUNNER_TEMP/ci-logs/cli.log"
       - name: Local encrypted backup/restore (cli)
-        run: npm run test:backup
+        shell: bash
+        run: npm run test:backup 2>&1 | tee "$RUNNER_TEMP/ci-logs/backup.log"
       - name: Run a command with the key in its environment (cli)
-        run: npm run test:exec
+        shell: bash
+        run: npm run test:exec 2>&1 | tee "$RUNNER_TEMP/ci-logs/exec.log"
       - name: Local vault daemon (cli)
-        run: npm run test:daemon
+        shell: bash
+        run: npm run test:daemon 2>&1 | tee "$RUNNER_TEMP/ci-logs/daemon.log"
       - name: Local client discovery (cli)
-        run: npm run test:agents
+        shell: bash
+        run: npm run test:agents 2>&1 | tee "$RUNNER_TEMP/ci-logs/agents.log"
       - name: DSH plugin refuses cross-site approvals
-        run: npm run test:plugin-guard
+        shell: bash
+        run: npm run test:plugin-guard 2>&1 | tee "$RUNNER_TEMP/ci-logs/plugin-guard.log"
       - name: Materialise allowlist (Miniflare)
-        run: npm run test:materialize
+        shell: bash
+        run: npm run test:materialize 2>&1 | tee "$RUNNER_TEMP/ci-logs/materialize.log"
       - name: Explain access (Miniflare)
-        run: npm run test:explain
+        shell: bash
+        run: npm run test:explain 2>&1 | tee "$RUNNER_TEMP/ci-logs/explain.log"
       - name: Muted notification channels (Miniflare)
-        run: npm run test:notify-channels
+        shell: bash
+        run: npm run test:notify-channels 2>&1 | tee "$RUNNER_TEMP/ci-logs/notify-channels.log"
       - name: AI assistant snapshot and switches (Miniflare)
-        run: npm run test:ai-assistant
+        shell: bash
+        run: npm run test:ai-assistant 2>&1 | tee "$RUNNER_TEMP/ci-logs/ai-assistant.log"
       - name: Envelope encryption (v2 key wrapping)
-        run: npm run test:envelope
+        shell: bash
+        run: npm run test:envelope 2>&1 | tee "$RUNNER_TEMP/ci-logs/envelope.log"
       - name: v2 schema on D1 (Miniflare)
-        run: npm run test:v2-schema
+        shell: bash
+        run: npm run test:v2-schema 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-schema.log"
       - name: v2 CLI pairing (ECDH wrap both sides)
-        run: npm run test:v2-cli
+        shell: bash
+        run: npm run test:v2-cli 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-cli.log"
       - name: local vault tools (MCP from the rows this machine holds)
-        run: npm run test:local-tools
+        shell: bash
+        run: npm run test:local-tools 2>&1 | tee "$RUNNER_TEMP/ci-logs/local-tools.log"
       - name: v2 rekey (rotation, tombstone scrub, device re-signing)
-        run: npm run test:v2-rekey
+        shell: bash
+        run: npm run test:v2-rekey 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-rekey.log"
       - name: v2 device code pairing (short code, poll token, one-time redeem)
-        run: npm run test:v2-paircode
+        shell: bash
+        run: npm run test:v2-paircode 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-paircode.log"
       - name: v2 pull and push (sealed rows, write permission, revocation)
-        run: npm run test:v2-pushpull
+        shell: bash
+        run: npm run test:v2-pushpull 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-pushpull.log"
       - name: Full security suite (short path)
-        run: npm run test:security:short
+        shell: bash
+        run: npm run test:security:short 2>&1 | tee "$RUNNER_TEMP/ci-logs/security-short.log"
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-tests-logs
+          path: ${{ runner.temp }}/ci-logs
+          if-no-files-found: warn
+          retention-days: 7
