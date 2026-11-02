@@ -9,7 +9,7 @@ import {
 } from './crypto.js'
 import { parseJwt, verifyJwtSignature, validateIdTokenClaims, checkUserinfoSub, ALLOWED_ALGS } from './oidc.js'
 import { pullRemote, diffVaults, diffSummary } from './vaultdiff.js'
-import { vault2Status, vault2Init, vault2Unlock, vault2List, vault2ListPlain, vault2Create, vault2Update, vault2Delete, vault2Read, vault2Pair, vault2Devices, vault2RevokeDevice, vault2SetDeviceWrite, vault2PurgeDevice, vault2DeviceByToken, vault2Rekey, vault2RekeyPending, vault2DeviceSelf, vault2Push } from './vault2.js'
+import { vault2Status, vault2Init, vault2Unlock, vault2List, vault2ListPlain, vault2Create, vault2Update, vault2Delete, vault2Read, vault2Pair, vault2Devices, vault2RevokeDevice, vault2SetDeviceWrite, vault2PurgeDevice, vault2DeviceByToken, vault2Rekey, vault2RekeyPending, vault2DeviceSelf, vault2Push, vault2MigrateAccount, vault2MigratePending } from './vault2.js'
 import { publicKeyFingerprint } from './envelope.js'
 import { generateVapid, vapidAuthorization } from './webpush.js'
 import { scrubSecret } from './redact.js'
@@ -17,7 +17,6 @@ import { verifyGatewayJwt, federatedAgent } from './federation.js'
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
-const SESSION_COOKIE = 'broker_admin'
 const jsonBase = (data, status = 200, headers = {}) => Response.json(data, { status, headers: { 'cache-control': 'no-store', ...headers } })
 const json = jsonBase
 const securityHeaders = {
@@ -48,6 +47,9 @@ async function putStateVersioned(txn, store) {
 export class BrokerState extends DurableObject {
   // The v2 data key for the current unlock, in memory only.
   v2Key = null
+  // Scoped copies keyed by session + account; v2Key above mirrors the last unlock
+  // for the account-agnostic console helpers.
+  v2Keys = new Map()
 
   async fetch(request) {
     const url = new URL(request.url)
@@ -81,27 +83,77 @@ export class BrokerState extends DurableObject {
     // The v2 data key, cached in memory only. Unlocking again after the object is
     // evicted costs one PBKDF2 run; a key that never reaches storage cannot leak
     // out of it. Transported as 32 plain numbers so no encoder can disagree.
+    //
+    // Entries are addressed by account + session. A lookup for an account without
+    // a session id (the console and MCP helpers) reads the account slot, which
+    // every unlock for that account refreshes, so it no longer matters which
+    // session unlocked last. The unscoped slot remains only as a mirror for a
+    // deployment that has no account at all.
     if (url.pathname === '/v2-key') {
+      const body = request.method === 'PUT' ? await request.json().catch(() => ({})) : {}
+      const account = String(body.account ?? url.searchParams.get('account') ?? '').trim().toLowerCase()
+      const session = String(body.session ?? url.searchParams.get('session') ?? '')
+      const scoped = Boolean(account || session)
+      const keyId = `${session}\u0000${account}`
+      const accountId = `\u0000${account}`
       if (request.method === 'GET') {
-        const entry = this.v2Key
+        let entry = scoped ? this.v2Keys.get(keyId) : this.v2Key
+        // With no session id the lookup key IS the account slot, and with a
+        // session id only that session's own entry may answer: a session never
+        // borrows the key another session unlocked.
         if (!entry || entry.expiresAt <= Date.now()) {
-          this.v2Key = null
+          if (scoped) {
+            this.v2Keys.delete(keyId)
+            // Only drop the shared account slot when that slot was the lookup;
+            // a stale session id must not evict the key the helpers rely on.
+            if (!session && account) this.v2Keys.delete(accountId)
+          } else this.v2Key = null
           return json({ ok: false, reason: 'locked' }, 401)
         }
-        return json({ ok: true, dek: [...entry.dek], expiresAt: entry.expiresAt })
+        return json({ ok: true, dek: [...entry.dek], legacyDek: entry.legacyDek ? [...entry.legacyDek] : null, account: entry.account ?? '', expiresAt: entry.expiresAt, plainOk: Boolean(entry.plainOk) })
       }
       if (request.method === 'PUT') {
-        const body = await request.json().catch(() => ({}))
         const dek = Uint8Array.from(Array.isArray(body.dek) ? body.dek : [])
         if (dek.length !== 32) return json({ ok: false, reason: 'bad-key' }, 400)
+        const legacyDek = Array.isArray(body.legacyDek) && body.legacyDek.length === 32 ? Uint8Array.from(body.legacyDek) : null
         const ttl = Math.min(12 * 3600 * 1000, Math.max(60 * 1000, Number(body.ttlMs) || 3600 * 1000))
-        this.v2Key = { dek, expiresAt: Date.now() + ttl }
-        return json({ ok: true, expiresAt: this.v2Key.expiresAt })
+        // A new unlock starts a new session: the plaintext listing needs its own
+        // second factor again instead of inheriting the previous unlock's pass.
+        const entry = { dek, legacyDek, account, expiresAt: Date.now() + ttl, plainOk: false }
+        if (scoped) this.v2Keys.set(keyId, entry)
+        // A copy, not the same object: a plaintext pass granted in one admin
+        // session must not be inherited by the helpers or by another session.
+        if (account) this.v2Keys.set(accountId, { ...entry })
+        this.v2Key = { ...entry }
+        return json({ ok: true, expiresAt: entry.expiresAt })
       }
       if (request.method === 'DELETE') {
-        this.v2Key = null
+        if (scoped) this.v2Keys.delete(keyId)
+        else {
+          this.v2Keys.clear()
+          this.v2Key = null
+        }
         return json({ ok: true })
       }
+    }
+    // Marks the current unlock as having passed the second factor for the
+    // plaintext listing. The flag lives beside the cached key, so locking or
+    // unlocking again clears it without another storage record.
+    if (url.pathname === '/v2-key/plain' && request.method === 'POST') {
+      const account = String(url.searchParams.get('account') ?? '').trim().toLowerCase()
+      const session = String(url.searchParams.get('session') ?? '')
+      const scoped = Boolean(account || session)
+      const accountId = `\u0000${account}`
+      let entry = scoped ? this.v2Keys.get(`${session}\u0000${account}`) : this.v2Key
+      if (!entry || entry.expiresAt <= Date.now()) {
+        if (scoped) {
+          this.v2Keys.delete(`${session}\u0000${account}`)
+          if (!session && account) this.v2Keys.delete(accountId)
+        } else this.v2Key = null
+        return json({ ok: false, reason: 'locked' }, 401)
+      }
+      entry.plainOk = true
+      return json({ ok: true })
     }
     if (url.pathname === '/pair' && request.method === 'POST') {
       const body = await request.json().catch(() => ({}))
@@ -475,13 +527,16 @@ export class BrokerState extends DurableObject {
         const now = Date.now()
         const candidate = Object.values(ledger)
           .filter((task) => task.state === 'authorized' && task.cancelRequested !== true)
+          // A task is bound to the executor the agent addressed. Letting any
+          // registered executor claim it breaks the credential binding and
+          // turns a claim into a cross-executor hijack.
+          .filter((task) => String(task.executorId ?? '') === executorId)
           .filter((task) => !task.expiresAt || task.expiresAt > now)
           .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))[0]
         if (!candidate) return { ok: false, reason: 'no-task' }
         candidate.state = 'claimed'
         candidate.claimedBy = executorId
         candidate.claimedAt = now
-        candidate.executorId = executorId
         candidate.updatedAt = now
         ledger[candidate.taskId] = candidate
         await txn.put('fillTasks', ledger)
@@ -831,11 +886,31 @@ async function createAdminCookie(env, request) {
 // Session cookie helpers. `clearable` reports whether the presented cookie is a
 // stale/legacy form that must be deleted client-side, so it cannot survive a
 // successful re-login and keep shadowing the fresh cookie.
-const SESSION_COOKIE_ATTRS = 'Path=/; HttpOnly; Secure; SameSite=None'
-const COOKIE_CLEAR_HEADER = `${SESSION_COOKIE}=; ${SESSION_COOKIE_ATTRS}; Max-Age=0`
+//
+// The panel cookie is Lax: normal navigation, the desktop WebView and same-site
+// form posts all send it, while a cross-site POST does not.
+const SESSION_COOKIE = 'broker_admin'
+const SESSION_COOKIE_ATTRS = 'Path=/; HttpOnly; Secure; SameSite=Lax'
+// An MCP client may render the consent page inside its own page, where the
+// browser treats this as a third-party context and withholds a Lax cookie on
+// POST. This second cookie is None but scoped to /oauth, so the panel never
+// relies on it and a cross-site form still cannot authenticate /api/*.
+const CONSENT_COOKIE = 'broker_consent'
+const CONSENT_COOKIE_ATTRS = 'Path=/oauth; HttpOnly; Secure; SameSite=None'
 
-async function validCookieDetailed(request, env) {
-  const value = readCookie(request, SESSION_COOKIE)
+function sessionCookiePairs(value, maxAge) {
+  return [
+    ['set-cookie', `${SESSION_COOKIE}=${value}; ${SESSION_COOKIE_ATTRS}; Max-Age=${maxAge}`],
+    ['set-cookie', `${CONSENT_COOKIE}=${value}; ${CONSENT_COOKIE_ATTRS}; Max-Age=${maxAge}`],
+  ]
+}
+
+function appendSessionCookies(headers, value, maxAge) {
+  for (const [name, cookie] of sessionCookiePairs(value, maxAge)) headers.append(name, cookie)
+}
+
+async function validCookieDetailed(request, env, acceptConsent = false) {
+  const value = readCookie(request, SESSION_COOKIE) || (acceptConsent ? readCookie(request, CONSENT_COOKIE) : '')
   if (!value) return { ok: false, clearable: false }
   if (value.startsWith('v2.')) {
     const [version, id, expiresText, signature] = value.split('.')
@@ -1114,23 +1189,45 @@ function base64Url(bytes) {
   return btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-async function hashAdminPassword(password, saltText) {
-  const hash = await pbkdf2(password, saltText, 50000, 32)
+const ADMIN_PBKDF2_ITERATIONS = 100000
+const LEGACY_ADMIN_PBKDF2_ITERATIONS = 50000
+
+async function hashAdminPassword(password, saltText, iterations = ADMIN_PBKDF2_ITERATIONS) {
+  const hash = await pbkdf2(password, saltText, iterations, 32)
   return bytesToB64(hash)
 }
 
 async function verifyAdminPassword(env, state, password) {
   const security = state.security ?? {}
   if (security.passwordHash && security.passwordSalt) {
-    return constantTimeEqual(encoder.encode(await hashAdminPassword(String(password), security.passwordSalt)), encoder.encode(security.passwordHash))
+    const iterations = Number(security.passwordIterations) || LEGACY_ADMIN_PBKDF2_ITERATIONS
+    const candidate = encoder.encode(await hashAdminPassword(String(password), security.passwordSalt, iterations))
+    if (constantTimeEqual(candidate, encoder.encode(security.passwordHash))) return true
+    // Hashes created before passwordIterations existed used 50000. Accept them
+    // once, then the next password change stores both the cost and the new hash.
+    if (!security.passwordIterations) {
+      const upgraded = encoder.encode(await hashAdminPassword(String(password), security.passwordSalt, ADMIN_PBKDF2_ITERATIONS))
+      return constantTimeEqual(upgraded, encoder.encode(security.passwordHash))
+    }
+    return false
   }
   if (!env.ADMIN_PASSWORD) return false
   return constantTimeEqual(encoder.encode(String(password)), encoder.encode(env.ADMIN_PASSWORD))
 }
 
 function loginBlocked(state, ip) {
-  const attempt = state.security?.loginAttempts?.[ip]
-  return Boolean(attempt && attempt.count >= 8 && Date.now() - attempt.first < 15 * 60 * 1000)
+  return rateLimited(state, ip, 8)
+}
+
+// Unauthenticated endpoints share the login-attempt map, namespaced by a
+// bucket suffix so a flood on one endpoint cannot lock the panel password.
+function clientIp(request) {
+  return request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
+}
+
+function rateLimited(state, key, limit = 8) {
+  const attempt = state.security?.loginAttempts?.[key]
+  return Boolean(attempt && attempt.count >= limit && Date.now() - attempt.first < 15 * 60 * 1000)
 }
 
 async function recordLoginFailure(env, ip) {
@@ -1277,6 +1374,10 @@ async function rememberOidcVault(env, session, state) {
 
 async function adminAuthorized(request, env) {
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+    // Modern browsers label cross-site writes. Rejecting that label closes the
+    // CSRF gap even when the request carries no Origin header (SameSite=None
+    // is still needed for the OAuth consent page, so the cookie travels).
+    if (String(request.headers.get('sec-fetch-site') ?? '').toLowerCase() === 'cross-site') return false
     const origin = request.headers.get('origin')
     if (origin) {
       try {
@@ -1346,6 +1447,23 @@ async function resolveAgent(request, env) {
     }
   }
   return null
+}
+
+// The live agent record for a subject, whether it is a static token agent or
+// an OAuth profile. Used when a stored task has to be re-authorised against the
+// current state rather than the snapshot taken when the task was created.
+function agentRecordForState(state, name) {
+  if (state.agents?.[name]) return state.agents[name]
+  const profile = state.oauthAgentProfiles?.[name]
+  if (!profile) return null
+  return {
+    allow: profile.allow ?? [],
+    groups: profile.groups ?? [],
+    allowAll: profile.allowAll === true,
+    write: profile.write === true,
+    tools: Array.isArray(profile.tools) ? profile.tools : null,
+    oauth: true,
+  }
 }
 
 function grantKey(agent, name) { return `${agent}\u0000${name}` }
@@ -1448,6 +1566,18 @@ async function vaultUser(env, db, session) {
   return user
 }
 
+// Policies written before accountId existed belong to the vault that is active
+// when they are first seen. Stamping them once keeps the name-only form from
+// being interpreted in a different vault later.
+function stampLegacyPolicies(state, account) {
+  const owner = String(account ?? '').toLowerCase()
+  if (!owner) return state
+  for (const policy of Object.values(state.policies ?? {})) {
+    if (policy && typeof policy === 'object' && !policy.accountId) policy.accountId = owner
+  }
+  return state
+}
+
 // The item names that actually exist in the currently unlocked vault. Used to
 // bound the AI snapshot: state.itemIds is an append-only cache that keeps names
 // from accounts you have since switched away from, so an unfiltered snapshot
@@ -1506,13 +1636,27 @@ async function vaultItemNames(env, db) {
 function safeNext(value, fallback = '/') {
   const text = String(value ?? '')
   if (!text.startsWith('/') || text.startsWith('//') || text.startsWith('/\\')) return fallback
+  // A path is only safe if it cannot break out of the HTML/JS context it is
+  // rendered into, and only printable ASCII is needed for a real return target.
+  if (/[<>"'`\\\u0000-\u001f\u007f]/.test(text)) return fallback
   return text
 }
 
+// JSON for an inline <script>. JSON.stringify does not escape `<`, so a value
+// containing `</script>` would close the block; U+2028/U+2029 are also illegal
+// in a JS string literal even though JSON allows them.
+function jsonForScript(value) {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
 async function listCiphers(env, db, session) {
-  const v2 = await vault2Context(env)
+  const v2 = await vault2Context(env, { session })
   if (v2?.dek) {
-    const items = await listVault2Items(env, session, v2.dek)
+    const items = await listVault2Items(env, session, v2)
     return items ?? []
   }
   const user = await vaultUser(env, db, session)
@@ -1548,8 +1692,37 @@ async function listCiphers(env, db, session) {
 // the stale copy, so every item read and write goes to v2 instead. The old table
 // stays readable while v2 is locked (a rekey or a DO eviction must not blank the
 // console), but it is never written again after the switch.
-async function vault2Context(env) {
-  const status = await vault2Status(env).catch(() => null)
+async function vault2Context(env, options = {}) {
+  const state = await loadState(env)
+  // The helpers serve one vault session at a time. When that session names an
+  // account, its key is the only one they may read: the DO keeps one key slot
+  // per account, so a different session unlocking another account cannot hand
+  // this one the wrong key. Without a session the active vault email decides,
+  // and a deployment with no account at all keeps the original single-key
+  // behaviour (the unscoped slot).
+  const session = options.session ?? null
+  const sessionAccount = String(session?.email ?? '').trim().toLowerCase()
+  const stateAccount = String(state.settings?.vaultEmail ?? env.VAULT_EMAIL ?? '').trim().toLowerCase()
+  // The session id is not known here (the helpers only carry the vault session),
+  // so the lookup is the account slot: it holds the key of that account's latest
+  // unlock and never another account's. With no account, the request falls back
+  // to the unscoped mirror.
+  const readSlot = async (account) => {
+    const query = account ? '?account=' + encodeURIComponent(account) : ''
+    return (await stateStub(env).fetch('https://state/v2-key' + query)).json().catch(() => ({}))
+  }
+  let account = sessionAccount || stateAccount
+  let cached = await readSlot(account)
+  // Degraded path, kept deliberately: a vault session can name an account this
+  // deployment never unlocked v2 under (a legacy deployment resolves the session
+  // email from the users table, while v2 runs without an account). In that case
+  // only, fall back to the deployment account, which is empty for a legacy
+  // deployment and then reads the unscoped mirror.
+  if (!cached.ok && account && account !== stateAccount) {
+    account = stateAccount
+    cached = await readSlot(account)
+  }
+  const status = await vault2Status(env, { account }).catch(() => null)
   if (!status?.initialized) return null
   // Once a row has ever been written through v2, deleting the last one must not
   // put the old table back in charge: that would silently resume stale writes.
@@ -1557,14 +1730,21 @@ async function vault2Context(env) {
     const cutover = await env.VAULT_DB.prepare("SELECT value FROM meta WHERE key = 'source'").first().catch(() => null)
     if (cutover?.value !== 'v2') return null
   }
-  const cached = await (await stateStub(env).fetch('https://state/v2-key')).json().catch(() => ({}))
-  return { status, dek: cached.ok ? Uint8Array.from(cached.dek) : null }
+  return {
+    status,
+    dek: cached.ok ? Uint8Array.from(cached.dek) : null,
+    legacyDek: cached.ok && cached.legacyDek ? Uint8Array.from(cached.legacyDek) : null,
+    account: cached.account || account,
+  }
 }
 
-async function vault2WriteKey(env) {
-  const context = await vault2Context(env)
+// Writes need the account, not just the bytes: that is what stamps account_id on
+// a new row and picks the account keyring. Returning the whole context keeps the
+// call sites uniform because every vault2 helper accepts it.
+async function vault2WriteKey(env, session = null) {
+  const context = await vault2Context(env, { session })
   if (!context) return null
-  if (context.dek) return context.dek
+  if (context.dek) return context
   const error = new Error('vault is locked')
   error.status = 423
   throw error
@@ -1655,11 +1835,11 @@ async function listVault2Items(env, session, dek) {
 }
 
 async function readSecretFromRows(env, db, session, name, { itemId } = {}) {
-  const v2 = await vault2Context(env)
+  const v2 = await vault2Context(env, { session })
   if (v2?.dek) {
     let found = null
     try {
-      found = await vault2FindItem(env, v2.dek, name, { itemId })
+      found = await vault2FindItem(env, v2, name, { itemId })
     } catch (error) {
       if (error.code !== 'ambiguous_item_name') throw error
       await addAudit(env, { event: 'secret.read-ambiguous', name, count: error.ids?.length ?? 0, reason: 'duplicate item name; rename one of them' })
@@ -1703,8 +1883,8 @@ async function readSecretFromRows(env, db, session, name, { itemId } = {}) {
 }
 
 async function findCipherRow(env, db, session, name, { itemId } = {}) {
-  const v2 = await vault2Context(env)
-  if (v2?.dek) return vault2FindItem(env, v2.dek, name, { itemId })
+  const v2 = await vault2Context(env, { session })
+  if (v2?.dek) return vault2FindItem(env, v2, name, { itemId })
   const user = await vaultUser(env, db, session)
   const state = await loadState(env)
   let folderId = null
@@ -1859,7 +2039,7 @@ async function createVault2Item(env, dek, fields) {
     // NOTE: /agent/items/save passes an explicit field allowlist without
     // noApproval, so Agents cannot self-grant it. Admin create flows here
     // keep their previous behavior (noApproval honored when provided).
-    if (fields.noApproval === true) next.policies[name] = { noApproval: true }
+    if (fields.noApproval === true) next.policies[name] = { noApproval: true, accountId: String(fields.accountId ?? '').toLowerCase() }
     return next
   })
   await addAudit(env, { event: 'item.create', name })
@@ -1867,7 +2047,7 @@ async function createVault2Item(env, dek, fields) {
 }
 
 async function updateCipher(env, db, session, currentName, changes) {
-  const dek = await vault2WriteKey(env)
+  const dek = await vault2WriteKey(env, session)
   if (dek) return updateVault2Item(env, dek, currentName, changes)
   const found = await findCipherRow(env, db, session, currentName, { itemId: changes.itemId })
   if (!found) return null
@@ -1924,7 +2104,7 @@ async function updateCipher(env, db, session, currentName, changes) {
 }
 
 async function deleteCipher(env, db, session, name, { itemId } = {}) {
-  const dek = await vault2WriteKey(env)
+  const dek = await vault2WriteKey(env, session)
   if (dek) return deleteVault2Item(env, dek, name, { itemId })
   const found = await findCipherRow(env, db, session, name, { itemId })
   if (!found) return false
@@ -1947,8 +2127,8 @@ async function listFolders(env, db, session) {
 async function createCipher(env, db, session, fields, folderNameOverride) {
   const name = String(fields.name ?? '').trim()
   if (!name) throw new Error('name required')
-  const dek = await vault2WriteKey(env)
-  if (dek) return createVault2Item(env, dek, { ...fields, name })
+  const dek = await vault2WriteKey(env, session)
+  if (dek) return createVault2Item(env, dek, { ...fields, name, accountId: String(session?.email ?? '').toLowerCase() })
   if (await findCipherRow(env, db, session, name)) throw new Error('item already exists')
   const user = await vaultUser(env, db, session)
   const state = await loadState(env)
@@ -1979,7 +2159,7 @@ async function createCipher(env, db, session, fields, folderNameOverride) {
     // NOTE: /agent/items/save passes an explicit field allowlist without
     // noApproval, so Agents cannot self-grant it. Admin create flows here
     // keep their previous behavior (noApproval honored when provided).
-    if (fields.noApproval === true) next.policies[name] = { noApproval: true }
+    if (fields.noApproval === true) next.policies[name] = { noApproval: true, accountId: String(session?.email ?? '').toLowerCase() }
     return next
   })
   await addAudit(env, { event: 'item.create', name })
@@ -2263,6 +2443,16 @@ async function decidePending(env, id, decision, source = 'web') {
     // never stored here — the agent sends it again on the retry — so approving a
     // write can no longer park a secret in the state the console exposes.
     if (String(entry.action ?? '') === 'secret.write') {
+      // Approving an old pending entry is not enough: the agent may have been
+      // made read-only, muted or deleted since the request was created.
+      const writer = state.agents?.[entry.agent]
+      const capable = writer
+        ? writer.write === true && writer.muted !== true
+        : state.oauthAgentProfiles?.[entry.agent]?.write === true
+      if (!capable) {
+        outcome = { agent: entry.agent, name: entry.name, action: 'secret.write', denied: true, error: 'write-not-allowed' }
+        return state
+      }
       const writeAccount = typeof entry.account === 'string' ? entry.account.trim() : ''
       if (!isWellFormedAccountId(writeAccount)) {
         outcome = { agent: entry.agent, name: entry.name, action: 'secret.write', denied: true, error: 'account-missing' }
@@ -3093,7 +3283,11 @@ function plaintextReadAllowed(state, itemId, { noApproval = false, granted = fal
     // exists in two vaults would carry the permission from one into the other.
     const policyAccount = String(state.policies?.[itemNameOf(state, itemId)]?.accountId ?? '').toLowerCase()
     const current = String(state.settings?.vaultEmail ?? '').toLowerCase()
-    if (policyAccount && current && policyAccount !== current) return { ok: false, reason: 'account-mismatch' }
+    // A policy without an account is only trusted while no account is selected
+    // (single-vault legacy). As soon as a vault is known, a name-only policy
+    // cannot prove it belongs here and is refused.
+    if (!policyAccount) return current ? { ok: false, reason: 'account-mismatch' } : { ok: true, noApproval: true }
+    if (current && policyAccount !== current) return { ok: false, reason: 'account-mismatch' }
     return { ok: true, noApproval: true }
   }
   return { ok: false, reason: 'no-read-grant' }
@@ -3617,6 +3811,23 @@ export function useTargetOf(rawUrl, method = 'GET') {
 }
 
 /**
+ * A "don't ask me again" policy only applies to the vault it was created in.
+ * Name-only legacy records are accepted only while no account is selected; login
+ * stamps them, after which the account must match exactly.
+ */
+export function policyNoApprovalFor(state, itemName, accountId) {
+  const policy = state.policies?.[itemName]
+  if (!policy || policy.noApproval !== true) return false
+  const policyAccount = String(policy.accountId ?? '').toLowerCase()
+  const current = String(accountId ?? '').toLowerCase()
+  // Legacy rows predate accountId. Honour them only while no account is
+  // selected (single-vault installs); login stamps them with the account that
+  // was active, after which the normal comparison applies everywhere.
+  if (!policyAccount) return !current
+  return Boolean(current) && policyAccount === current
+}
+
+/**
  * Unified authorization for secret.read / secret.use.
  *
  * Returns { ok, reason, legacy, shadow? }. Never returns secret material.
@@ -3636,7 +3847,7 @@ export function authorizeSecretAction(state, { agent, agentName, itemId, itemNam
   const subjectId = agentName
   const key = capabilityKey(subjectId, itemId, action)
   let cap = state.capabilities?.[key] ?? null
-  if (!cap) cap = migrateLegacyCapability(state, { subjectId, accountId, itemId, itemName, action, createdBy: 'legacy-migration', noApproval: agent?.federated !== true && state.policies?.[itemName]?.noApproval === true })
+  if (!cap) cap = migrateLegacyCapability(state, { subjectId, accountId, itemId, itemName, action, createdBy: 'legacy-migration', noApproval: agent?.federated !== true && policyNoApprovalFor(state, itemName, accountId) })
   const sameAccount = !cap || !cap.accountId || !accountId || String(cap.accountId).toLowerCase() === String(accountId).toLowerCase()
   const legacyScope = Boolean(agent?.legacy) && agentInScope(agent, state.itemGroups, itemName)
   const legacyDecision = action === 'secret.read' && legacyScope
@@ -3908,7 +4119,8 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
     // classification check and the plaintext policy in one step. Scope is still
     // required — "免审批" means "don't ask me again", not "any Agent may read
     // this". A revoked/expired capability was already returned as decisive.
-    const noApprovalInScope = action === 'secret.read' && agent.federated !== true && state.policies?.[name]?.noApproval === true
+    const noApprovalInScope = action === 'secret.read' && agent.federated !== true
+      && policyNoApprovalFor(state, name, agent.account)
       && agentInScope(agent, state.itemGroups, name)
     // An active auto-approval rule is a deliberate "yes" from the operator for
     // this agent, time-boxed. It makes the request eligible, which is exactly
@@ -4262,7 +4474,7 @@ function standaloneLoginPage(next, providers = []) {
     ${oidcBlock}
   </div><script>
     try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
-    const next=${JSON.stringify(target)}
+    const next=${jsonForScript(target)}
     const go=document.getElementById('go')
     async function submit(){
       const status=document.getElementById('status')
@@ -4302,7 +4514,7 @@ function pairPage({ code, entry }) {
     <p class="sub" id="status">${escapeHtml(status)}</p>
     ${gone || approved ? '' : '<button class="primary" id="approve">批准这台设备</button>'}
   </div><script>
-    const code=${JSON.stringify(code || '')}
+    const code=${jsonForScript(code || '')}
     const button=document.getElementById('approve')
     if(button)button.onclick=async()=>{
       const status=document.getElementById('status')
@@ -4333,7 +4545,7 @@ function connectPage(request) {
     <button class="primary" id="save">保存并授权</button>
     <div id="status" class="status"></div>
   </div><script>
-    const id=${JSON.stringify(item.id)}
+    const id=${jsonForScript(item.id)}
     document.getElementById('save').onclick=async()=>{
       const status=document.getElementById('status')
       const value=document.getElementById('value').value
@@ -4400,7 +4612,7 @@ export default {
     if (url.pathname === '/login' && request.method === 'GET') {
       const nextTarget = String(url.searchParams.get('next') ?? '/')
       // Already signed in: honour the return target instead of always going home.
-      if (await adminAuthorized(request, env)) return Response.redirect(new URL(nextTarget, url).toString(), 302)
+      if (await adminAuthorized(request, env)) return Response.redirect(new URL(safeNext(nextTarget), url).toString(), 302)
       const state = await loadState(env)
       const providers = oidcProviders(state).filter((entry) => entry.enabled !== false)
       // The account is NOT listed here. This page is the only unauthenticated
@@ -4746,25 +4958,44 @@ export default {
         if (!exists) return fail('账户不存在：' + wantedAccount, 400)
         await updateState(env, (state) => {
           state.settings ??= { notifications: {} }
+          // Scope name-only legacy policies to the vault they were created in
+          // before the active account changes underneath them.
+          stampLegacyPolicies(state, state.settings.vaultEmail || wantedAccount)
           state.settings.vaultEmail = wantedAccount
           // The unlocked session belongs to the previous account; drop it so the
           // operator cannot read the old vault under the new account's name.
           return state
         })
         await stateStub(env).fetch('https://state/session', { method: 'DELETE' }).catch(() => {})
+        // The v2 key cache is also account-scoped state: switching accounts must
+        // not leave the previous account's data key reachable from this session.
+        await stateStub(env).fetch('https://state/v2-key', { method: 'DELETE' }).catch(() => {})
       }
       const cookie = await createAdminCookie(env, request)
       await addAudit(env, { event: 'admin.login', ip, account: wantedAccount || undefined })
-      // SameSite=None so the cookie is sent on the cross-site POST that the
-      // OAuth consent form performs (meta.ai -> this origin). With Lax the
-      // browser withholds it on POST, validCookie sees no cookie, and the user
-      // is bounced back to /login forever.
-      return json({ ok: true }, 200, { 'set-cookie': `${SESSION_COOKIE}=${cookie}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800` })
+      // Lax covers the panel and the consent page when it is first-party. The
+      // /oauth-scoped companion cookie covers an embedded consent form, where
+      // the browser withholds a Lax cookie on POST.
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: [
+          ['content-type', 'application/json'],
+          ['cache-control', 'no-store'],
+          ...sessionCookiePairs(cookie, 604800),
+        ],
+      })
     }
     if (url.pathname === '/api/logout' && request.method === 'POST') {
       const sessionId = cookieSessionId(request)
       if (sessionId) await updateState(env, (state) => { if (state.adminSessions?.[sessionId]) delete state.adminSessions[sessionId]; return state })
-      return json({ ok: true }, 200, { 'set-cookie': `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0` })
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: [
+          ['content-type', 'application/json'],
+          ['cache-control', 'no-store'],
+          ...sessionCookiePairs('', 0),
+        ],
+      })
     }
     if (url.pathname === '/api/sessions' && request.method === 'GET') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
@@ -4785,8 +5016,14 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const session = await getSession(env)
       const state = await loadState(env)
-      const v2 = await vault2Context(env).catch(() => null)
-      return json({ email: state.settings?.vaultEmail || env.VAULT_EMAIL || (session && session.email) || '', name: state.profile?.name || '', avatarUrl: state.profile?.avatarUrl || '', siteName: state.settings?.siteName || 'Secrets Broker', unlocked: v2 ? Boolean(v2.dek) : Boolean(session), expiresAt: session?.expiresAt ?? 0, pending: Object.keys(state.pending ?? {}).length })
+      const v2 = await vault2Context(env, { session }).catch(() => null)
+      // The session names the account it was unlocked for, so it decides what
+      // this page shows. Only when there is no session does the deployment
+      // account answer, which is the pre-account behaviour. Keeping the two in
+      // this order means a just-switched account cannot report the new email
+      // next to an unlock state that still belongs to the previous one.
+      const email = (session && session.email) || state.settings?.vaultEmail || env.VAULT_EMAIL || ''
+      return json({ email, name: state.profile?.name || '', avatarUrl: state.profile?.avatarUrl || '', siteName: state.settings?.siteName || 'Secrets Broker', unlocked: v2 ? Boolean(v2.dek) : Boolean(session), expiresAt: session?.expiresAt ?? 0, pending: Object.keys(state.pending ?? {}).length })
     }
     if (url.pathname === '/api/profile') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
@@ -4822,7 +5059,7 @@ export default {
       if (next.length < 8) return fail('新密码至少 8 位', 400)
       const salt = bytesToB64(crypto.getRandomValues(new Uint8Array(16)))
       const hash = await hashAdminPassword(next, salt)
-      await updateState(env, (nextState) => { nextState.security ??= {}; nextState.security.passwordSalt = salt; nextState.security.passwordHash = hash; return nextState })
+      await updateState(env, (nextState) => { nextState.security ??= {}; nextState.security.passwordSalt = salt; nextState.security.passwordHash = hash; nextState.security.passwordIterations = ADMIN_PBKDF2_ITERATIONS; return nextState })
       await addAudit(env, { event: 'security.password-change' })
       return json({ ok: true })
     }
@@ -5163,7 +5400,7 @@ export default {
           } catch { /* a stale binding must not block the sign-in */ }
         }
         const headers = new Headers({ location: stateData.next === 'profile' ? '/?view=profile' : '/' })
-        headers.append('set-cookie', `${SESSION_COOKIE}=${cookie}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`)
+        appendSessionCookies(headers, cookie, 604800)
         headers.append('set-cookie', clearOidcCookie)
         return new Response(null, { status: 302, headers })
       } catch (error) { return failOidc(String(error.message ?? error), 502) }
@@ -5187,6 +5424,7 @@ export default {
         const sessionData = { email, symEncKey: String(body.symEncKey), symMacKey: String(body.symMacKey), expiresAt }
         await putSession(env, sessionData)
         await rememberOidcVault(env, sessionData, state)
+        await updateState(env, (nextState) => stampLegacyPolicies(nextState, email))
         const completedTransfers = await processTransfers(env, sessionData)
         await pruneForeignGrants(env, sessionData)
         await addAudit(env, { event: 'vault.unlock', email, ttl: body.ttl ?? '24h' })
@@ -5221,7 +5459,7 @@ export default {
         if (typeof body.noApproval === 'boolean') {
           await updateState(env, (state) => {
             state.policies ??= {}
-            if (body.noApproval) state.policies[nextName] = { noApproval: true }
+            if (body.noApproval) state.policies[nextName] = { noApproval: true, accountId: String(session?.email ?? state.settings?.vaultEmail ?? '').toLowerCase() }
             else delete state.policies[nextName]
             return state
           })
@@ -5288,12 +5526,12 @@ export default {
               notes: String(entry?.notes ?? ''),
             }
             const kind = entry?.kind === 'web' ? 'web' : 'api'
-            created.push((await vault2Create(env, v2.dek, { kind, payload })).id)
+            created.push((await vault2Create(env, v2, { kind, payload })).id)
           } catch (error) { skipped.push({ name: entry?.name, error: String(error.message ?? error) }) }
         }
         return json({ ok: true, created, skipped, vault: 2 })
       }
-      try { await vault2WriteKey(env) } catch (error) { return fail(String(error.message ?? error), error.status ?? 423) }
+      try { await vault2WriteKey(env, session) } catch (error) { return fail(String(error.message ?? error), error.status ?? 423) }
       const created = []
       const skipped = []
       for (const entry of entries) {
@@ -5313,10 +5551,10 @@ export default {
       if (refused) return refused
       try {
         const state = await loadState(env)
-        const v2 = await vault2Context(env)
+        const v2 = await vault2Context(env, { session })
         const items = []
         if (v2?.dek) {
-          const listed = await vault2ListPlain(env, v2.dek, 0)
+          const listed = await vault2ListPlain(env, v2, 0)
           for (const row of listed.items.filter((entry) => !entry.deletedAt)) {
             const payload = vault2Payload(row)
             items.push({ name: payload.name, url: payload.url, notes: payload.notes, value: payload.password, group: state.itemGroups?.[payload.name] ?? '', noApproval: state.policies?.[payload.name]?.noApproval === true })
@@ -5630,12 +5868,11 @@ export default {
       // revision. The Agent never receives it.
       const nonce = base64Url(crypto.getRandomValues(new Uint8Array(18)))
       const expiresAt = Date.now() + FILL_TASK_CREDENTIAL_TTL_MS
-      // that actually owns the task.
-  // The scope is computed from the claimed task, so it names the executor
-      // that actually owns the task.
+      // The scope is computed from the claimed task, so the credential names
+      // the executor that actually owns the task.
       const scoped = { ...task, executorId: executor.executorId }
       const credential = await signTaskCredential(env, scoped, nonce, expiresAt)
-          await addAudit(env, { event: 'fill.task.claim', agent: task.agent, itemId: task.cipherId, origin: task.origin, taskId: task.taskId, executor: executor.executorId })
+      await addAudit(env, { event: 'fill.task.claim', agent: task.agent, itemId: task.cipherId, origin: task.origin, taskId: task.taskId, executor: executor.executorId })
       return json({
         ok: true,
         taskId: task.taskId,
@@ -5685,6 +5922,18 @@ export default {
       if (task.accountId && String(task.accountId).toLowerCase() !== String(session.email ?? '').toLowerCase()) {
         await addAudit(env, { event: 'fill.redeem-deny', agent: task.agent, itemId: task.cipherId, origin: task.origin, taskId, reason: 'account-mismatch' })
         return fail('task credential is not valid: account-mismatch', 403)
+      }
+      // A grant that was revoked (or an agent that was deleted) between
+      // authorise and redeem must stop the redemption instead of surviving
+      // inside the task TTL. This deliberately checks revocation only: a
+      // capability that was spent to mint the task is legitimately "used" and
+      // must not be treated as missing here.
+      const currentAgent = agentRecordForState(state, task.agent)
+      const fillCap = state.capabilities?.[capabilityKey(task.agent, task.cipherId, 'secret.fill')]
+      if (!currentAgent || fillCap?.revokedAt) {
+        const reason = currentAgent ? 'capability-revoked' : 'agent-gone'
+        await addAudit(env, { event: 'fill.redeem-deny', agent: task.agent, itemId: task.cipherId, origin: task.origin, taskId, reason })
+        return fail('task credential is not valid: ' + reason, 403)
       }
       // The credential must be bound to exactly this task scope.
       const verified = await verifyTaskCredential(env, credential, task)
@@ -6001,6 +6250,9 @@ export default {
         return state
       })
       await addAudit(env, { event: 'action-grant.revoke', agent: agentName, itemId: wantedTargets.length === 1 ? wantedTargets[0].itemId : '', items: wantedTargets.length, actions: revoked.map((entry) => entry.action) })
+      // An already authorised fill task must not outlive the authorisation that
+      // created it; otherwise the executor can still redeem it inside its TTL.
+      await cancelTasksFor(env, (task) => task.agent === agentName, 'action-grant-revoked')
       return json({ ok: true, revoked, count: revoked.length })
     }
     // Admin-only read of geo events. Returns already-sanitised records from the
@@ -6130,6 +6382,8 @@ export default {
         return state
       })
       await addAudit(env, { event: 'agent.delete', agent: name })
+      // The agent is gone, so anything it already queued must not be redeemable.
+      await cancelTasksFor(env, (task) => task.agent === name, 'agent-deleted')
       return json({ ok: true })
     }
     if (url.pathname === '/api/agents/rename' && request.method === 'POST') {
@@ -7063,7 +7317,10 @@ export default {
         })
         await addAudit(env, { event: 'settings.update', scope: 'notifications-oidc' })
         let latest = await loadState(env)
-        if ((latest.settings?.vaultEmail ?? '') !== previousEmail) await stateStub(env).fetch('https://state/session', { method: 'DELETE' })
+        if ((latest.settings?.vaultEmail ?? '') !== previousEmail) {
+          await stateStub(env).fetch('https://state/session', { method: 'DELETE' })
+          await stateStub(env).fetch('https://state/v2-key', { method: 'DELETE' })
+        }
         const telegram = latest.settings?.notifications?.telegram
         if (telegram?.botToken) {
           if (!telegram.webhookSecret) {
@@ -7104,16 +7361,46 @@ export default {
       }
     }
     if (url.pathname === '/approve') {
-      const id = String(url.searchParams.get('id') ?? '')
-      const decision = String(url.searchParams.get('d') ?? '')
-      const exp = Number(url.searchParams.get('exp') ?? '0')
-      const signature = String(url.searchParams.get('sig') ?? '')
+      // A GET must never change state: link scanners, mail previews and chat
+      // unfurlers fetch every URL in a message. The old signed link still works,
+      // but it now lands on a page whose form performs the decision.
+      let params = url.searchParams
+      if (request.method === 'POST') {
+        if (String(request.headers.get('sec-fetch-site') ?? '').toLowerCase() === 'cross-site') {
+          return new Response('跨站提交被拒绝', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+        }
+        params = await request.formData().catch(() => null)
+        if (!params) return new Response('表单格式无效', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      } else if (request.method !== 'GET') {
+        return new Response('method not allowed', { status: 405, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      }
+      const id = String(params.get('id') ?? '')
+      const decision = String(params.get('d') ?? '')
+      const exp = Number(params.get('exp') ?? '0')
+      const signature = String(params.get('sig') ?? '')
       if (!id || !['once', '24h', 'always', 'deny'].includes(decision) || !Number.isFinite(exp) || exp < Date.now()) return new Response('链接已过期或无效', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       const expected = await hmacToken(await cookieKey(env), `${id}:${decision}:${exp}`)
       if (!constantTimeEqual(encoder.encode(expected), encoder.encode(signature))) return new Response('签名无效', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
-      const outcome = await decidePending(env, id, decision, String(url.searchParams.get('ch') ?? 'notification'))
+      if (request.method === 'GET') {
+        const pending = (await loadState(env)).pending?.[id]
+        if (!pending) return new Response('请求不存在或已处理', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+        const verb = decision === 'deny' ? '拒绝' : '允许'
+        const scope = decision === 'once' ? '本次' : decision === '24h' ? '24 小时内' : decision === 'always' ? '长期' : '所有'
+        const fields = [['id', id], ['d', decision], ['exp', String(exp)], ['sig', signature], ['ch', String(params.get('ch') ?? 'notification')]]
+          .map(([name, value]) => `<input type="hidden" name="${name}" value="${escapeHtml(value)}">`).join('')
+        return htmlResponse(`<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+          `<title>确认授权 · Secrets Broker</title>` +
+          `<div style="font:15px/1.7 system-ui;max-width:520px;margin:48px auto;padding:0 18px;color:#152033">` +
+          `<h2 style="font-size:19px;margin:0 0 12px">确认${verb}读取请求</h2>` +
+          `<p>Agent <strong>${escapeHtml(String(pending.agent ?? '').slice(0, 80))}</strong> 请求读取 <strong>${escapeHtml(String(pending.name ?? '').slice(0, 120))}</strong>。</p>` +
+          `<p style="color:#6b7890;font-size:14px">${decision === 'deny' ? '确认后不会授予任何访问。' : `确认后将在${scope}范围内授权。`}</p>` +
+          `<form method="post" action="/approve" autocomplete="off">${fields}` +
+          `<button type="submit" style="width:100%;padding:12px;border:1px solid #152033;border-radius:10px;background:#152033;color:#fff;font-size:15px">${verb}</button></form>` +
+          `<p style="color:#6b7890;font-size:12px;margin-top:14px">此页面只在你点击按钮后执行，链接本身不会再自动生效。</p></div>`)
+      }
+      const outcome = await decidePending(env, id, decision, String(params.get('ch') ?? 'notification'))
       if (!outcome) return new Response('请求不存在或已处理', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })
-      const message = outcome.denied ? `已拒绝：${outcome.agent} 读取「${outcome.name}」` : `已授权：${outcome.agent} 读取「${outcome.name}」（${outcome.mode}）`
+      const message = outcome.denied ? `已拒绝：${outcome.agent} 访问「${outcome.name}」` : `已授权：${outcome.agent} 访问「${outcome.name}」${outcome.mode ? `（${outcome.mode}）` : ''}`
       return htmlResponse(`<meta charset="utf-8"><title>Secrets Broker</title><h2>${escapeHtml(message)}</h2>`)
     }
     if (url.pathname === '/telegram/webhook' && request.method === 'POST') {
@@ -7211,6 +7498,8 @@ export default {
       }
       const body = await request.json().catch(() => ({}))
       const state = await loadState(env)
+      const registerKey = `${clientIp(request)}\u0000oauth-register`
+      if (rateLimited(state, registerKey, 10)) return fail('registration rate limited', 429)
       if (Object.keys(state.oauthClients ?? {}).length >= 100) return fail('too many registered clients', 429)
       const redirectUris = (Array.isArray(body.redirect_uris) ? body.redirect_uris.map(String).filter(Boolean) : []).slice(0, 5)
       if (!redirectUris.length) return fail('redirect_uris required', 400)
@@ -7227,6 +7516,7 @@ export default {
         value: { clientId, clientName, redirectUris, createdAt: nowIso(), trustedAt: null },
       }])
       if (!written?.ok) return fail('could not persist client registration', 500)
+      await recordLoginFailure(env, registerKey).catch(() => {})
       // Registration is open (that is what makes standard MCP clients work) but it
       // grants nothing: a client still needs the operator to approve it on the
       // consent page, which mints the only token-issuing code. Recorded so a
@@ -7237,11 +7527,12 @@ export default {
     if (url.pathname === '/oauth/authorize') {
       const state = await loadState(env)
       const params = request.method === 'POST' ? new URLSearchParams(await request.text()) : url.searchParams
-      // Cross-site POST defence. The admin cookie is SameSite=None so the consent
-      // form works from a third-party page; that also means any site the operator
-      // visits can POST this endpoint with their cookie attached. A same-origin
-      // check on the Origin header (and the browser's own Sec-Fetch-Site verdict)
-      // keeps a form on evil.example from approving an attacker's client.
+      // Cross-site POST defence. The panel cookie is Lax and the consent
+      // companion cookie is None but /oauth-scoped, so an embedded consent form
+      // still authenticates while any other site the operator visits cannot
+      // reuse those cookies for the rest of the panel. A same-origin check on
+      // the Origin header (and the browser's own Sec-Fetch-Site verdict) keeps
+      // a form on evil.example from approving an attacker's client.
       if (request.method === 'POST') {
         const origin = request.headers.get('origin')
         const fetchSite = String(request.headers.get('sec-fetch-site') ?? '').toLowerCase()
@@ -7286,11 +7577,13 @@ export default {
       }
       if (!client.redirectUris.includes(redirectUri)) return fail('invalid redirect_uri', 400)
       if (!params.get('code_challenge') || params.get('code_challenge_method') !== 'S256') return fail('PKCE S256 is required', 400)
-      const cookieCheck = await validCookieDetailed(request, env)
+      // Accept the /oauth-scoped consent cookie here as well: the consent form
+      // can be embedded by the client, where the Lax panel cookie is withheld.
+      const cookieCheck = await validCookieDetailed(request, env, true)
       if (!cookieCheck.ok) {
         // Clear a stale/legacy cookie before bouncing, otherwise the same bad
         // value is presented on every retry and the loop never ends.
-        const clearHeaders = cookieCheck.clearable ? { 'set-cookie': COOKIE_CLEAR_HEADER } : {}
+        const clearPairs = cookieCheck.clearable ? sessionCookiePairs('', 0) : []
         // Bounce through the login page and come back to this exact authorize
         // request. For POST the form parameters live in the BODY, so rebuilding
         // the return target from url.search alone yields a bare
@@ -7320,11 +7613,11 @@ export default {
             '<p style="font:14px/1.7 system-ui;max-width:560px;margin:40px auto;padding:0 16px">登录状态已过期。' +
             '<a href="' + escapeHtml(loginUrl.pathname + loginUrl.search) + '">点此登录</a>，登录后会自动回到授权页，再点一次「允许」即可。' +
             '<br><span style="font-size:12px;color:#6b7890">旧的登录凭据已自动清除。</span></p>'
-          return new Response(body, { status: 401, headers: { 'content-type': 'text/html; charset=utf-8', ...clearHeaders } })
+          return new Response(body, { status: 401, headers: [['content-type', 'text/html; charset=utf-8'], ...clearPairs] })
         }
         // Build the redirect manually: Response.redirect() yields immutable
         // headers, so a stale cookie could not be cleared alongside it.
-        return new Response(null, { status: 302, headers: { location: loginUrl.toString(), ...clearHeaders } })
+        return new Response(null, { status: 302, headers: [['location', loginUrl.toString()], ...clearPairs] })
       }
       if (request.method === 'POST' && params.get('decision') === 'deny') {
         const target = new URL(redirectUri); target.searchParams.set('error', 'access_denied'); if (params.get('state')) target.searchParams.set('state', params.get('state'))
@@ -7364,10 +7657,15 @@ export default {
       if (form.get('grant_type') !== 'authorization_code') return json({ error: 'unsupported_grant_type' }, 400)
       const code = String(form.get('code') ?? '')
       const state = await loadState(env)
+      // A code exchange needs no credential to reach, so cap failed attempts per
+      // address using the same 15-minute window as the login throttle.
+      const tokenKey = `${clientIp(request)}\u0000oauth-token`
+      if (rateLimited(state, tokenKey, 40)) return json({ error: 'temporarily_unavailable', error_description: 'too many token requests' }, 429)
       const entry = state.oauthCodes[code]
       // Every rejection is audited so a failed client exchange is diagnosable
       // instead of looking like the authorization silently did nothing.
       const reject = async (description) => {
+        await recordLoginFailure(env, tokenKey).catch(() => {})
         const who = 'oauth:' + String(entry?.clientId ?? form.get('client_id') ?? '')
         await addAudit(env, { event: 'oauth.token-deny', agent: who, reason: description }).catch(() => {})
         return json({ error: 'invalid_grant', error_description: description }, 400)
@@ -7400,7 +7698,14 @@ export default {
         const unlocked = session && String(session.email).toLowerCase() === String(account).toLowerCase() ? session : null
         if (unlocked) for (const item of await listCiphers(env, env.NODEWARDEN_DB, unlocked)) liveIds.set(item.name, item.id)
       } catch {}
+      // Set only by the mutation that actually removes the code. A CAS retry
+      // re-runs the mutation, so each attempt starts by assuming it lost.
+      let consumed = false
       await updateState(env, (next) => {
+        // The read above cannot be atomic with this write, so re-check the code
+        // here: two concurrent exchanges must not both mint a token.
+        consumed = false
+        if (!next.oauthCodes?.[code]) return next
         delete next.oauthCodes[code]
         next.oauthTokens[hash] = { hash, agent: agentName, clientId: entry.clientId, account, createdAt: nowIso(), expiresAt }
         next.oauthAgentProfiles ??= {}
@@ -7456,6 +7761,7 @@ export default {
         }
         return next
       })
+      if (!consumed) return reject('code already used')
       await addAudit(env, { event: 'oauth.token-issue', agent: agentName, clientId: entry.clientId, items: (entry.grantItems ?? []).length, groups: (entry.grantGroups ?? []).length, all: entry.grantAll === true })
       return json({ access_token: accessToken, token_type: 'Bearer', expires_in: 86400, scope: entry.scope })
     }
@@ -7545,7 +7851,16 @@ const TOOL_META = {
     }
     if (url.pathname === '/mcp' && request.method === 'POST') {
       const resolved = await resolveAgent(request, env)
-      if (!resolved) return new Response(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'unauthorized' } }), { status: 401, headers: { 'content-type': 'application/json', 'www-authenticate': 'Bearer' } })
+      if (!resolved) {
+        // Only failures are counted, so a busy but valid agent never throttles
+        // itself. This also keeps the extra state read off the success path.
+        const mcpKey = `${clientIp(request)}\u0000mcp-auth`
+        if (rateLimited(await loadState(env), mcpKey, 40)) {
+          return new Response(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'rate limited' } }), { status: 429, headers: { 'content-type': 'application/json', 'retry-after': '900' } })
+        }
+        await recordLoginFailure(env, mcpKey).catch(() => {})
+        return new Response(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'unauthorized' } }), { status: 401, headers: { 'content-type': 'application/json', 'www-authenticate': 'Bearer' } })
+      }
       // A malformed body is a parse error, not an unknown method: -32601 sent
       // clients looking for a method they had spelled correctly.
       let body
@@ -7599,6 +7914,11 @@ const TOOL_META = {
           if (name === 'put_secret') {
             const itemName = argName()
             if (!itemName) return result(text('name is required', true))
+            // Writing is a separate grant from reading. An agent that can only
+            // read must not be able to queue a write for an operator to approve;
+            // otherwise a single click turns into an overwrite it never had.
+            if (resolved.agent.write !== true) return result(text('this agent is not allowed to write', true))
+            if (resolved.agent.muted === true) return result(text('this agent is muted', true))
             const fields = {}
             for (const key of ['value', 'username', 'totp', 'url', 'notes', 'group']) if (typeof args[key] === 'string') fields[key] = args[key]
             if (!Object.keys(fields).length) return result(text('nothing to write: pass value, username, totp, url, notes or group', true))
@@ -7619,6 +7939,10 @@ const TOOL_META = {
               return result(pendingText({ requestId: pendingId, approvalUrl: url.origin + '/#pending' }))
             }
             if (!agentInScope(resolved.agent, resolved.state.itemGroups, itemName, fields.group)) return result(text('agent not allowed to write this item: it is outside the agent scope', true))
+            // The ticket may have been approved for an agent that has since
+            // lost write access; a retry must not be the moment it gets it back.
+            if (resolved.agent.write !== true) return result(text('this agent is not allowed to write', true))
+            if (resolved.agent.muted === true) return result(text('this agent is muted', true))
             // A new item needs a value; metadata alone would create an empty entry
             // every later read has to special-case.
             const existing = await findCipherRow(env, env.NODEWARDEN_DB, session, itemName)
@@ -7896,6 +8220,9 @@ const TOOL_META = {
             }
             const method = String(args.method ?? 'GET').trim().toUpperCase()
             if (!method || method.length > 16) return result(text('invalid method (max 16 chars)', true))
+            const envList = (raw) => new Set(String(raw ?? '').split(',').map((value) => value.trim()).filter(Boolean))
+            const allowedMethods = envList(env.HTTP_ALLOW_METHODS)
+            if (allowedMethods.size > 0 && !allowedMethods.has(method)) return result(text('target method is not allowed by HTTP_ALLOW_METHODS', true))
             const secretHeaderAllow = { authorization: 'Authorization', 'x-api-key': 'X-Api-Key', 'api-key': 'Api-Key', 'x-auth-token': 'X-Auth-Token' }
             const rawHeaderName = String(args.headerName ?? 'Authorization').trim()
             const headerName = secretHeaderAllow[rawHeaderName.toLowerCase()]
@@ -7925,8 +8252,10 @@ const TOOL_META = {
             try { target = new URL(String(args.url ?? '')) } catch { return result(text('invalid url', true)) }
             if (target.protocol !== 'https:') return result(text('only https targets are allowed', true))
             if (target.username || target.password) return result(text('userinfo in target url is not allowed', true))
-            const port = String(target.port ?? '')
-            const allowPaths = [] // per-item usePolicies are the authority now
+            const port = String(target.port || '443')
+            const allowedPorts = envList(env.HTTP_ALLOWED_PORTS)
+            if (allowedPorts.size > 0 && !allowedPorts.has(port)) return result(text('target port is not allowed by HTTP_ALLOWED_PORTS', true))
+            const allowPaths = [...envList(env.HTTP_ALLOW_PATHS)]
             const pathAllowed = (pathname, prefix) => pathname === prefix || (prefix.endsWith('/') ? pathname.startsWith(prefix) : pathname.startsWith(prefix + '/'))
             if (allowPaths.length > 0 && !allowPaths.some((prefix) => pathAllowed(target.pathname, prefix))) return result(text('target path is not allowed', true))
             const host = target.hostname.toLowerCase()
@@ -8097,9 +8426,10 @@ const TOOL_META = {
       const device = bearer ? await vault2DeviceByToken(env, bearer) : null
       if (!device) return fail('a device token is required', 401)
       if (!device.canWrite) return fail('this device may read but not write', 403)
-      if (await vault2RekeyPending(env)) return fail('vault is being re-encrypted, retry shortly', 503)
+      if (await vault2RekeyPending(env, { account: device.account })) return fail('vault is being re-encrypted, retry shortly', 503)
+      if (await vault2MigratePending(env, { account: device.account })) return fail('the vault is being migrated, retry shortly', 503)
       const body = await request.json().catch(() => ({}))
-      const result = await vault2Push(env, body.items)
+      const result = await vault2Push(env, body.items, { account: device.account })
       await addAudit(env, { event: 'vault.push', agent: device.name, name: String(result.written) })
       return json(result)
     }
@@ -8151,6 +8481,9 @@ const TOOL_META = {
     // fingerprint the terminal printed, so a swapped key cannot be approved.
     if (url.pathname === '/pair' && request.method === 'GET') {
       const code = String(url.searchParams.get('code') ?? '').toUpperCase()
+      // A pairing code is only ever digits/letters with an optional separator;
+      // rejecting everything else keeps the page free of attacker-chosen markup.
+      if (!/^[A-Z0-9-]{4,16}$/.test(code)) return new Response('配对码无效', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       if (!(await adminAuthorized(request, env))) return new Response(null, { status: 302, headers: { location: '/login?next=' + encodeURIComponent('/pair?code=' + code) } })
       const peek = await (await stateStub(env).fetch('https://state/pair', {
         method: 'POST',
@@ -8181,23 +8514,47 @@ const TOOL_META = {
           if (!self) return fail('this device has no keyring any more', 404)
           return json({ name: device.name, ...self })
         }
-        return json({ ...(await vault2List(env, Number(url.searchParams.get('since') ?? 0))), device: device.name })
+        if (await vault2RekeyPending(env, { account: device.account })) return fail('vault is being re-encrypted, retry shortly', 503)
+        if (await vault2MigratePending(env, { account: device.account })) return fail('the vault is being migrated, retry shortly', 503)
+        return json({ ...(await vault2List(env, Number(url.searchParams.get('since') ?? 0), { account: device.account })), device: device.name })
       }
       if (!isAdmin) return fail('unauthorized', 401)
+      // The key cache is addressed by account plus session, so two sessions that
+      // unlocked different accounts never read each other's key. The account comes
+      // from the active vault email; an empty account keeps the old single-key
+      // behaviour and the same cache slot.
+      const state = await loadState(env)
+      const account = String(state.settings?.vaultEmail ?? env.VAULT_EMAIL ?? '').trim().toLowerCase()
+      const sessionId = cookieSessionId(request) ?? ''
+      const keyQuery = `account=${encodeURIComponent(account)}&session=${encodeURIComponent(sessionId)}`
       const keyCall = async (method, body) => {
-        const response = await stateStub(env).fetch('https://state/v2-key', {
+        const response = await stateStub(env).fetch('https://state/v2-key?' + keyQuery, {
           method,
-          ...(body ? { body: JSON.stringify(body) } : {}),
+          ...(body ? { body: JSON.stringify({ ...body, account, session: sessionId }) } : {}),
         })
         return response.json().catch(() => ({}))
       }
+      const markPlainOk = async () => {
+        await stateStub(env).fetch('https://state/v2-key/plain?' + keyQuery, { method: 'POST' })
+      }
       const unlockedKey = async () => {
         const cached = await keyCall('GET')
-        return cached.ok ? Uint8Array.from(cached.dek) : null
+        if (!cached.ok) return null
+        return {
+          dek: Uint8Array.from(cached.dek),
+          legacyDek: cached.legacyDek ? Uint8Array.from(cached.legacyDek) : null,
+          account: cached.account ?? account,
+        }
       }
       try {
+        // A conversion in flight changes which key a row uses, and a paired device
+        // only holds one key. Blocking item routes keeps a peer from pulling a row
+        // it cannot open, then caching it as unreadable.
+        if ((route === 'items' || route.startsWith('items/')) && (await vault2RekeyPending(env, { account }) || await vault2MigratePending(env, { account }))) {
+          return new Response(JSON.stringify({ error: 'migrate in progress' }), { status: 503, headers: { 'content-type': 'application/json', 'retry-after': '30' } })
+        }
         if (route === 'status' && request.method === 'GET') {
-          const status = await vault2Status(env)
+          const status = await vault2Status(env, { account })
           const cached = await keyCall('GET')
           return json({ ...status, unlocked: Boolean(cached.ok), keyExpiresAt: cached.expiresAt ?? null })
         }
@@ -8205,26 +8562,33 @@ const TOOL_META = {
           const body = await request.json().catch(() => ({}))
           const password = String(body.password ?? '')
           if (password.length < 12) return fail('password must be at least 12 characters', 400)
-          const { dek, fingerprint } = await vault2Init(env, password)
+          const { dek, fingerprint } = await vault2Init(env, password, { account })
           await keyCall('PUT', { dek: [...dek] })
           await addAudit(env, { event: 'vault.init', agent: 'admin', name: fingerprint })
           return json({ ok: true, fingerprint })
         }
         if (route === 'unlock' && request.method === 'POST') {
           const body = await request.json().catch(() => ({}))
+          const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
+          // Unlock verifies a password with an expensive KDF, so an unthrottled
+          // endpoint is both a brute-force target and a CPU amplification lever.
+          if (loginBlocked(await loadState(env), ip)) return fail('尝试次数过多，请 15 分钟后再试', 429)
           let opened = null
           try {
-            opened = await vault2Unlock(env, String(body.password ?? ''))
+            opened = await vault2Unlock(env, String(body.password ?? ''), { account })
           } catch {
+            await recordLoginFailure(env, ip)
             await addAudit(env, { event: 'vault.unlock-deny', agent: 'admin', reason: 'wrong-password' })
             return fail('wrong password', 401)
           }
-          await keyCall('PUT', { dek: [...opened.dek], ttlMs: body.ttlMs })
+          await keyCall('PUT', { dek: [...opened.dek], legacyDek: opened.legacyDek ? [...opened.legacyDek] : null, ttlMs: body.ttlMs })
           await addAudit(env, { event: 'vault.unlock', agent: 'admin', name: opened.fingerprint })
-          return json({ ok: true, fingerprint: opened.fingerprint })
+          return json({ ok: true, fingerprint: opened.fingerprint, account: account || null, legacy: opened.legacyOnly === true })
         }
         if (route === 'lock' && request.method === 'POST') {
-          await keyCall('DELETE')
+          // A lock drops every cached key, not just this session's: the point is
+          // that nothing remains in the object's memory.
+          await stateStub(env).fetch('https://state/v2-key', { method: 'DELETE' })
           return json({ ok: true })
         }
         // Rekey: the only way to take a key back from a device we already handed it
@@ -8240,9 +8604,31 @@ const TOOL_META = {
           try {
             result = await vault2Rekey(env, dek, password)
           } catch (error) { return fail(String(error.message ?? error), 400) }
-          await keyCall('PUT', { dek: [...result.dek] })
+          await keyCall('PUT', { dek: [...result.dek], legacyDek: result.legacyDek ? [...result.legacyDek] : null })
           await addAudit(env, { event: 'vault.rekey', agent: 'admin', name: result.fingerprint, reason: `items=${result.converted} tombstones=${result.wiped} devices=${result.devices}` })
           return json({ ok: true, fingerprint: result.fingerprint, converted: result.converted, wiped: result.wiped, devices: result.devices })
+        }
+        // One-shot conversion of rows written before accounts existed. It is
+        // resumable and idempotent: rows already under the account key are only
+        // tagged, so a second call after an interrupt finishes the job instead of
+        // encrypting twice. Callers must export the D1 database first; the Worker
+        // cannot take a consistent backup of it while serving requests.
+        if (route === 'migrate' && request.method === 'POST') {
+          const current = await unlockedKey()
+          if (!current) return fail('vault is locked', 423)
+          const body = await request.json().catch(() => ({}))
+          const password = String(body.password ?? '')
+          if (password.length < 12) return fail('the master password is required to migrate', 400)
+          let result = null
+          try {
+            result = await vault2MigrateAccount(env, current, password)
+          } catch (error) { return fail(String(error.message ?? error), 400) }
+          await keyCall('PUT', { dek: [...result.dek], legacyDek: result.legacyDek ? [...result.legacyDek] : null })
+          await addAudit(env, { event: 'vault.migrate-account', agent: 'admin', name: result.account, reason: `minted=${result.minted} converted=${result.converted} tagged=${result.tagged} skipped=${result.skipped} remaining=${result.remaining}` })
+          // `legacyClaim` makes the one-way part of this visible to whoever runs
+          // it: rows without an owner are claimed by this account, and no later
+          // account can inherit them.
+          return json({ ok: true, account: result.account, fingerprint: result.fingerprint, minted: result.minted, converted: result.converted, tagged: result.tagged, skipped: result.skipped, remaining: result.remaining, legacyClaim: result.legacyClaim, claimed: result.claimed })
         }
         // Pairing hands this device the same data key, wrapped to its own public
         // key. The token comes back once and is stored only as a hash.
@@ -8258,12 +8644,12 @@ const TOOL_META = {
           return json(paired, 201)
         }
         if (route === 'devices' && request.method === 'GET') {
-          return json({ devices: await vault2Devices(env) })
+          return json({ devices: await vault2Devices(env, { account }) })
         }
         if (route.startsWith('devices/') && request.method === 'PATCH') {
           const id = route.slice('devices/'.length)
           const body = await request.json().catch(() => ({}))
-          const result = await vault2SetDeviceWrite(env, id, body.canWrite === true)
+          const result = await vault2SetDeviceWrite(env, id, body.canWrite === true, { account })
           if (!result) return fail('device not found', 404)
           if (result.error) return fail(result.error, 409)
           await addAudit(env, { event: 'vault.device-write', agent: 'admin', name: result.id, canWrite: result.canWrite })
@@ -8272,13 +8658,13 @@ const TOOL_META = {
         if (route.startsWith('devices/') && request.method === 'DELETE') {
           const id = route.slice('devices/'.length)
           if (url.searchParams.get('purge') === '1') {
-            const purged = await vault2PurgeDevice(env, id)
+            const purged = await vault2PurgeDevice(env, id, { account })
             if (!purged) return fail('device not found', 404)
             if (purged.error) return fail(purged.error, 409)
             await addAudit(env, { event: 'vault.device-purge', agent: 'admin', name: id })
             return json(purged)
           }
-          const revoked = await vault2RevokeDevice(env, id)
+          const revoked = await vault2RevokeDevice(env, id, { account })
           if (!revoked) return fail('device not found', 404)
           await addAudit(env, { event: 'vault.device-revoke', agent: 'admin', name: id })
           return json(revoked)
@@ -8307,9 +8693,27 @@ const TOOL_META = {
           if (url.searchParams.get('plain') === '1') {
             const dek = await unlockedKey()
             if (!dek) return fail('vault is locked', 423)
+            // Listing names in the clear is the same class of disclosure as
+            // revealing one password, so it passes the same second factor once
+            // per unlock. The pass is remembered on the cached key so the panel
+            // can keep refreshing without a prompt on every navigation.
+            const cached = await keyCall('GET')
+            if (cached.plainOk !== true) {
+              const security = (await loadState(env)).security ?? {}
+              if (security.totpEnabled === true) {
+                const code = String(url.searchParams.get('code') ?? request.headers.get('x-totp-code') ?? '').trim()
+                if (!code) return fail('plaintext-needs-totp', 428)
+                const refused = await secondFactorWall(request, env, 'vault.plain', code)
+                if (refused) return refused
+                await addAudit(env, { event: 'vault.plain', via: 'web' }).catch(() => {})
+              }
+              // No TOTP enrolled: keep the previous behaviour rather than
+              // locking a deployment out of its own item list.
+              await markPlainOk()
+            }
             return json(await vault2ListPlain(env, dek, Number(url.searchParams.get('since') ?? 0)))
           }
-          return json(await vault2List(env, Number(url.searchParams.get('since') ?? 0)))
+          return json(await vault2List(env, Number(url.searchParams.get('since') ?? 0), { account }))
         }
         if (route === 'items' && request.method === 'POST') {
           const dek = await unlockedKey()
