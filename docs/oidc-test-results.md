@@ -1,4 +1,4 @@
-# OIDC verification tests — 2026-10-21T07:23:54.081Z
+# OIDC verification tests — 2026-11-02T18:33:09.289Z
 
 Pure unit tests of src/oidc.js with throwaway keys (nothing production).
 

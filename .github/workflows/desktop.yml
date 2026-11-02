@@ -7,7 +7,15 @@ on:
       - 'desktop-v*'
 
 permissions:
+  # Only softprops/action-gh-release at the end needs to write. Splitting the
+  # publish step into its own job would let the build steps run with
+  # contents: read, but that also means moving artefacts between jobs; until
+  # that is worth the churn this stays job-wide.
   contents: write
+
+# Actions are referenced by tag so security updates arrive; .github/dependabot.yml
+# keeps those tags current. Pin to commit SHAs only if the extra review burden
+# of manual bumps is acceptable.
 
 jobs:
   build-windows:

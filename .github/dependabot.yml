@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # The workflows intentionally reference actions by tag so a security update
+  # still ships automatically. Dependabot keeps those tags moving.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5

@@ -1,5 +1,11 @@
 name: security
 
+permissions:
+  contents: read
+
+# Tag references plus dependabot keep action security updates flowing without
+# hand-maintained SHAs.
+
 on:
   push:
     branches: [main]
@@ -7,6 +13,38 @@ on:
   workflow_dispatch:
 
 jobs:
+  # The vault suites need a workerd binary that some developer machines cannot
+  # start; CI is where they actually run. Kept as its own job so a vault-only
+  # regression is visible without reading the whole matrix output.
+  miniflare-vault:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: v2 storage adapter (console and MCP read the v2 source)
+        run: npm run test:v2-adapter
+      - name: v2 API (init, unlock, sealed rows, TOTP-gated plaintext)
+        run: npm run test:v2-api
+      - name: v2 per-account keys, migration and isolation
+        run: npm run test:v2-accounts
+      - name: Stale cookie clearing and consent cookie split
+        run: npm run test:cookie-clearing
+      - name: Approval pipeline (confirm page, then POST)
+        run: npm run test:approval
+      - name: OAuth consent, login bounce and single-use codes
+        run: npm run test:oauth-consent
+      - name: Account scoping
+        run: npm run test:account-scope
+      - name: Fill task control plane
+        run: npm run test:fill-task
+      - name: Admin session durability
+        run: npm run test:session
+
   security-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -16,7 +54,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       # Pure unit suites (no runtime required).
       - name: OIDC unit tests
         run: npm run test:oidc
@@ -41,8 +79,6 @@ jobs:
         run: npm run test:permissions
       - name: Hybrid secret.read/use model (Miniflare)
         run: npm run test:actions
-      - name: Approval pipeline bypass (Miniflare)
-        run: npm run test:approval
       - name: Admin API authorization (Miniflare)
         run: npm run test:admin-api
       - name: Unified capabilities (Miniflare)
@@ -63,24 +99,16 @@ jobs:
         run: npm run test:legacy-scope
       - name: Migration identity + real revoke (Miniflare)
         run: npm run test:identity-revoke
-      - name: Account scoping (Miniflare)
-        run: npm run test:account-scope
       - name: Agent authorization extension (Miniflare)
         run: npm run test:agent-extend
-      - name: OAuth consent login flow (Miniflare)
-        run: npm run test:oauth-consent
       - name: OAuth client persistence (Miniflare)
         run: npm run test:oauth-persist
       - name: OAuth client management (Miniflare)
         run: npm run test:oauth-clients
       - name: OAuth re-login resume (Miniflare)
         run: npm run test:oauth-resume
-      - name: Admin session durability (Miniflare)
-        run: npm run test:session
       - name: State write safety (Miniflare)
         run: npm run test:state-write
-      - name: Stale cookie clearing (Miniflare)
-        run: npm run test:cookie-clearing
       - name: Admin UI smoke (Miniflare)
         run: npm run test:ui
       - name: Authorization reminders (Miniflare)
@@ -121,8 +149,6 @@ jobs:
         run: npm run test:donut
       - name: Web fill (P1)
         run: npm run test:fill
-      - name: Fill task control plane (P3.0)
-        run: npm run test:fill-task
       - name: Secret expiry (P3.1)
         run: npm run test:secret-expiry
       - name: OIDC EdDSA verification
@@ -185,8 +211,6 @@ jobs:
         run: npm run test:envelope
       - name: v2 schema on D1 (Miniflare)
         run: npm run test:v2-schema
-      - name: v2 API (init, unlock, sealed items, tombstones)
-        run: npm run test:v2-api
       - name: v2 CLI pairing (ECDH wrap both sides)
         run: npm run test:v2-cli
       - name: local vault tools (MCP from the rows this machine holds)
