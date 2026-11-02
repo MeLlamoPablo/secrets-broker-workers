@@ -5,7 +5,19 @@
  * secret its human was still looking at. Only the origin is checkable here, so
  * that is what this asserts.
  */
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { apply } from './lib/index.js'
+
+// The token has to come from somewhere: CI has no ~/.dsh and no per-install
+// token file, so pluginToken() returned '' and S7 read the missing header as a
+// leak-free pass for the wrong reason. Point the config root at an empty temp
+// dir and pin the token through the environment. pluginToken() resolves a token
+// saved from the settings page first, then this environment variable, then the
+// install files, so the environment already outranks a file on disk.
+process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'sb-plugin-guard-'))
+process.env.SECRETS_BROKER_PLUGIN_TOKEN = 'plugin-guard-test-token'
 
 const routes = new Map()
 apply({ effect: (fn) => { fn() }, webServer: { register: (def) => { routes.set(def.path, def.handler); return () => {} } } })
