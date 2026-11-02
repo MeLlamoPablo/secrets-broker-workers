@@ -63,6 +63,25 @@ jobs:
           path: ${{ runner.temp }}/ci-logs
           if-no-files-found: warn
           retention-days: 7
+      # Artifacts need a token to download; the step summary does not, so the
+      # failing suite's tail is readable straight from the run page.
+      - name: Publish failure log tails
+        if: failure()
+        shell: bash
+        run: |
+          dir="$RUNNER_TEMP/ci-logs"
+          [ -d "$dir" ] || exit 0
+          shopt -s nullglob
+          logs=("$dir"/*.log)
+          [ ${#logs[@]} -gt 0 ] || exit 0
+          for f in "${logs[@]}"; do
+            echo "### $(basename "$f")" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 "$f" >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 "$f" | sed 's/^/::error::/'
+          done
   security-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -334,3 +353,22 @@ jobs:
           path: ${{ runner.temp }}/ci-logs
           if-no-files-found: warn
           retention-days: 7
+      # Artifacts need a token to download; the step summary does not, so the
+      # failing suite's tail is readable straight from the run page.
+      - name: Publish failure log tails
+        if: failure()
+        shell: bash
+        run: |
+          dir="$RUNNER_TEMP/ci-logs"
+          [ -d "$dir" ] || exit 0
+          shopt -s nullglob
+          logs=("$dir"/*.log)
+          [ ${#logs[@]} -gt 0 ] || exit 0
+          for f in "${logs[@]}"; do
+            echo "### $(basename "$f")" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 "$f" >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 "$f" | sed 's/^/::error::/'
+          done
