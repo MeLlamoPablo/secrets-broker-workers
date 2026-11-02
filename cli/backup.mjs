@@ -29,10 +29,18 @@ export function backup({ out, home = brokerHome(), now = () => new Date() } = {}
   if (fs.existsSync(target)) throw new Error('backup destination already exists: ' + target)
 
   fs.mkdirSync(path.dirname(target), { recursive: true })
+  // Match "tmp" against the path relative to the state directory, not the
+  // absolute one. On Linux the temp root is /tmp, so an absolute match excludes
+  // every entry, copies nothing and leaves the destination missing; the sentinel
+  // write then fails with ENOENT.
+  const keep = (file) => {
+    const relative = path.relative(source, file)
+    return !relative || !relative.split(path.sep).includes('tmp')
+  }
   fs.cpSync(source, target, {
     recursive: true,
     errorOnExist: true,
-    filter: (file) => !file.split(path.sep).includes('tmp'),
+    filter: keep,
   })
   fs.writeFileSync(path.join(target, SENTINEL), JSON.stringify({
     format: 'secrets-broker-local-backup-v1',
@@ -51,10 +59,17 @@ export function restore({ from, home = brokerHome(), force = false } = {}) {
     throw new Error('broker state already exists at ' + target + '; pass --force to replace it')
   }
   fs.mkdirSync(target, { recursive: true })
+  // Same relative-path rule as backup, so a backup restored from /tmp is not
+  // mistaken for a directory that contains a "tmp" entry.
+  const keep = (file) => {
+    const relative = path.relative(source, file)
+    if (!relative) return true
+    return !relative.endsWith(SENTINEL) && !relative.split(path.sep).includes('tmp')
+  }
   fs.cpSync(source, target, {
     recursive: true,
     force: true,
-    filter: (file) => !file.endsWith(SENTINEL) && !file.split(path.sep).includes('tmp'),
+    filter: keep,
   })
   return { target }
 }
