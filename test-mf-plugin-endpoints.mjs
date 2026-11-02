@@ -35,6 +35,21 @@ await stub.fetch('https://do/state', {
   }),
 })
 const pluginGet = (path) => mf.dispatchFetch('https://broker.test' + path, { headers: { 'x-broker-plugin-token': PLUGIN } })
+// Write state through the versioned compare-and-swap path every production
+// writer uses. A bare PUT /state does not move the stored version, so while
+// /api/plugin/wait is polling, a CAS write built from the pre-write snapshot
+// (loadState's bootstrap rewrite runs here because this fixture has no agents)
+// can put the old pending map back and swallow the new row. Retrying makes
+// exactly one of the two writers win instead of one silently erasing the other.
+async function changeState(mutate) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const { state, version } = await stub.fetch('https://do/state/versioned').then((r) => r.json())
+    mutate(state)
+    const res = await stub.fetch('https://do/state/cas', { method: 'POST', body: JSON.stringify({ state, expectedVersion: version }) }).then((r) => r.json())
+    if (res.ok) return
+  }
+  throw new Error('state write did not converge')
+}
 
 // U1: the plugin token is required.
 {
@@ -110,17 +125,16 @@ const pluginGet = (path) => mf.dispatchFetch('https://broker.test' + path, { hea
 
 // U9: wait blocks while nothing changes, then returns when it does.
 {
-  const st = await stub.fetch('https://do/state').then((r) => r.json()).then((p) => p.state)
-  st.pending = {}
-  await stub.fetch('https://do/state', { method: 'PUT', body: JSON.stringify(st) })
+  await changeState((state) => { state.pending = {} })
   // The signature the caller last saw matches the current (empty) queue.
   const started = Date.now()
   const waiting = pluginGet('/api/plugin/wait?since=&timeout=8000').then(async (r) => ({ body: await r.json(), elapsed: Date.now() - started }))
-  // Add a pending entry after ~2s; the poll should notice and return.
+  // Add a pending entry after ~2s, through the versioned path so the poll's own
+  // state rewrite cannot overwrite it; the poll should notice and return.
   await new Promise((r) => setTimeout(r, 2000))
-  const st2 = await stub.fetch('https://do/state').then((r) => r.json()).then((p) => p.state)
-  st2.pending = { p2: { id: 'p2', agent: 'agent-b', name: 'key-b', action: 'secret.read', createdAt: new Date().toISOString() } }
-  await stub.fetch('https://do/state', { method: 'PUT', body: JSON.stringify(st2) })
+  await changeState((state) => {
+    state.pending = { p2: { id: 'p2', agent: 'agent-b', name: 'key-b', action: 'secret.read', createdAt: new Date().toISOString() } }
+  })
   const { body, elapsed } = await waiting
   if (body.count === 1 && body.changed === true && elapsed < 8000) pass('U9 wait wakes when a request arrives')
   else fail('U9', JSON.stringify({ count: body.count, changed: body.changed, elapsed }))
