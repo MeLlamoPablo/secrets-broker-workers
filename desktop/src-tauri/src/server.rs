@@ -37,7 +37,16 @@ pub fn get_server(app: AppHandle) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn connect_server(app: AppHandle, url: String) -> Result<String, String> {
+pub fn connect_server(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    url: String,
+) -> Result<String, String> {
+    crate::guard::confirm(
+        &window,
+        "更改服务器地址",
+        "该请求来自非本地页面，可能把桌面端指向另一台服务器。",
+    )?;
     let normalized = normalize(&url)?;
     save(&app, &normalized)?;
     navigate(&app, &(normalized.clone() + "/login"))?;

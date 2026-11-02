@@ -1,17 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for the desktop window",
+  "description": "Local setup window: the only origin allowed to call privileged commands without a prompt.",
+  "local": true,
   "windows": ["main"],
-  "remote": {
-    "urls": ["https://sb.otscup.com/**"]
-  },
   "permissions": [
     "core:default",
     "allow-connect-server",
     "allow-get-server",
     "allow-connect-local-agents",
     "allow-check-update",
+    "allow-get-diagnostics",
     "allow-open-update-page"
   ]
 }

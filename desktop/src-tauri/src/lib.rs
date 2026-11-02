@@ -1,6 +1,7 @@
 mod approvals;
 mod deep_link;
 mod diagnostics;
+mod guard;
 mod local_agents;
 mod server;
 mod sidecar;

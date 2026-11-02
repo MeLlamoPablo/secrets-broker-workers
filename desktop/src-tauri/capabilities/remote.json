@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "remote-site",
+  "description": "Official web console. Read-only commands only; changing the server address and reading diagnostics stay local, and the two actions the site legitimately drives require a native confirmation.",
+  "remote": {
+    "urls": ["https://sb.otscup.com/**"]
+  },
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-get-server",
+    "allow-check-update",
+    "allow-connect-local-agents",
+    "allow-open-update-page"
+  ]
+}

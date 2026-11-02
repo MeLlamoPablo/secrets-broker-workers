@@ -29,15 +29,28 @@ fn approval_url(url: &Url) -> Option<String> {
     let params: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
     let base = params.get("url")?;
     let code = params.get("code")?;
-    if !(base.starts_with("https://") || base.starts_with("http://127.0.0.1")) {
+    // Parse the target instead of prefix-matching it: "http://127.0.0.1.evil.com"
+    // satisfies a starts_with check while resolving to a host we never meant to
+    // open. Only https anywhere, and http only on an exact loopback host.
+    let parsed = Url::parse(base).ok()?;
+    if parsed.username() != "" || parsed.password().is_some() {
         return None;
+    }
+    if parsed.query().is_some() || parsed.fragment().is_some() {
+        return None;
+    }
+    let host = parsed.host_str()?;
+    match parsed.scheme() {
+        "https" => {}
+        "http" if matches!(host, "127.0.0.1" | "localhost" | "::1") => {}
+        _ => return None,
     }
     if code.is_empty() || code.len() > 32 {
         return None;
     }
     Some(format!(
         "{}/pair?code={}",
-        base.trim_end_matches('/'),
+        parsed.as_str().trim_end_matches('/'),
         urlencoding(code)
     ))
 }
@@ -55,10 +68,11 @@ fn urlencoding(value: &str) -> String {
 }
 
 #[tauri::command]
-pub fn open_update_page(url: String) -> Result<(), String> {
+pub fn open_update_page(window: tauri::WebviewWindow, url: String) -> Result<(), String> {
     if !is_update_asset(&url) {
         return Err("unexpected update URL".into());
     }
+    crate::guard::confirm(&window, "打开下载页面", "将在浏览器中打开官方发布包的下载地址。")?;
     open_browser(&url);
     Ok(())
 }
@@ -99,6 +113,32 @@ mod tests {
     fn a_link_to_another_scheme_is_ignored() {
         let link = Url::parse("https://evil.example/pair?code=AB12CD").unwrap();
         assert!(approval_url(&link).is_none());
+    }
+
+    #[test]
+    fn a_lookalike_loopback_host_is_ignored() {
+        let link = Url::parse(
+            "secrets-broker://pair?url=http%3A%2F%2F127.0.0.1.evil.example%2F&code=AB12CD",
+        )
+        .unwrap();
+        assert!(approval_url(&link).is_none());
+        let plain_http = Url::parse(
+            "secrets-broker://pair?url=http%3A%2F%2Fsb.example%2F&code=AB12CD",
+        )
+        .unwrap();
+        assert!(approval_url(&plain_http).is_none());
+    }
+
+    #[test]
+    fn loopback_over_http_is_allowed() {
+        let link = Url::parse(
+            "secrets-broker://pair?url=http%3A%2F%2F127.0.0.1%3A8787%2F&code=AB12CD",
+        )
+        .unwrap();
+        assert_eq!(
+            approval_url(&link).as_deref(),
+            Some("http://127.0.0.1:8787/pair?code=AB12CD")
+        );
     }
 
     #[test]

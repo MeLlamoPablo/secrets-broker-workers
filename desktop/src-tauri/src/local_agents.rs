@@ -1,12 +1,17 @@
 use std::process::{Command, Stdio};
-use tauri::AppHandle;
+use tauri::{AppHandle, WebviewWindow};
 
 /// Add the local sidecar to the MCP clients found on this machine.
 ///
 /// The CLI already owns the config shapes; this only supplies the installed
 /// sidecar's own Node and entry point, so the desktop never depends on PATH.
 #[tauri::command]
-pub fn connect_local_agents(app: AppHandle) -> Result<String, String> {
+pub fn connect_local_agents(app: AppHandle, window: WebviewWindow) -> Result<String, String> {
+    crate::guard::confirm(
+        &window,
+        "接入本机 Agent",
+        "将把 Secrets Broker 的 MCP 配置写入本机已安装的 Agent 客户端。",
+    )?;
     let dir = crate::sidecar::sidecar_dir(&app)
         .ok_or("sidecar resources missing; reinstall Secrets Broker")?;
     let mut command = Command::new(dir.join("node.exe"));
