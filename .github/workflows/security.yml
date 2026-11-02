@@ -148,6 +148,124 @@ jobs:
             printf '::error::%s\n' "$line"
           done
           true
+  # Suites that only exercise the rendered console (globe, layout, CSS, item
+  # page). Split out so a UI-only regression cannot skip the security suites
+  # that used to sit behind it in security-tests.
+  ui-suites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Prepare CI log directory
+        run: mkdir -p "$RUNNER_TEMP/ci-logs"
+      - name: Admin UI smoke (Miniflare)
+        shell: bash
+        run: npm run test:ui 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui.log"
+      - name: Globe UI (Miniflare)
+        shell: bash
+        run: npm run test:globe-ui 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-ui.log"
+      - name: Globe arcs (Miniflare)
+        shell: bash
+        run: npm run test:globe-arcs 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-arcs.log"
+      - name: Globe route variance
+        shell: bash
+        run: npm run test:globe-routes 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-routes.log"
+      - name: Globe visuals (Miniflare)
+        shell: bash
+        run: npm run test:globe-visuals 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-visuals.log"
+      - name: Globe earth and danmaku (Miniflare)
+        shell: bash
+        run: npm run test:globe-earth 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-earth.log"
+      - name: Globe init and failure reporting (Miniflare)
+        shell: bash
+        run: npm run test:globe-init 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-init.log"
+      - name: UI undefined-call scan
+        shell: bash
+        run: npm run test:ui-undefined 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-undefined.log"
+      - name: Globe API guard
+        shell: bash
+        run: npm run test:globe-api 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-api.log"
+      - name: UI polish (Miniflare)
+        shell: bash
+        run: npm run test:ui-polish 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-polish.log"
+      - name: Layout and naming (Miniflare)
+        shell: bash
+        run: npm run test:layout 2>&1 | tee "$RUNNER_TEMP/ci-logs/layout.log"
+      - name: Panel polish (Miniflare)
+        shell: bash
+        run: npm run test:panel 2>&1 | tee "$RUNNER_TEMP/ci-logs/panel.log"
+      - name: Donut legend layout
+        shell: bash
+        run: npm run test:donut 2>&1 | tee "$RUNNER_TEMP/ci-logs/donut.log"
+      - name: Fill UI placement
+        shell: bash
+        run: npm run test:fill-placement 2>&1 | tee "$RUNNER_TEMP/ci-logs/fill-placement.log"
+      - name: CSS integrity
+        shell: bash
+        run: npm run test:css 2>&1 | tee "$RUNNER_TEMP/ci-logs/css.log"
+      - name: HTML structure guard
+        shell: bash
+        run: npm run test:html-structure 2>&1 | tee "$RUNNER_TEMP/ci-logs/html-structure.log"
+      - name: Fixed overview layout (browser)
+        shell: bash
+        run: npm run test:layout2 2>&1 | tee "$RUNNER_TEMP/ci-logs/layout2.log"
+      - name: Mobile and globe sizing
+        shell: bash
+        run: npm run test:mobile 2>&1 | tee "$RUNNER_TEMP/ci-logs/mobile.log"
+      - name: Globe empty state
+        shell: bash
+        run: npm run test:globe-empty 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-empty.log"
+      - name: Globe per-request arcs
+        shell: bash
+        run: npm run test:globe-arcs 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-arcs-2.log"
+      - name: Globe arc fan-out
+        shell: bash
+        run: npm run test:globe-fanout 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-fanout.log"
+      - name: Item detail page (browser)
+        shell: bash
+        run: npm run test:ui-item-page 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-item-page.log"
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-suites-logs
+          path: ${{ runner.temp }}/ci-logs
+          if-no-files-found: warn
+          retention-days: 7
+      # Artifacts need a token to download; the step summary does not, so the
+      # failing suite's tail is readable straight from the run page.
+      - name: Publish failing suite log tail
+        if: failure()
+        shell: bash
+        run: |
+          dir="$RUNNER_TEMP/ci-logs"
+          [ -d "$dir" ] || exit 0
+          shopt -s nullglob
+          logs=("$dir"/*.log)
+          [ ${#logs[@]} -gt 0 ] || exit 0
+          # The job stops at the first broken suite, so its log is the newest
+          # one. Ninety logs in the summary would bury the only interesting one.
+          newest=$(ls -t "${logs[@]}" | head -n 1)
+          [ -s "$newest" ] || exit 0
+          {
+            echo "### $(basename "$newest")"
+            echo '```'
+            tail -n 80 "$newest"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # A job only shows ten annotations, so spend them on the lines that
+          # name the failure instead of the whole tail. Strip \r and % first:
+          # both break the workflow-command syntax GitHub parses here.
+          tail -n 80 "$newest" | tr -d '\r' | tr -d '%' | grep -E 'FAIL|Error|AssertionError|expected|received' | head -n 10 | while IFS= read -r line; do
+            printf '::error::%s\n' "$line"
+          done
+          true
   security-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -237,9 +355,6 @@ jobs:
       - name: State write safety (Miniflare)
         shell: bash
         run: npm run test:state-write 2>&1 | tee "$RUNNER_TEMP/ci-logs/state-write.log"
-      - name: Admin UI smoke (Miniflare)
-        shell: bash
-        run: npm run test:ui 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui.log"
       - name: Authorization reminders (Miniflare)
         shell: bash
         run: npm run test:reminders 2>&1 | tee "$RUNNER_TEMP/ci-logs/reminders.log"
@@ -255,45 +370,9 @@ jobs:
       - name: Geo event capture (Miniflare)
         shell: bash
         run: npm run test:geo-capture 2>&1 | tee "$RUNNER_TEMP/ci-logs/geo-capture.log"
-      - name: Globe UI (Miniflare)
-        shell: bash
-        run: npm run test:globe-ui 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-ui.log"
-      - name: Globe arcs (Miniflare)
-        shell: bash
-        run: npm run test:globe-arcs 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-arcs.log"
-      - name: Globe route variance
-        shell: bash
-        run: npm run test:globe-routes 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-routes.log"
-      - name: Globe visuals (Miniflare)
-        shell: bash
-        run: npm run test:globe-visuals 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-visuals.log"
-      - name: Globe earth and danmaku (Miniflare)
-        shell: bash
-        run: npm run test:globe-earth 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-earth.log"
-      - name: Globe init and failure reporting (Miniflare)
-        shell: bash
-        run: npm run test:globe-init 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-init.log"
-      - name: UI undefined-call scan
-        shell: bash
-        run: npm run test:ui-undefined 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-undefined.log"
       - name: Reported bug fixes (Miniflare)
         shell: bash
         run: npm run test:bugfixes 2>&1 | tee "$RUNNER_TEMP/ci-logs/bugfixes.log"
-      - name: Globe API guard
-        shell: bash
-        run: npm run test:globe-api 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-api.log"
-      - name: UI polish (Miniflare)
-        shell: bash
-        run: npm run test:ui-polish 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-polish.log"
-      - name: Layout and naming (Miniflare)
-        shell: bash
-        run: npm run test:layout 2>&1 | tee "$RUNNER_TEMP/ci-logs/layout.log"
-      - name: Panel polish (Miniflare)
-        shell: bash
-        run: npm run test:panel 2>&1 | tee "$RUNNER_TEMP/ci-logs/panel.log"
-      - name: Donut legend layout
-        shell: bash
-        run: npm run test:donut 2>&1 | tee "$RUNNER_TEMP/ci-logs/donut.log"
       - name: Web fill (P1)
         shell: bash
         run: npm run test:fill 2>&1 | tee "$RUNNER_TEMP/ci-logs/fill.log"
@@ -303,9 +382,6 @@ jobs:
       - name: OIDC EdDSA verification
         shell: bash
         run: npm run test:oidc-eddsa 2>&1 | tee "$RUNNER_TEMP/ci-logs/oidc-eddsa.log"
-      - name: Fill UI placement
-        shell: bash
-        run: npm run test:fill-placement 2>&1 | tee "$RUNNER_TEMP/ci-logs/fill-placement.log"
       - name: OIDC providers and identity binding
         shell: bash
         run: npm run test:oidc-providers 2>&1 | tee "$RUNNER_TEMP/ci-logs/oidc-providers.log"
@@ -327,33 +403,9 @@ jobs:
       - name: Plugin operator endpoints
         shell: bash
         run: npm run test:plugin-operator 2>&1 | tee "$RUNNER_TEMP/ci-logs/plugin-operator.log"
-      - name: CSS integrity
-        shell: bash
-        run: npm run test:css 2>&1 | tee "$RUNNER_TEMP/ci-logs/css.log"
-      - name: HTML structure guard
-        shell: bash
-        run: npm run test:html-structure 2>&1 | tee "$RUNNER_TEMP/ci-logs/html-structure.log"
-      - name: Fixed overview layout (browser)
-        shell: bash
-        run: npm run test:layout2 2>&1 | tee "$RUNNER_TEMP/ci-logs/layout2.log"
-      - name: Mobile and globe sizing
-        shell: bash
-        run: npm run test:mobile 2>&1 | tee "$RUNNER_TEMP/ci-logs/mobile.log"
       - name: Reminder write safety (Miniflare)
         shell: bash
         run: npm run test:reminder-write 2>&1 | tee "$RUNNER_TEMP/ci-logs/reminder-write.log"
-      - name: Globe empty state
-        shell: bash
-        run: npm run test:globe-empty 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-empty.log"
-      - name: Globe per-request arcs
-        shell: bash
-        run: npm run test:globe-arcs 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-arcs-2.log"
-      - name: Globe arc fan-out
-        shell: bash
-        run: npm run test:globe-fanout 2>&1 | tee "$RUNNER_TEMP/ci-logs/globe-fanout.log"
-      - name: Item detail page (browser)
-        shell: bash
-        run: npm run test:ui-item-page 2>&1 | tee "$RUNNER_TEMP/ci-logs/ui-item-page.log"
       - name: Local bridge (cli)
         shell: bash
         run: npm run test:cli 2>&1 | tee "$RUNNER_TEMP/ci-logs/cli.log"
