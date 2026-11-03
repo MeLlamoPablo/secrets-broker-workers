@@ -228,7 +228,7 @@ export async function vault2DeviceSelf(env, deviceId) {
 // A paired device holds the same data key, wrapped to its own public key. The
 // token is returned once and stored only as a hash, so the row alone cannot be
 // used to pull ciphertext.
-export async function vault2Pair(env, key, { name, publicKey, publicJwk }) {
+export async function vault2Pair(env, key, { name, publicKey, publicJwk, canWrite = true }) {
   const ctx = keyContext(key)
   const label = String(name ?? '').trim().slice(0, 60)
   if (!label) throw new Error('a device needs a name')
@@ -239,13 +239,15 @@ export async function vault2Pair(env, key, { name, publicKey, publicJwk }) {
   const at = new Date().toISOString()
   const token = base64Url(crypto.getRandomValues(new Uint8Array(32)))
   const envelope = await wrapDekDevice(ctx.dek, jwk)
-  await env.VAULT_DB.prepare('INSERT INTO devices (id, name, public_jwk, token_hash, created_at, can_write, account_id) VALUES (?, ?, ?, ?, ?, 1, ?)')
-    .bind(id, label, JSON.stringify(jwk), await sha256Base64(token), at, ctx.account || null)
+  // The console's long-term tier pairs the browser as a read-only device: it may
+  // pull ciphertext, never push. CLI pairing keeps the historical write default.
+  await env.VAULT_DB.prepare('INSERT INTO devices (id, name, public_jwk, token_hash, created_at, can_write, account_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .bind(id, label, JSON.stringify(jwk), await sha256Base64(token), at, canWrite ? 1 : 0, ctx.account || null)
     .run()
   await env.VAULT_DB.prepare('INSERT INTO keyrings (id, kind, envelope, device_id, account_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .bind('device:' + id, 'device', envelope, id, ctx.account || null, at, at)
     .run()
-  return { id, name: label, token, envelope, account: ctx.account || null, createdAt: at, fingerprint: await dekFingerprint(ctx.dek) }
+  return { id, name: label, token, envelope, account: ctx.account || null, createdAt: at, canWrite: Boolean(canWrite), fingerprint: await dekFingerprint(ctx.dek) }
 }
 
 // Devices are listed per account. A device paired before accounts existed has no

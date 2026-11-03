@@ -10,7 +10,7 @@ import {
 import { parseJwt, verifyJwtSignature, validateIdTokenClaims, checkUserinfoSub, ALLOWED_ALGS } from './oidc.js'
 import { pullRemote, diffVaults, diffSummary } from './vaultdiff.js'
 import { vault2Status, vault2Init, vault2Unlock, vault2List, vault2ListPlain, vault2Create, vault2Update, vault2Delete, vault2Read, vault2Pair, vault2Devices, vault2RevokeDevice, vault2SetDeviceWrite, vault2PurgeDevice, vault2DeviceByToken, vault2Rekey, vault2RekeyPending, vault2DeviceSelf, vault2Push, vault2MigrateAccount, vault2MigratePending } from './vault2.js'
-import { publicKeyFingerprint } from './envelope.js'
+import { publicKeyFingerprint, dekFingerprint } from './envelope.js'
 import { generateVapid, vapidAuthorization } from './webpush.js'
 import { scrubSecret } from './redact.js'
 import { verifyGatewayJwt, federatedAgent } from './federation.js'
@@ -110,16 +110,21 @@ export class BrokerState extends DurableObject {
           } else this.v2Key = null
           return json({ ok: false, reason: 'locked' }, 401)
         }
-        return json({ ok: true, dek: [...entry.dek], legacyDek: entry.legacyDek ? [...entry.legacyDek] : null, account: entry.account ?? '', expiresAt: entry.expiresAt, plainOk: Boolean(entry.plainOk) })
+        return json({ ok: true, dek: [...entry.dek], legacyDek: entry.legacyDek ? [...entry.legacyDek] : null, account: entry.account ?? '', expiresAt: entry.expiresAt, plainOk: Boolean(entry.plainOk), confirm: Boolean(entry.confirm) })
       }
       if (request.method === 'PUT') {
         const dek = Uint8Array.from(Array.isArray(body.dek) ? body.dek : [])
         if (dek.length !== 32) return json({ ok: false, reason: 'bad-key' }, 400)
         const legacyDek = Array.isArray(body.legacyDek) && body.legacyDek.length === 32 ? Uint8Array.from(body.legacyDek) : null
-        const ttl = Math.min(12 * 3600 * 1000, Math.max(60 * 1000, Number(body.ttlMs) || 3600 * 1000))
+        // 12h used to be the hard ceiling. The console now offers 7d/30d as an
+        // explicit tier and a device-bound tier; the default stays 12h. The cap
+        // exists so a leaked cache cannot outlive a deliberate 30d choice.
+        const ttl = Math.min(30 * 24 * 3600 * 1000, Math.max(60 * 1000, Number(body.ttlMs) || 3600 * 1000))
         // A new unlock starts a new session: the plaintext listing needs its own
         // second factor again instead of inheriting the previous unlock's pass.
-        const entry = { dek, legacyDek, account, expiresAt: Date.now() + ttl, plainOk: false }
+        // confirm asks the console for a fresh password/TOTP before dangerous
+        // actions; only the longer tiers set it.
+        const entry = { dek, legacyDek, account, expiresAt: Date.now() + ttl, plainOk: false, confirm: body.confirm === true }
         if (scoped) this.v2Keys.set(keyId, entry)
         // A copy, not the same object: a plaintext pass granted in one admin
         // session must not be inherited by the helpers or by another session.
@@ -1370,6 +1375,39 @@ async function secondFactorWall(request, env, event, code) {
   return null
 }
 
+// A fresh proof of presence for actions that exceed the unlock window: TOTP when
+// configured, otherwise the admin password. `always` is for export, which is
+// gated for every tier; the rest only ask when the long tiers are in use.
+async function confirmSensitive(request, env, body, event, always = false) {
+  if (!always && !(await consoleConfirmRequired(env))) return null
+  const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
+  const state = await loadState(env)
+  if (loginBlocked(state, ip)) return fail('尝试次数过多，请 15 分钟后再试', 429)
+  const code = String(body.confirmCode ?? body.code ?? '').replace(/\s+/g, '')
+  if (/^\d{6}$/.test(code)) {
+    if (state.security?.totpEnabled !== true) return fail('totp not configured', 428)
+    if (!(await verifyTotp(await totpSecret(env, state), code))) {
+      await recordLoginFailure(env, ip)
+      await addAudit(env, { event: event + '-deny', reason: 'bad-totp', via: 'web' })
+      return fail('验证码错误', 401)
+    }
+    await clearLoginFailures(env, ip)
+    return null
+  }
+  const password = String(body.confirmPassword ?? '')
+  if (!password) {
+    await addAudit(env, { event: event + '-deny', reason: 'missing-confirmation', via: 'web' })
+    return fail('这个操作需要再确认一次（密码或动态验证码）', 428)
+  }
+  if (!(await verifyAdminPassword(env, state, password))) {
+    await recordLoginFailure(env, ip)
+    await addAudit(env, { event: event + '-deny', reason: 'bad-password', via: 'web' })
+    return fail('确认密码错误', 401)
+  }
+  await clearLoginFailures(env, ip)
+  return null
+}
+
 async function getSession(env) {
   const response = await stateStub(env).fetch('https://state/session')
   const payload = await response.json()
@@ -1772,7 +1810,32 @@ async function vault2Context(env, options = {}) {
     dek: cached.ok ? Uint8Array.from(cached.dek) : null,
     legacyDek: cached.ok && cached.legacyDek ? Uint8Array.from(cached.legacyDek) : null,
     account: cached.account || account,
+    plainOk: cached.ok ? Boolean(cached.plainOk) : false,
+    confirm: cached.ok ? Boolean(cached.confirm) : false,
   }
+}
+
+// True when this deployment has a v2 vault that exists but is not unlocked in
+// this session. Only then do approval names need masking; deployments without a
+// v2 vault have no locked state at all.
+async function shouldMaskConsole(env) {
+  if (!env.VAULT_DB) return false
+  const context = await vault2Context(env).catch(() => null)
+  if (!context) return false
+  if (context.dek) return false
+  if (await getSession(env)) return false
+  return true
+}
+
+// The long unlock tiers set a flag on the session. Sensitive actions then need a
+// fresh password or TOTP, which turns "a longer window" into "a longer window
+// plus a check at the dangerous moments". The default 12h tier keeps the old
+// API contract so existing CLI clients and test fixtures do not break.
+async function consoleConfirmRequired(env) {
+  const session = await getSession(env)
+  if (session?.confirm === true) return true
+  const context = await vault2Context(env).catch(() => null)
+  return Boolean(context?.confirm)
 }
 
 // Writes need the account, not just the bytes: that is what stamps account_id on
@@ -2301,7 +2364,44 @@ async function syncKeyMatch(env, account, peer) {
   return constantTimeEqual(encoder.encode(await sha256Base64(String(user.key))), encoder.encode(check))
 }
 
-function publicState(state) {
+// Locked consoles still need to approve requests, but they must not read the
+// credential names that approval metadata carries. Masking happens here, before
+// the JSON leaves the Worker: a client-side slice after receiving the plaintext
+// would not protect anything.
+function maskName(name) {
+  const text = String(name ?? '')
+  const chars = Array.from(text)
+  if (!chars.length) return '（未命名）'
+  if (chars.length <= 2) return '•'.repeat(chars.length)
+  if (chars.length <= 6) return chars[0] + '•'.repeat(chars.length - 1)
+  return chars.slice(0, 2).join('') + '•'.repeat(Math.min(8, chars.length - 4)) + chars.slice(-2).join('')
+}
+
+function maskStateView(view) {
+  const mask = (value) => maskName(value)
+  const row = (entry) => ({ ...entry, name: mask(entry.name), nameMasked: true, ...(entry.itemName === undefined ? {} : { itemName: mask(entry.itemName) }) })
+  return {
+    ...view,
+    masked: true,
+    pending: (view.pending ?? []).map(row),
+    grants: (view.grants ?? []).map(row),
+    deniedAttempts: (view.deniedAttempts ?? []).map(row),
+    legacyUnbound: (view.legacyUnbound ?? []).map(row),
+    transfers: (view.transfers ?? []).map((entry) => ({ ...entry, name: mask(entry.name) })),
+    agentActions: (view.agentActions ?? []).map((entry) => ({ ...entry, itemName: mask(entry.itemName) })),
+    fillPolicies: { ...(view.fillPolicies ?? {}), items: ((view.fillPolicies ?? {}).items ?? []).map((entry) => ({ ...entry, itemName: mask(entry.itemName) })) },
+    usePolicies: (view.usePolicies ?? []).map((entry) => ({ ...entry, itemName: mask(entry.itemName) })),
+    agents: (view.agents ?? []).map((agent) => ({ ...agent, allow: (agent.allow ?? []).map(mask), groups: (agent.groups ?? []).map(mask) })),
+    // Policy keys and group keys are item names. Empty while locked: the console
+    // has no item rows to match them against, and returning nothing is better
+    // than returning a collision-prone mask dictionary.
+    policies: {},
+    itemGroups: {},
+    audit: (view.audit ?? []).map((entry) => ({ ...entry, name: entry.name ? mask(entry.name) : entry.name, oldName: entry.oldName ? mask(entry.oldName) : entry.oldName })),
+  }
+}
+
+function publicState(state, options = {}) {
   const agents = Object.entries(state.agents).map(([name, agent]) => ({ name, alias: agent.alias ?? '', note: agent.note ?? '', allow: agent.allow ?? [], groups: agent.groups ?? [], allowAll: agent.allowAll === true, write: agent.write === true, tools: Array.isArray(agent.tools) ? agent.tools : null, account: agent.account ?? '', oauth: false, createdAt: agent.createdAt ?? '', expiresAt: typeof agent.expiresAt === 'number' ? agent.expiresAt : null }))
   const seen = new Set(agents.map((agent) => agent.name))
   const now = Date.now()
@@ -2312,7 +2412,7 @@ function publicState(state) {
     const profile = state.oauthAgentProfiles?.[token.agent] ?? {}
     agents.push({ name: token.agent, alias: profile.alias ?? '', note: profile.note ?? '', allow: profile.allow ?? [], groups: profile.groups ?? [], allowAll: profile.allowAll === true, write: profile.write === true, tools: Array.isArray(profile.tools) ? profile.tools : null, account: token.account ?? '', oauth: true, createdAt: token.createdAt ?? '', expiresAt: typeof token.expiresAt === 'number' ? token.expiresAt : null })
   }
-  return {
+  const view = {
     agents,
     policies: state.policies ?? {},
     itemGroups: state.itemGroups ?? {},
@@ -2396,6 +2496,7 @@ function publicState(state) {
     audit: state.audit ?? [],
     syncDevices: syncDeviceList(state),
   }
+  return options.masked === true ? maskStateView(view) : view
 }
 
 // Approval durations for temporary capabilities. 'always' maps to a
@@ -5477,13 +5578,16 @@ export default {
         const expiresAt = ttl === 0 ? 0 : Date.now() + ttl
         const state = await loadState(env)
         const email = await vaultEmail(env, env.NODEWARDEN_DB, state)
-        const sessionData = { email, symEncKey: String(body.symEncKey), symMacKey: String(body.symMacKey), expiresAt }
+        // `confirm` is the only thing a long tier changes for legacy vaults: the
+        // key still expires exactly as the client asked, but dangerous actions
+        // will re-check the operator.
+        const sessionData = { email, symEncKey: String(body.symEncKey), symMacKey: String(body.symMacKey), expiresAt, confirm: body.confirm === true }
         await putSession(env, sessionData)
         await rememberOidcVault(env, sessionData, state)
         await updateState(env, (nextState) => stampLegacyPolicies(nextState, email))
         const completedTransfers = await processTransfers(env, sessionData)
         await pruneForeignGrants(env, sessionData)
-        await addAudit(env, { event: 'vault.unlock', email, ttl: body.ttl ?? '24h' })
+        await addAudit(env, { event: 'vault.unlock', email, ttl: body.ttl ?? '24h', via: 'password', duration: String(body.duration ?? body.ttl ?? '24h') })
         return json({ ok: true, expiresAt, permanent: ttl === 0, completedTransfers })
       } catch (error) { return fail(String(error.message ?? error), 400) }
     }
@@ -5509,6 +5613,16 @@ export default {
       const body = await request.json().catch(() => ({}))
       const name = String(body.name ?? '')
       if (!name) return fail('name required', 400)
+      // Turning auto-approval on or off changes who may read this credential
+      // without a human. Only a change asks for the extra proof, so ordinary
+      // edits keep their current flow.
+      if (typeof body.noApproval === 'boolean') {
+        const current = await loadState(env)
+        if ((current.policies?.[name]?.noApproval === true) !== body.noApproval) {
+          const refused = await confirmSensitive(request, env, body, 'policy.update')
+          if (refused) return refused
+        }
+      }
       try {
         const nextName = await updateCipher(env, env.NODEWARDEN_DB, session, name, body)
         if (!nextName) return fail('item not found', 404)
@@ -5559,6 +5673,12 @@ export default {
       const session = await getSession(env)
       if (!session) return fail('locked', 423)
       const body = await request.json().catch(() => ({}))
+      // A new credential born with auto-approval is the same policy change as
+      // flipping it on later, so it gets the same check.
+      if (body.noApproval === true) {
+        const refused = await confirmSensitive(request, env, body, 'policy.update')
+        if (refused) return refused
+      }
       try { return json({ ok: true, ...(await createCipher(env, env.NODEWARDEN_DB, session, body)) }) } catch (error) { return fail(String(error.message ?? error), error.status ?? 400) }
     }
     if (url.pathname === '/api/items/import' && request.method === 'POST') {
@@ -5602,8 +5722,8 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const session = await getSession(env)
       if (!session) return fail('locked', 423)
-      const { code } = await request.json().catch(() => ({}))
-      const refused = await secondFactorWall(request, env, 'items.export', code)
+      const body = await request.json().catch(() => ({}))
+      const refused = await confirmSensitive(request, env, body, 'items.export', true)
       if (refused) return refused
       try {
         const state = await loadState(env)
@@ -5699,6 +5819,8 @@ export default {
       const body = await request.json().catch(() => ({}))
       const name = String(body.name ?? '').trim()
       if (!name) return fail('name required', 400)
+      const refused = await confirmSensitive(request, env, body, 'policy.update')
+      if (refused) return refused
       const session = await getSession(env)
       const state = await updateState(env, (next) => {
         next.policies ??= {}
@@ -6333,7 +6455,10 @@ export default {
       // Fire the notification batch opportunistically on admin page loads; the
       // helper de-duplicates per (agent, kind, threshold) so this cannot spam.
       try { await dispatchReminderBatch(env, state, url.origin, ctx) } catch {}
-    const view = publicState(state)
+    // Locked sessions can still load this view: approvals are decided by id, and
+    // the names they carry are masked server-side until the vault is unlocked.
+    const masked = await shouldMaskConsole(env)
+    const view = publicState(state, { masked })
     return json({ ...view, geoEnabled: GEO_ENABLED(env), fillPolicies: { ...view.fillPolicies, executionLayer: Boolean(String(env.FILL_EXECUTION_TOKEN ?? '')) }, reminders, pendingCount: Object.keys(state.pending ?? {}).length })
     }
     // Read-only migration report: which agents still rely on legacy paths,
@@ -6373,6 +6498,11 @@ export default {
       const body = await request.json().catch(() => ({}))
       const name = String(body.name ?? '').trim()
       if (!/^[a-zA-Z0-9._-]{1,48}$/.test(name)) return fail('invalid agent name', 400)
+      // Granting write is the moment an Agent becomes able to change the vault.
+      if (body.write === true) {
+        const refused = await confirmSensitive(request, env, body, 'agent.write')
+        if (refused) return refused
+      }
       const token = randomToken()
       const session = await getSession(env)
       const account = session?.email || await vaultEmail(env, env.NODEWARDEN_DB, await loadState(env))
@@ -6507,6 +6637,16 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
       const name = String(body.name ?? '')
+      // Write is only re-confirmed when it is being switched on; turning it off
+      // is a reduction and must stay frictionless.
+      if (body.write === true) {
+        const current = await loadState(env)
+        const already = current.agents?.[name]?.write === true || current.oauthAgentProfiles?.[name]?.write === true
+        if (!already) {
+          const refused = await confirmSensitive(request, env, body, 'agent.write')
+          if (refused) return refused
+        }
+      }
       let found = false
       await updateState(env, (state) => {
         const agent = state.agents[name]
@@ -8615,7 +8755,10 @@ const TOOL_META = {
         if (route === 'status' && request.method === 'GET') {
           const status = await vault2Status(env, { account })
           const cached = await keyCall('GET')
-          return json({ ...status, unlocked: Boolean(cached.ok), keyExpiresAt: cached.expiresAt ?? null })
+          // plainOk lets the console tell "locked" apart from "unlocked but the
+          // plaintext listing has not passed its TOTP gate yet". They used to be
+          // collapsed into one "未解锁" message.
+          return json({ ...status, unlocked: Boolean(cached.ok), keyExpiresAt: cached.expiresAt ?? null, plainOk: Boolean(cached.plainOk), confirmRequired: Boolean(cached.confirm) })
         }
         if (route === 'init' && request.method === 'POST') {
           const body = await request.json().catch(() => ({}))
@@ -8640,9 +8783,45 @@ const TOOL_META = {
             await addAudit(env, { event: 'vault.unlock-deny', agent: 'admin', reason: 'wrong-password' })
             return fail('wrong password', 401)
           }
-          await keyCall('PUT', { dek: [...opened.dek], legacyDek: opened.legacyDek ? [...opened.legacyDek] : null, ttlMs: body.ttlMs })
-          await addAudit(env, { event: 'vault.unlock', agent: 'admin', name: opened.fingerprint })
-          return json({ ok: true, fingerprint: opened.fingerprint, account: account || null, legacy: opened.legacyOnly === true })
+          const duration = ['12h', '7d', '30d', 'device'].includes(body.duration) ? body.duration : '12h'
+          await keyCall('PUT', { dek: [...opened.dek], legacyDek: opened.legacyDek ? [...opened.legacyDek] : null, ttlMs: body.ttlMs, confirm: body.confirm === true })
+          // The tier is part of the audit record: "unlocked for 30 days" is a
+          // different risk decision from "unlocked for the default 12 hours".
+          await addAudit(env, { event: 'vault.unlock', agent: 'admin', name: opened.fingerprint, via: 'password', duration })
+          return json({ ok: true, fingerprint: opened.fingerprint, account: account || null, legacy: opened.legacyOnly === true, duration })
+        }
+        // Long-term tier, step 2: the console has unwrapped the device envelope in
+        // the browser and presents the DEK. The DEK itself is checked against the
+        // public key generation, so a device token alone cannot fill the cache.
+        // The cache entry is short-lived; the durable key lives in the browser.
+        if (route === 'device/open' && request.method === 'POST') {
+          const bearer = request.headers.get('authorization') ?? ''
+          const presented = (bearer.match(/^Bearer\s+(.+)$/i) ?? [])[1] ?? ''
+          const device = await vault2DeviceByToken(env, presented).catch(() => null)
+          if (!device) return fail('unauthorized', 401)
+          if (device.account && account && device.account.toLowerCase() !== account.toLowerCase()) return fail('unauthorized', 401)
+          const body = await request.json().catch(() => ({}))
+          const dek = Uint8Array.from(Array.isArray(body.dek) ? body.dek : [])
+          if (dek.length !== 32) return fail('bad key', 400)
+          const keygen = await env.VAULT_DB.prepare("SELECT value FROM meta WHERE key = 'keygen'").first().catch(() => null)
+          if (!keygen?.value || String(keygen.value) !== await dekFingerprint(dek)) return fail('device key does not match this vault', 401)
+          // 1h is deliberate: reopening is silent, so the object never has to keep
+          // a device key for weeks just to avoid a prompt.
+          const ttlMs = 3600 * 1000
+          await keyCall('PUT', { dek: [...dek], ttlMs, confirm: false })
+          await addAudit(env, { event: 'vault.unlock', agent: 'admin', name: keygen.value, via: 'device', duration: 'device', deviceId: device.id })
+          return json({ ok: true, expiresAt: Date.now() + ttlMs })
+        }
+        // Long-term tier, step 1: pair this browser while the vault is unlocked.
+        // Reuses the same devices table and envelope format as CLI pairing, but
+        // the console key is read-only.
+        if (route === 'device/self-pair' && request.method === 'POST') {
+          const dek = await unlockedKey()
+          if (!dek) return fail('vault is locked', 423)
+          const body = await request.json().catch(() => ({}))
+          const paired = await vault2Pair(env, dek, { name: String(body.name ?? '本机浏览器'), publicJwk: body.publicJwk, canWrite: false })
+          await addAudit(env, { event: 'vault.device-bind', agent: 'admin', name: paired.id, deviceId: paired.id, duration: 'device' })
+          return json({ ok: true, deviceId: paired.id, name: paired.name, token: paired.token, canWrite: false })
         }
         if (route === 'lock' && request.method === 'POST') {
           // A lock drops every cached key, not just this session's: the point is
@@ -8723,6 +8902,11 @@ const TOOL_META = {
             await addAudit(env, { event: 'vault.device-purge', agent: 'admin', name: id })
             return json(purged)
           }
+          // Revoking a device is irreversible without re-pairing it, so it takes
+          // the same extra proof as the other admin-level actions.
+          const confirmBody = await request.json().catch(() => ({}))
+          const refused = await confirmSensitive(request, env, confirmBody, 'device.revoke')
+          if (refused) return refused
           const revoked = await vault2RevokeDevice(env, id, { account })
           if (!revoked) return fail('device not found', 404)
           await addAudit(env, { event: 'vault.device-revoke', agent: 'admin', name: id })
