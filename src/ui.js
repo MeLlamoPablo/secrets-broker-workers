@@ -740,6 +740,12 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
 .status{line-height:1.45}
 .status.error{color:var(--danger-text)}
 .status.ok{color:var(--ok-text)}
+/* The edit-mode status strip. Empty means "nothing to say", so it collapses
+   instead of holding a blank band above the form. */
+.page-state{display:flex;align-items:center;gap:8px;min-height:0;padding:0 var(--sp-3);font-size:13px;line-height:1.45;color:var(--label-2)}
+.page-state:empty{display:none}
+.page-state[data-tone="dirty"]{padding:8px var(--sp-3);color:var(--warn-text);background:color-mix(in srgb,var(--orange) 12%,transparent);border-bottom:1px solid var(--separator)}
+.page-state[data-tone="dirty"]::before{content:"";flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--orange)}
 /* Density is a per-list preference: keep the name and metadata, drop the
    secondary line and tighten the row. */
 #items-box[data-density="compact"] .ios-row{min-height:42px}
@@ -970,7 +976,7 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
 
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div><div id="live-alert" class="sr-only" role="alert"></div>
-<section id="item-page" class="page hidden" tabindex="-1" aria-label="条目详情"><div class="page-nav"><button class="page-back" id="item-page-back" aria-label="返回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>返回</button><div class="page-title" id="item-page-title"></div><button class="page-action" id="item-page-edit">编辑</button><button class="page-close" id="item-page-close" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="page-body" id="item-page-body"></div></section><div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="card"><button class="modal-x" id="modal-close-x" title="关闭" aria-label="关闭">×</button><h2 id="modal-title"></h2><div id="modal-body"></div><div style="margin-top:12px"><button id="modal-close">关闭</button></div></div></div>
+<section id="item-page" class="page hidden" tabindex="-1" aria-label="条目详情"><div class="page-nav"><button class="page-back" id="item-page-back" aria-label="返回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>返回</button><div class="page-title" id="item-page-title"></div><button class="page-action" id="item-page-edit">编辑</button><button class="page-close" id="item-page-close" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="page-state" id="item-page-state" role="status" aria-live="polite"></div><div class="page-body" id="item-page-body"></div></section><div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="card"><button class="modal-x" id="modal-close-x" title="关闭" aria-label="关闭">×</button><h2 id="modal-title"></h2><div id="modal-body"></div><div style="margin-top:12px"><button id="modal-close">关闭</button></div></div></div>
 <script>
 const $ = (id) => document.getElementById(id)
 const enc = new TextEncoder()
@@ -1224,7 +1230,7 @@ document.addEventListener('click', async (event) => {
   try { await api('/api/sessions/revoke', { method: 'POST', body: JSON.stringify({ id: button.dataset.revokeSession }) }); await loadProfile(); toast('已下线') } catch (error) { toast(error.message, true) }
 })
 $('account-logout').onclick = async () => { try { await api('/api/logout', { method: 'POST' }) } catch {} location.reload() }
-document.querySelectorAll('#account-menu [data-view]').forEach((button) => { button.onclick = () => { show('account-menu', false); document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', false)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + button.dataset.view)); if (button.dataset.view === 'settings') loadSettings(); if (button.dataset.view === 'profile') loadProfile() } })
+document.querySelectorAll('#account-menu [data-view]').forEach((button) => { button.onclick = async () => { if (!(await confirmDiscard())) return; if (editor.dirty) closeItemPage(); show('account-menu', false); document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', false)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + button.dataset.view)); if (button.dataset.view === 'settings') loadSettings(); if (button.dataset.view === 'profile') loadProfile() } })
 function applyTheme(mode) { const next = mode || localStorage.getItem('theme') || 'light'; const effective = next === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : (next === 'dark' ? 'dark' : 'light'); document.documentElement.dataset.theme = effective; localStorage.setItem('theme', next); const button = $('theme-cycle'); if (button) { button.textContent = next === 'light' ? '☀️' : next === 'dark' ? '🌙' : '💻'; button.title = '当前：' + (next === 'light' ? '浅色' : next === 'dark' ? '深色' : '跟随系统') + '（点击切换）' } }
 $('theme-cycle').onclick = () => { const current = localStorage.getItem('theme') || 'auto'; applyTheme(current === 'light' ? 'dark' : current === 'dark' ? 'auto' : 'light') }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((localStorage.getItem('theme') || 'auto') === 'auto') applyTheme('auto') })
@@ -1295,7 +1301,12 @@ async function lock() {
   } catch (error) { toast(error.message, true) }
 }
 $('lock').onclick = lock; $('lock2').onclick = lock
-document.querySelectorAll('#nav button').forEach((button) => { button.onclick = () => { const view = button.dataset.view; document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b === button)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + view)); if (view === 'devices') loadVault2(false); if (view === 'settings') loadSettings(); if (view === 'profile') loadProfile() } })
+document.querySelectorAll('#nav button').forEach((button) => { button.onclick = async () => { const view = button.dataset.view
+  // Switching tabs replaces what the open detail page was describing, so the
+  // same unsaved edits must not vanish just because the exit is a tab.
+  if (!(await confirmDiscard())) return
+  if (editor.dirty) closeItemPage()
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b === button)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + view)); if (view === 'devices') loadVault2(false); if (view === 'settings') loadSettings(); if (view === 'profile') loadProfile() } })
 document.querySelectorAll('#range-row button').forEach((button) => { button.onclick = () => { app.range = button.dataset.range; document.querySelectorAll('#range-row button').forEach((b) => b.classList.toggle('on', b === button)); loadStats() } })
 // ── Global search ───────────────────────────────────────────────────────────
 // One box on the overview searches every source the console already keeps in
@@ -1501,14 +1512,15 @@ $('denied-list').addEventListener('click', async (event) => {
   }
 })
 $('items-box').addEventListener('click', async (event) => {
-  const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); return } const menu = event.target.closest('[data-item-menu]'); if (menu) { openItemMenu(menu.dataset.itemMenu); return } const toggle = event.target.closest('[data-policy]'); if (toggle) { const item = app.items.find((entry) => entry.name === toggle.dataset.policy); if (!item) return; try { await api('/api/policies', { method: 'POST', body: JSON.stringify({ name: item.name, noApproval: !item.noApproval }) }); await loadItems(); toast('已更新免审批策略') } catch (error) { toast(error.message, true) } return } const read = event.target.closest('[data-read]'); if (read) reveal(read.dataset.read) })
+  const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); return } const menu = event.target.closest('[data-item-menu]'); if (menu) { if (!(await confirmDiscard())) return; openItemMenu(menu.dataset.itemMenu); return } const toggle = event.target.closest('[data-policy]'); if (toggle) { const item = app.items.find((entry) => entry.name === toggle.dataset.policy); if (!item) return; try { await api('/api/policies', { method: 'POST', body: JSON.stringify({ name: item.name, noApproval: !item.noApproval }) }); await loadItems(); toast('已更新免审批策略') } catch (error) { toast(error.message, true) } return } const read = event.target.closest('[data-read]'); if (read) reveal(read.dataset.read) })
 // The row body is a div with role="button". A click opens it, so Enter and
 // Space have to do the same or the row is visible but unreachable by keyboard.
-$('items-box').addEventListener('keydown', (event) => {
+$('items-box').addEventListener('keydown', async (event) => {
   if (event.key !== 'Enter' && event.key !== ' ') return
   const row = event.target.closest('[data-item-menu]')
   if (!row || event.target !== row) return
   event.preventDefault()
+  if (!(await confirmDiscard())) return
   openItemMenu(row.dataset.itemMenu)
 })
 $('agents-box').addEventListener('click', (event) => {
@@ -3818,6 +3830,88 @@ function expiresField(item) {
   return '<label class="field">有效期（留空表示不过期）</label><input id="mi-expires" type="date" value="' + esc(stamp) + '">'
 }
 
+// ── Edit-mode dirty tracking ────────────────────────────────────────────────
+// 编辑 only reveals the inputs; 完成 used to hide them again without saving
+// anything, so every keystroke was thrown away in silence. The page now
+// snapshots the form on entry, diffs it on input/change, and asks before any
+// exit that would drop the difference.
+const editor = { editing: false, snapshot: null, dirty: false }
+// One question at a time: a second exit attempt while the bar is open answers
+// "stay" instead of stacking another copy of the same ask.
+let leaveAsk = null
+const editControls = () => $('item-page-body').querySelectorAll('.edit-only input,.edit-only select,.edit-only textarea')
+const fieldValue = (el) => (el.type === 'checkbox' ? el.checked : el.value)
+function snapshotFields() { return [...editControls()].map((el) => ({ el, value: fieldValue(el) })) }
+// The share picker sits in the same card, so a half-filled share is an edit too.
+function formChanged() { return !editor.snapshot || editor.snapshot.some(({ el, value }) => fieldValue(el) !== value) }
+function restoreSnapshot() {
+  if (!editor.snapshot) return
+  for (const { el, value } of editor.snapshot) { if (el.type === 'checkbox') el.checked = value; else el.value = value }
+  setDirty(false)
+}
+// The strip under the title is the visible state line; the save button carries
+// the same words in its label so it is not conveyed by colour alone.
+function setDirty(dirty) {
+  editor.dirty = Boolean(dirty)
+  const page = $('item-page')
+  if (page) page.dataset.dirty = editor.dirty ? 'true' : 'false'
+  const strip = $('item-page-state')
+  if (strip) {
+    const text = editor.editing ? (editor.dirty ? '有未保存的修改 · 保存或放弃后才会写入服务器' : '还没有改动') : ''
+    // Only rewrite when the state actually flipped: a keystroke-by-keystroke
+    // assignment would make the live region announce the same line forever.
+    if (strip.textContent !== text) strip.textContent = text
+    strip.dataset.tone = editor.dirty ? 'dirty' : 'clean'
+  }
+  const save = $('mi-save')
+  if (save) {
+    save.setAttribute('aria-label', editor.dirty ? '保存修改（有未保存的修改）' : '保存修改（无改动）')
+    save.title = editor.dirty ? '有未保存的修改，点这里写入服务器' : '无改动'
+  }
+}
+function syncDirty() { if (editor.editing) setDirty(formChanged()) }
+function enterEditMode() {
+  editor.editing = true
+  $('item-page').dataset.editing = 'true'
+  $('item-page-edit').textContent = '完成'
+  editor.snapshot = snapshotFields()
+  setDirty(false)
+  // Jumping to the bottom of a long page hid the field you just asked to edit.
+  // Bring the first editable control into view and put the cursor in it.
+  const first = $('item-page-body').querySelector('.edit-only input,.edit-only select,.edit-only textarea')
+  if (first) { first.scrollIntoView({ block: 'center', behavior: 'smooth' }); first.focus() }
+}
+function exitEditMode() {
+  editor.editing = false
+  editor.snapshot = null
+  const page = $('item-page')
+  if (page) page.dataset.editing = 'false'
+  const edit = $('item-page-edit')
+  if (edit) edit.textContent = '编辑'
+  setDirty(false)
+}
+// True means "carry on with the exit"; false means "the operator chose to
+// keep editing". Nothing is asked while the form matches its snapshot.
+function confirmDiscard() {
+  if (!editor.dirty) return Promise.resolve(true)
+  if (leaveAsk) return Promise.resolve(false)
+  leaveAsk = askYes('有未保存的修改，离开会丢掉这些改动。', { yes: '放弃修改', no: '继续编辑' })
+  return leaveAsk.then((ok) => { leaveAsk = null; return ok })
+}
+async function requestCloseItemPage() {
+  if (!(await confirmDiscard())) return
+  closeItemPage()
+}
+async function toggleEditMode() {
+  if (!editor.editing) return enterEditMode()
+  // 完成 hides the inputs without saving, so leaving the form with edits is the
+  // same loss as leaving the page and gets the same question.
+  if (!(await confirmDiscard())) return
+  if (editor.dirty) restoreSnapshot()
+  exitEditMode()
+  $('item-page-edit').focus()
+}
+
 // A pushed page instead of a dialog: the item detail is a place you navigate
 // to and come back from, not a thing that floats over the list.
 function openItemPage(title, html) {
@@ -3825,8 +3919,7 @@ function openItemPage(title, html) {
   $('item-page-body').innerHTML = html
   $('item-page-body').scrollTop = 0
   const page = $('item-page')
-  page.dataset.editing = 'false'
-  $('item-page-edit').textContent = '编辑'
+  exitEditMode()
   page.classList.remove('hidden')
   document.body.classList.add('page-open')
   // Mark the row this page belongs to, so a wide-screen split shows which
@@ -3841,24 +3934,20 @@ function openItemPage(title, html) {
 function closeItemPage() {
   const page = $('item-page')
   if (!page || page.classList.contains('hidden')) return
+  // Every caller that reaches here has saved, deleted, shared, already
+  // answered the question, or never had unsaved edits.
+  exitEditMode()
   page.classList.remove('in')
   document.body.classList.remove('page-open')
   setTimeout(() => { if (!page.classList.contains('in')) page.classList.add('hidden') }, 360)
 }
-$('item-page-back').onclick = closeItemPage
-$('item-page-close').onclick = closeItemPage
-$('item-page-edit').onclick = () => {
-  const page = $('item-page')
-  const next = page.dataset.editing !== 'true'
-  page.dataset.editing = next ? 'true' : 'false'
-  $('item-page-edit').textContent = next ? '完成' : '编辑'
-  // Jumping to the bottom of a long page hid the field you just asked to edit.
-  // Bring the first editable control into view and put the cursor in it.
-  if (next) {
-    const first = $('item-page-body').querySelector('.edit-only input,.edit-only select,.edit-only textarea')
-    if (first) { first.scrollIntoView({ block: 'center', behavior: 'smooth' }); first.focus() }
-  }
-}
+$('item-page-back').onclick = requestCloseItemPage
+$('item-page-close').onclick = requestCloseItemPage
+$('item-page-edit').onclick = toggleEditMode
+// The form controls live inside the page body, which is re-rendered on every
+// open, so the listener sits on the stable container instead of on each input.
+$('item-page-body').addEventListener('input', syncDirty)
+$('item-page-body').addEventListener('change', syncDirty)
 // Esc should peel one layer at a time. Closing the dialog used to also close
 // the page underneath it, because both listeners saw the same key.
 document.addEventListener('keydown', (event) => {
@@ -3867,7 +3956,16 @@ document.addEventListener('keydown', (event) => {
   // is the last thing that should close.
   if (!document.getElementById('modal').classList.contains('hidden')) return
   if (document.querySelector('.ask')) return
-  closeItemPage()
+  requestCloseItemPage()
+})
+// A tab close or reload is the one exit the page cannot intercept, and the
+// browser shows its own generic wording. Inside the desktop WebView
+// beforeunload may not fire at all, which is why every in-page exit above is
+// guarded separately instead of relying on this one.
+window.addEventListener('beforeunload', (event) => {
+  if (!editor.dirty) return
+  event.preventDefault()
+  event.returnValue = ''
 })
 // A stored password is the one thing in this panel worth a second factor: the
 // cookie alone would otherwise be enough to empty the vault. So the button asks
@@ -3937,9 +4035,13 @@ function openItemMenu(name) {
     '<div class="kv"><span>网址</span><b>' + (item.url ? '<a href="' + esc(item.url) + '" target="_blank" rel="noreferrer">' + esc(item.url) + '</a>' : '未设置') + '</b></div>' +
     '<div class="kv"><span>分组</span><b>' + esc(item.group || '未分组') + '</b></div>' +
     '<div class="kv"><span>有效期</span><b>' + expiryLabel(item.expiresAt) + '</b></div></div>' +
-    fillEditorHtml(item) + '<div class="card edit-only"><label class="field">名称</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">用户名（留空不改）</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret（留空不改）</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">分组</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="例如 blog/prod"><label class="field">网址</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">备注（留空不改）</label><input id="mi-notes" placeholder="新的备注"><label class="field">新密钥值（留空不改）</label><input id="mi-value" type="password" placeholder="留空保留原值"><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> 免审批（自动读取，仍记录）</label><div class="row" style="margin-top:14px"><button class="primary" id="mi-save">保存修改</button><button id="mi-share">分享 / 跨账户复制</button><button class="danger" id="mi-delete">删除</button></div><div style="border-top:1px solid var(--line);margin-top:14px;padding-top:10px"><div class="hint">分享给 Agent（同账户直接授权；跨账户会先复制到目标账户文件夹，切回目标账户解锁后自动完成）</div><label class="field">分享给（可多选）</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">跨账户目标文件夹（同账户可留空）</label><input id="mi-share-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="mi-share-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
+    fillEditorHtml(item) + '<div class="card edit-only"><label class="field">名称</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">用户名（留空不改）</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret（留空不改）</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">分组</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="例如 blog/prod"><label class="field">网址</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">备注（留空不改）</label><input id="mi-notes" placeholder="新的备注"><label class="field">新密钥值（留空不改）</label><input id="mi-value" type="password" placeholder="留空保留原值"><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> 免审批（自动读取，仍记录）</label><div class="row" style="margin-top:14px"><button class="primary" id="mi-save" aria-label="保存修改（无改动）">保存修改</button><button id="mi-discard" aria-label="放弃修改，恢复进入编辑时的值">放弃</button><button id="mi-share">分享 / 跨账户复制</button><button class="danger" id="mi-delete">删除</button></div><div style="border-top:1px solid var(--line);margin-top:14px;padding-top:10px"><div class="hint">分享给 Agent（同账户直接授权；跨账户会先复制到目标账户文件夹，切回目标账户解锁后自动完成）</div><label class="field">分享给（可多选）</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">跨账户目标文件夹（同账户可留空）</label><input id="mi-share-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="mi-share-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
   $('item-reveal').onclick = () => revealItemSecret(item)
-  $('mi-share-sync').onclick = () => { closeItemPage(); selectedItems.clear(); selectedItems.add(item.name); openBulkShare() }
+  // 分享 / 同步 leaves the detail for another screen, so it is an exit too.
+  $('mi-share-sync').onclick = async () => { if (!(await confirmDiscard())) return; closeItemPage(); selectedItems.clear(); selectedItems.add(item.name); openBulkShare() }
+  // 放弃 restores the snapshot and closes the form without a second question:
+  // answering it was the point of the button.
+  $('mi-discard').onclick = () => { restoreSnapshot(); exitEditMode(); $('item-page-edit').focus() }
   $('mi-save').onclick = async () => { try { await api('/api/items/update', { method: 'POST', body: JSON.stringify({ name: item.name, newName: $('mi-name').value.trim(), username: $('mi-username').value, totp: $('mi-totp').value, group: $('mi-group').value.trim(), url: $('mi-url').value.trim(), notes: $('mi-notes').value.trim() ? $('mi-notes').value : undefined, value: $('mi-value').value, noApproval: $('mi-noapproval').checked, expiresAt: $('mi-expires').value }) }); closeItemPage(); await Promise.all([loadItems(), loadState()]); toast('已保存') } catch (error) { toast(error.message, true) } }
   $('mi-delete').onclick = async () => { if (!(await askYes('删除条目「' + item.name + '」？'))) return; try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name: item.name }) }); closeItemPage(); await Promise.all([loadItems(), loadState()]); toast('已删除') } catch (error) { toast(error.message, true) } }
   wireFillEditor(item)
