@@ -2364,6 +2364,13 @@ async function syncKeyMatch(env, account, peer) {
   return constantTimeEqual(encoder.encode(await sha256Base64(String(user.key))), encoder.encode(check))
 }
 
+// The assistant sees the same names the console does: while locked it gets the
+// masked form, because both the insights text and the model prompt quote them.
+async function aiSnapshotFor(env, state, session = null) {
+  const masked = await shouldMaskConsole(env)
+  return aiSnapshot(state, { vaultUnlocked: Boolean(session), scope: await vaultItemNames(env, env.NODEWARDEN_DB), maskName: masked ? maskName : undefined })
+}
+
 // Locked consoles still need to approve requests, but they must not read the
 // credential names that approval metadata carries. Masking happens here, before
 // the JSON leaves the Worker: a client-side slice after receiving the plaintext
@@ -2910,7 +2917,7 @@ async function handleTelegramMessage(env, message, telegram) {
 
   // Not a command: answer as the assistant, which cannot change anything.
   const session = await getSession(env)
-  const snapshot = aiSnapshot(state, { vaultUnlocked: Boolean(session), scope: await vaultItemNames(env, env.NODEWARDEN_DB) })
+  const snapshot = await aiSnapshotFor(env, state, session)
   const answer = await askAi(env, state.settings, { question: parsed.text, snapshot, history: [] })
   if (!answer.ok) return reply('回答不了：' + answer.reason + '\n\n发 /help 看命令。')
   return reply(answer.text)
@@ -7113,7 +7120,7 @@ export default {
       if (!question) return fail('question required', 400)
       const state = await loadState(env)
       const session = await getSession(env)
-      const snapshot = aiSnapshot(state, { vaultUnlocked: Boolean(session), scope: await vaultItemNames(env, env.NODEWARDEN_DB) })
+      const snapshot = await aiSnapshotFor(env, state, session)
       const history = Array.isArray(body.history) ? body.history : []
       const answer = await askAi(env, state.settings, { question, snapshot, history })
       await addAudit(env, { event: 'ai.ask', agent: 'admin', source: 'console', ok: answer.ok === true, provider: answer.provider ?? '' })
@@ -7126,7 +7133,7 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const state = await loadState(env)
       const session = await getSession(env)
-      return json({ ok: true, insights: aiInsights(aiSnapshot(state, { vaultUnlocked: Boolean(session), scope: await vaultItemNames(env, env.NODEWARDEN_DB) })) })
+      return json({ ok: true, insights: aiInsights(await aiSnapshotFor(env, state, session)) })
     }
     // ── The other broker, as the panel sees it ─────────────────────────────
     // Pasting a token into a terminal is a workaround, not the design. The

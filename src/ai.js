@@ -16,12 +16,16 @@
 // What the model may see. Built from state only; every field below is metadata.
 export function aiSnapshot(state, extras = {}) {
   const now = Date.now()
+  // A locked console must not hand item names to the model either: the insights
+  // text and the prompt both quote them back. The caller passes the same
+  // server-side mask the console uses, so the AI sees what the UI sees.
+  const mask = typeof extras.maskName === 'function' ? extras.maskName : (value) => value
   const audit = (state.audit ?? []).slice(0, 60).map((entry) => ({
-    time: entry.time ?? '', event: entry.event ?? '', agent: entry.agent ?? '', name: entry.name ?? '',
+    time: entry.time ?? '', event: entry.event ?? '', agent: entry.agent ?? '', name: mask(entry.name ?? ''),
     reason: entry.reason ?? '', severity: entry.severity ?? '',
   }))
   const capabilities = Object.values(state.capabilities ?? {}).map((cap) => ({
-    agent: cap.subjectId ?? '', item: cap.itemName ?? '', action: cap.action ?? '',
+    agent: cap.subjectId ?? '', item: mask(cap.itemName ?? ''), action: cap.action ?? '',
     expiresAt: cap.expiresAt ?? null,
     status: cap.revokedAt ? 'revoked' : (cap.expiresAt && cap.expiresAt <= now ? 'expired' : 'valid'),
     usesLeft: cap.maxUses == null ? null : Math.max(0, cap.maxUses - (cap.usedCount ?? 0)),
@@ -34,7 +38,7 @@ export function aiSnapshot(state, extras = {}) {
   const items = Object.entries(state.itemIds ?? {})
     .filter(([name]) => !inScope || inScope.has(name))
     .map(([name, id]) => ({
-      name,
+      name: mask(name),
       kind: state.credentialKinds?.[id] ?? 'unclassified',
       origins: state.fillPolicies?.[id]?.origins ?? [],
       plaintextRead: Boolean(state.plaintextReadPolicies?.[id]),
@@ -59,8 +63,8 @@ export function aiSnapshot(state, extras = {}) {
     },
     agents: Object.entries(state.agents ?? {}).map(([name, agent]) => ({
       name, alias: agent.alias ?? '',
-      scope: agent.allowAll === true ? 'all' : (agent.allow ?? []).slice(0, 40),
-      groups: (agent.groups ?? []).slice(0, 20),
+      scope: agent.allowAll === true ? 'all' : (agent.allow ?? []).slice(0, 40).map(mask),
+      groups: (agent.groups ?? []).slice(0, 20).map(mask),
       expired: typeof agent.expiresAt === 'number' && agent.expiresAt < now,
     })),
     oauthAgents: Object.values(state.oauthTokens ?? {}).map((token) => ({
@@ -70,10 +74,10 @@ export function aiSnapshot(state, extras = {}) {
     items,
     capabilities,
     pending: Object.values(state.pending ?? {}).map((entry) => ({
-      agent: entry.agent ?? '', name: entry.name ?? '', action: entry.action ?? '', createdAt: entry.createdAt ?? '',
+      agent: entry.agent ?? '', name: mask(entry.name ?? ''), action: entry.action ?? '', createdAt: entry.createdAt ?? '',
     })),
     deniedAttempts: Object.values(state.deniedAttempts ?? {}).map((entry) => ({
-      agent: entry.agent ?? '', name: entry.name ?? '', action: entry.action ?? '',
+      agent: entry.agent ?? '', name: mask(entry.name ?? ''), action: entry.action ?? '',
       reason: entry.reason ?? '', count: entry.count ?? 1, lastAt: entry.lastAt ?? '',
     })),
     audit,
