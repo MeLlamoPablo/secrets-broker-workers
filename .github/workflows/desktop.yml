@@ -3,6 +3,8 @@ name: desktop-release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'desktop-v*'
 
@@ -19,6 +21,10 @@ permissions:
 
 jobs:
   build-windows:
+    # Installers are only built for a release or a manual run. Pushes to main
+    # now trigger this workflow so the desktop-check matrix below runs; that must
+    # not start a full Windows bundle every time.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/desktop-v')
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
@@ -79,3 +85,39 @@ jobs:
             SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  desktop-check:
+    # Compile the desktop shell on macOS and Linux. Only Windows was ever built,
+    # so every `#[cfg(not(windows))]` branch (the native confirmation prompt)
+    # shipped without a compiler ever looking at it. This job only checks: no
+    # bundling, no signing and no release, so it can stay read-only.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libssl-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+          key: desktop-check
+
+      - name: cargo check (desktop)
+        run: cargo check --manifest-path desktop/src-tauri/Cargo.toml --all-targets

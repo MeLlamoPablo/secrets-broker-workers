@@ -42,6 +42,9 @@ pub fn confirm(window: &WebviewWindow, action: &str, detail: &str) -> Result<(),
 enum PromptAnswer {
     Approved,
     Refused,
+    // Windows always has a message box to draw; only the other platforms can
+    // end up with no way to ask.
+    #[cfg_attr(windows, allow(dead_code))]
     Unavailable,
 }
 
