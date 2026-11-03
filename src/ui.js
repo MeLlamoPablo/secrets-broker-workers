@@ -1517,7 +1517,11 @@ function renderLockedSurface() {
   const plainGate = !locked && app.me?.unlocked === true && app.v2?.initialized === true && app.plainOk === false
   bar.classList.toggle('hidden', !locked && !plainGate)
   if (locked) {
-    $('locked-text').textContent = '未解锁 · 条目名称已脱敏，审批和查看仍可进行；读明文前再解锁'
+    // Only a zero-knowledge vault has names worth hiding; a legacy vault keeps
+    // them in plaintext at rest, so the bar must not claim a mask it never applied.
+    $('locked-text').textContent = app.data?.masked === true
+      ? '未解锁 · 条目名称已脱敏，审批和查看仍可进行；读明文前再解锁'
+      : '未解锁 · 审批仍可进行；查看密钥和明文前再解锁'
     $('locked-unlock').textContent = '就地解锁'
     $('locked-unlock').dataset.mode = 'unlock'
   } else if (plainGate) {
@@ -2351,8 +2355,8 @@ function applyGlobeAvailability(geoOn) {
   if (!geoOn) note.textContent = '实时访问未启用 · 设置 GEO_ENABLED=1 后显示实时连接'
   else if (note.textContent.indexOf('实时访问未启用') === 0) note.textContent = ''
 }
-async function loadState() { try { app.data = await api('/api/state'); app.locked = app.data.masked === true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
-async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; app.locked = false; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { app.locked = true; app.items = []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '已锁定：条目名称已脱敏，审批仍可进行') } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
+async function loadState() { try { app.data = await api('/api/state'); app.locked = app.data.masked === true || app.me?.unlocked !== true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
+async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; app.locked = false; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { app.locked = true; app.items = []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', app.data?.masked === true ? '已锁定：条目名称已脱敏，审批仍可进行' : '已锁定：查看条目需要解锁') } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
 async function loadStats() { try { app.stats = await api('/api/stats?range=' + app.range); renderStats() } catch {} }
 // One operator action changes the logs, the counts and the item rows at once.
 // Reloading them together is cheaper than making the operator press 刷新 to
