@@ -654,15 +654,112 @@ html[data-theme="dark"] .page .row>button.danger{background:color-mix(in srgb,va
 @media(max-width:720px){#globe-card .globe-box{height:160px;min-height:0}}
 @media(max-width:720px){.ov-controls{flex:1 1 100%;flex-wrap:wrap;justify-content:flex-start}.ov-controls .seg{flex:1 1 100%}.ov-search{flex:1 1 100%;max-width:none}}
 @media(max-width:720px){.kpis{gap:10px}.kpi{min-height:86px;padding:12px 14px}.kpi .value{font-size:28px;line-height:32px}.kpi .label{font-size:12px}.kpi .sub{font-size:11px}.kpi-spark{height:16px;margin:4px 0}}
+/* ── Console polish layer ──────────────────────────────────────────────────
+   Rules that used to be repeated per-component live here once. It is appended
+   last on purpose: the legacy and iOS blocks above keep their own structure,
+   and this layer only fills the gaps (contrast, focus, states, action weight)
+   without deleting anything they still depend on. */
+:root{
+  --label-muted:#5b6472;
+  --line:rgba(60,60,67,.12);
+  --danger-soft:color-mix(in srgb,var(--red,#c0281f) 12%,transparent);
+  --state-bg:var(--fill-2);
+  --radius-card:14px;
+  /* System orange is a fill colour, not a text colour: at 13px on white it
+     misses 4.5:1. These are the readable versions of the same hues. */
+  --warn-text:#8a5a00;
+  --danger-text:#b3261e;
+  --ok-text:#0b7d6d;
+}
+html[data-theme="dark"]{
+  --label-muted:rgba(235,235,245,.7);
+  --line:rgba(235,235,245,.14);
+  --danger-soft:color-mix(in srgb,var(--red,#ff453a) 24%,transparent);
+  --state-bg:#1c1c1e;
+  --warn-text:#ffb340;
+  --danger-text:#ff8a80;
+  --ok-text:#4fdcb0;
+}
+/* Native controls (scrollbars, date pickers, selects) have to follow the theme
+   too; setup.html already did this, the console did not. */
+html{color-scheme:light}
+html[data-theme="dark"]{color-scheme:dark}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+/* Informational text, not decoration: timestamps, heat scale and KPI captions
+   move to the readable token while --label-3 stays for hairline glyphs. */
+#updated,.trend-count,.heat-hours,.health-chev,.kpi .sub{color:var(--label-muted)}
+.kpi .value,.rank__count,.ios-pill{font-variant-numeric:tabular-nums}
+/* Action weight: one primary per group, destructive action carries its own tone. */
+button.primary{background:var(--blue);color:#fff;border-color:transparent}
+button.primary:hover{background:color-mix(in srgb,var(--blue) 88%,#000)}
+button.danger{background:var(--danger-soft);color:var(--danger-text);border-color:transparent}
+button.danger:hover{background:color-mix(in srgb,var(--red,#c0281f) 18%,transparent)}
+.ios-chip{min-height:40px;padding:0 14px}
+.ios-chip.primary{background:var(--blue);color:#fff}
+.ios-chip.danger{background:var(--danger-soft);color:var(--danger-text)}
+@media(pointer:coarse){.ios-chip{min-height:44px}.ios-pill{min-height:34px}}
+/* The search field is the one control that should absorb leftover width; the
+   six buttons beside it keep their own size instead of squashing it to a
+   quarter of the row. */
+#view-items .row>#item-filter{width:auto;flex:1 1 220px;min-width:170px}
+/* Keyboard focus was only drawn on the item row; these are the remaining
+   interactive targets, including the ones the iOS layer turned into fake buttons. */
+button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible,[tabindex]:focus-visible,.ios-main:focus-visible,.kpi:focus-visible,.health-row:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ask__code{display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);color:var(--label)}
+/* Empty, loading and error share one shape; only copy and tone differ, so the
+   three states never collapse into the same grey sentence. */
+.state{margin:var(--sp-4) 0;padding:26px 18px;border-radius:var(--radius-card);background:var(--state-bg);text-align:center}
+.state__title{margin:0 0 6px;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.state__body{margin:0 auto 14px;max-width:46ch;color:var(--label-2);font-size:13px;line-height:1.55}
+.state__actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.state[data-tone="error"] .state__title{color:var(--danger-text)}
+/* A refused request always shows which kind of refusal it was. */
+.deny__title{margin-top:6px;font-size:14px;font-weight:600;color:var(--label)}
+.deny-reason{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin-top:4px;font-size:13px;line-height:1.5;color:var(--label-2)}
+.deny-reason b{color:var(--label);font-weight:600}
+.deny[data-kind="not-in-scope"] .deny-reason b{color:var(--warn-text)}
+.deny[data-kind="item-not-found"] .deny-reason b{color:var(--danger-text)}
+/* The refusal rows reuse the tappable-looking list body but are not tappable;
+   a pointer cursor there promises an action that does not exist. */
+#denied-list .ios-main{cursor:default}
+/* Badges are text, not fills: the system hues above them are tuned for dots
+   and rings, so the words inside use the readable tokens instead. */
+.ios-pill.bad,.ios-flag.bad{color:var(--danger-text)}
+.ios-pill.warn,.ios-flag.warn{color:var(--warn-text)}
+/* The two notice tones the earlier dark block never overrode. */
+html[data-theme="dark"] .notice-bar[data-level="warning"]{background:color-mix(in srgb,#c98a00 20%,transparent);color:#f3d08a}
+html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in srgb,var(--blue) 20%,transparent);color:#c3d7ff}
+/* Card titles were the same size as body copy. One step up, one weight up,
+   enough to read as a section header without turning into a page heading. */
+.card>h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin-bottom:4px}
+/* Long lists (logs, agents, grants) keep their column names in view while the
+   rows move; the header sits above the rows instead of scrolling away. */
+.table-wrap thead th{position:sticky;top:0;z-index:1;background:var(--card)}
+/* Status lines keep their height whether empty or filled, so a message never
+   pushes the page down under the pointer that just clicked. */
+.status{line-height:1.45}
+.status.error{color:var(--danger-text)}
+.status.ok{color:var(--ok-text)}
+/* Density is a per-list preference: keep the name and metadata, drop the
+   secondary line and tighten the row. */
+#items-box[data-density="compact"] .ios-row{min-height:42px}
+/* Only the second metadata line goes away. Hiding the last child used to also
+   hide the *only* line, which is where the URL and group live. */
+#items-box[data-density="compact"] .ios-sub+.ios-sub{display:none}
+/* Reduce motion for the large surfaces as well, not only buttons and the toast. */
+@media (prefers-reduced-motion: reduce){
+  .page,.page-nav,.modal .card,.ask,.toast,input.ios-switch::after,.card-caret,.health-chev{transition:none !important;animation:none !important}
+  .page{transform:none !important}
+}
 </style></head><body><div class="wrap">
 <div id="db-down" class="notice-bar hidden" data-level="critical"><span class="notice-dot"></span><span class="notice-text"></span></div>
 <header><img id="site-logo" src="/logo.png" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;cursor:pointer"><h1 id="site-title" style="cursor:pointer">Secrets Broker</h1><span class="badge">Cloudflare Workers</span>
 <div class="hdr-actions">
-<button id="theme-cycle" class="theme-cycle" title="切换主题：浅色 / 深色 / 跟随系统">☀️</button>
+<button id="theme-cycle" class="theme-cycle" title="切换主题：浅色 / 深色 / 跟随系统" aria-label="切换主题（当前：浅色）">☀️</button>
 <button id="ai-help" class="small" title="用 AI 解释当前状态">问 AI</button>
 <a class="icon-btn" href="https://github.com/otscup/secrets-broker-workers" target="_blank" rel="noreferrer" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
 <button id="page-refresh" class="small" title="刷新当前页面">刷新</button>
-<div class="user-wrap"><span class="user"><span class="who-name" id="who"></span><button id="avatar" class="avatar" title="账户">SB</button></span>
+<div class="user-wrap"><span class="user"><span class="who-name" id="who"></span><button id="avatar" class="avatar" title="账户" aria-label="账户菜单" aria-haspopup="menu" aria-expanded="false">SB</button></span>
 <div id="account-menu" class="account-menu hidden"><button data-view="profile">个人资料</button><button data-view="settings">系统设置</button><button id="account-logout">退出登录</button><button id="lock" class="danger">锁定</button></div></div>
 </div>
 <nav id="nav"><button data-view="overview" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span>概览</span></button><button data-view="items"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.6"/><path d="M10.6 10.6 20 20"/><path d="M15.6 15.6l2-2"/><path d="M17.8 17.8l2-2"/></svg><span>密钥</span></button><button data-view="devices"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="1.6"/><path d="M9 20h6"/><path d="M12 16.5V20"/></svg><span>电脑</span></button><button data-view="agents"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.4" r="3"/><path d="M3.5 19c0-2.9 2.5-4.6 5.5-4.6s5.5 1.7 5.5 4.6"/><path d="M16.2 6.6a2.6 2.6 0 0 1 0 5"/><path d="M17.6 14.6c2 .6 3.4 2.2 3.4 4.4"/></svg><span>Agents</span></button><button data-view="grants"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 5 6.4v5c0 4.3 2.9 7.4 7 8.9 4.1-1.5 7-4.6 7-8.9v-5z"/><path d="M9 12.1l2.1 2.1 4-4.4"/></svg><span>授权</span></button><button data-view="logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.5h11"/><path d="M8.5 12h11"/><path d="M8.5 17.5h11"/><circle cx="4.6" cy="6.5" r="1.1"/><circle cx="4.6" cy="12" r="1.1"/><circle cx="4.6" cy="17.5" r="1.1"/></svg><span>日志</span></button></nav>
@@ -702,12 +799,12 @@ html[data-theme="dark"] .page .row>button.danger{background:color-mix(in srgb,va
         </div>
         <div class="globe-split">
           <div id="globe-box" class="globe-box">
-            <button class="small globe-expand" id="globe-full" title="放大地球">⤢</button>
+            <button class="small globe-expand" id="globe-full" title="放大地球" aria-label="放大地球">⤢</button>
             <div class="globe-empty" id="globe-empty"></div>
           </div>
           <div class="globe-side">
             <div class="seg seg--vert" id="globe-range"><button data-grange="1h">1h</button><button data-grange="24h" class="on">24h</button><button data-grange="7d">7d</button></div>
-            <button class="globe-pause" id="globe-pause" title="暂停动画">⏸</button>
+            <button class="globe-pause" id="globe-pause" title="暂停动画" aria-label="暂停地球动画" aria-pressed="false">⏸</button>
           </div>
         </div>
         <div class="hint" id="globe-status"></div>
@@ -717,7 +814,7 @@ html[data-theme="dark"] .page .row>button.danger{background:color-mix(in srgb,va
     </div>
   </section>
 
-  <section id="view-items" class="view hidden"><div class="card"><h2>密钥条目</h2><div class="hint">来自 NodeWarden D1（只读）。点条目打开详情，可改类型、明文读取、免审批和分享；勾选多条可批量操作。</div><div class="row" style="margin-top:10px"><input id="item-filter" placeholder="搜索名称、分组或网址…"><select id="item-sort" title="排序方式" style="flex:0 0 auto"><option value="name">按名称</option><option value="activity">按最近活动</option><option value="access">按授权数</option><option value="expiry">按到期时间</option></select><button id="items-refresh">刷新</button><button id="items-select">选择</button><button id="item-create">新增</button><button id="item-import">导入</button><button id="item-export">导出</button><input id="import-file" type="file" accept="application/json,.json" class="hidden"></div><div id="bulk-bar" class="row hidden" style="margin-top:8px;background:var(--btn);padding:8px;border-radius:10px"><span id="bulk-count" class="hint" style="flex:0 0 auto"></span><button id="bulk-share" class="primary">批量分享</button><button id="bulk-kind" title="把选中的凭据标记为 API Key 或网站登录">批量分类</button><button class="danger" id="bulk-delete">批量删除</button><button id="bulk-clear">清除选择</button></div><div id="items-box" class="table-wrap" style="margin-top:10px"></div><div id="item-status" class="status"></div></div>
+  <section id="view-items" class="view hidden"><div class="card"><h2>密钥条目</h2><div class="hint">这里显示同步到本服务器的密钥条目。点开可查看明文、调整免审批或分享给 Agent；勾选多条可批量处理。</div><div class="row" style="margin-top:10px"><input id="item-filter" aria-label="搜索条目" placeholder="搜索名称、分组或网址…"><select id="item-sort" aria-label="排序方式" title="排序方式" style="flex:0 0 auto"><option value="name">按名称</option><option value="activity">按最近活动</option><option value="access">按授权数</option><option value="expiry">按到期时间</option></select><button id="item-density" class="small" aria-pressed="false" title="在紧凑与舒适之间切换列表密度">紧凑</button><button id="items-refresh">刷新</button><button id="items-select">选择</button><button id="item-create">新增</button><button id="item-import">导入</button><button id="item-export">导出</button><input id="import-file" type="file" accept="application/json,.json" class="hidden"></div><div id="bulk-bar" class="row hidden" style="margin-top:8px;background:var(--btn);padding:8px;border-radius:10px"><span id="bulk-count" class="hint" style="flex:0 0 auto"></span><button id="bulk-share" class="primary">批量分享</button><button id="bulk-kind" title="把选中的凭据标记为 API Key 或网站登录">批量分类</button><button class="danger" id="bulk-delete">批量删除</button><button id="bulk-clear">清除选择</button></div><div id="items-box" class="table-wrap" style="margin-top:10px"></div><div id="item-status" class="status"></div></div>
     <div class="card" id="card-vault2"><div class="row" style="justify-content:space-between;align-items:center"><div><h2 style="margin:0">Vault 2.0</h2><div class="hint" style="margin-top:4px">零知识库放在独立数据库里，和上面这一列密文库互不影响。解锁后这里能读出条目名称，锁上就只剩状态。</div></div><span id="v2-badge" class="kind-tag kind-none" style="flex:0 0 auto">读取中…</span></div><div id="v2-status" class="hint" style="margin-top:10px"></div><div class="row" id="v2-unlock-row" style="margin-top:10px"><input id="v2-password" type="password" placeholder="Vault 2.0 主密码（至少 12 位）"><button id="v2-unlock" class="primary">解锁</button><button id="v2-lock">锁定</button><input id="v2-legacy-password" type="password" placeholder="旧主密码（仅导入用）" autocomplete="off"><button id="v2-import">从旧库导入</button><button id="v2-refresh">刷新</button></div><div class="hint" style="margin-top:8px">已配对的电脑、在线状态和撤销按钮都在「电脑」标签页。</div><div id="v2-box" class="table-wrap scroll-list hidden" style="margin-top:10px"></div><div id="v2-msg" class="status"></div></div>
 <div class="card hidden" id="card-fill-policies" aria-hidden="true"><h2>已分类的凭据</h2><div class="hint">点列表里的 ⋮ 打开条目即可逐个设置，或勾选多个后点「批量分类」。标为 <b>api</b>（API Key）可按需允许 Agent 读取明文；标为 <b>web</b>（网站登录）只能被填充到指定网站，Agent 永远拿不到明文。未分类的凭据默认为拒绝读取。</div><div class="hint" id="fp-exec-note" style="margin-top:6px"></div><div id="fp-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
     <div class="card" id="card-denied"><h2>被拦下的请求</h2><div class="hint">Agent 试图读取但没通过权限检查的条目。这里只是记录，没有放行任何东西；点「授权」才会真正放开。</div><div id="denied-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
@@ -872,8 +969,8 @@ html[data-theme="dark"] .page .row>button.danger{background:color-mix(in srgb,va
 </section>
 
 </div>
-<div id="toast" class="toast"></div>
-<section id="item-page" class="page hidden" aria-label="条目详情"><div class="page-nav"><button class="page-back" id="item-page-back" aria-label="返回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>返回</button><div class="page-title" id="item-page-title"></div><button class="page-action" id="item-page-edit">编辑</button><button class="page-close" id="item-page-close" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="page-body" id="item-page-body"></div></section><div id="modal" class="modal hidden"><div class="card"><button class="modal-x" id="modal-close-x" title="关闭">×</button><h2 id="modal-title"></h2><div id="modal-body"></div><div style="margin-top:12px"><button id="modal-close">关闭</button></div></div></div>
+<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div><div id="live-alert" class="sr-only" role="alert"></div>
+<section id="item-page" class="page hidden" tabindex="-1" aria-label="条目详情"><div class="page-nav"><button class="page-back" id="item-page-back" aria-label="返回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>返回</button><div class="page-title" id="item-page-title"></div><button class="page-action" id="item-page-edit">编辑</button><button class="page-close" id="item-page-close" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="page-body" id="item-page-body"></div></section><div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="card"><button class="modal-x" id="modal-close-x" title="关闭" aria-label="关闭">×</button><h2 id="modal-title"></h2><div id="modal-body"></div><div style="margin-top:12px"><button id="modal-close">关闭</button></div></div></div>
 <script>
 const $ = (id) => document.getElementById(id)
 const enc = new TextEncoder()
@@ -917,32 +1014,75 @@ async function api(path, options = {}) {
   if (route === '/api/items' || route === '/api/v2/status') clearDbDown()
   return body
 }
-let app = { me: null, data: { agents: [], policies: {}, grants: [], pending: [], audit: [] }, items: [], itemsLoaded: false, stats: null, range: '24h', token: '' }
+let app = { me: null, data: { agents: [], policies: {}, grants: [], pending: [], audit: [] }, items: [], itemsLoaded: false, itemsError: '', stats: null, range: '24h', token: '' }
 const selectedItems = new Set()
 // Selection is an explicit mode: iOS lists do not show checkboxes until you ask
 // for them, and showing them all the time squeezed the name column.
 let itemsSelecting = false
 const esc = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-const status = (id, text, cls = '') => { const el = $(id); if (el) { el.textContent = text; el.className = 'status ' + cls } }
-function show(id, visible) { $(id).classList.toggle('hidden', !visible) }
+const status = (id, text, cls = '') => {
+  const el = $(id)
+  if (!el) return
+  el.textContent = text
+  el.className = 'status ' + cls
+  // Async results were previously silent to assistive technology.
+  el.setAttribute('role', cls === 'error' ? 'alert' : 'status')
+  el.setAttribute('aria-live', cls === 'error' ? 'assertive' : 'polite')
+}
+// Opening a dialog used to leave focus on the page behind it, so a keyboard
+// user could tab into nothing and Esc closed whatever was underneath first.
+let modalReturnFocus = null
+function modalFocus(visible) {
+  const modal = $('modal')
+  if (!modal) return
+  if (visible) {
+    modalReturnFocus = document.activeElement
+    // The close X is the escape hatch, not the first thing you want to press.
+    const target = modal.querySelector('#modal-body input,#modal-body select,#modal-body textarea,#modal-body button,#modal-title,#modal-close-x')
+    if (target) requestAnimationFrame(() => target.focus())
+    return
+  }
+  const back = modalReturnFocus
+  modalReturnFocus = null
+  if (back && typeof back.focus === 'function' && document.contains(back)) back.focus()
+}
+function show(id, visible) { const el = $(id); if (!el) return; const wasHidden = el.classList.contains('hidden'); el.classList.toggle('hidden', !visible); if (id === 'modal' && wasHidden !== Boolean(visible)) modalFocus(visible) }
+// Every <label class="field"> in this file sits next to its control instead of
+// pointing at it, so clicking the text did nothing and screen readers announced
+// a nameless edit box. Associate them once and keep watching for re-rendered
+// panels (the item page replaces its body on every open).
+let autoFieldId = 0
+function associateLabels(root = document) {
+  for (const label of root.querySelectorAll('label.field')) {
+    if (label.hasAttribute('for')) continue
+    const control = label.nextElementSibling
+    if (!control || !/^(INPUT|SELECT|TEXTAREA)$/.test(control.tagName)) continue
+    if (!control.id) control.id = 'f' + (++autoFieldId)
+    label.setAttribute('for', control.id)
+  }
+}
 let toastTimer = null
 // confirm() is silently refused inside a sandboxed iframe or a webview without
 // allow-modals: the click does nothing at all and the row stays. Ask in the page
 // instead - a bar above the tab bar, resolved by whichever button is pressed.
 function askYes(message, { yes = '删除', no = '取消' } = {}) {
   return new Promise((resolve) => {
+    const previous = document.activeElement
     const wrap = document.createElement('div')
     wrap.className = 'ask'
+    wrap.setAttribute('role', 'group')
+    wrap.setAttribute('aria-label', '确认操作')
     wrap.innerHTML = '<div class="ask__text"></div><div class="ask__row"><button class="ask__no"></button><button class="ask__yes danger"></button></div>'
     wrap.querySelector('.ask__text').textContent = message
     wrap.querySelector('.ask__no').textContent = no
     wrap.querySelector('.ask__yes').textContent = yes
-    const done = (answer) => { wrap.remove(); document.removeEventListener('keydown', onKey); resolve(answer) }
-    const onKey = (event) => { if (event.key === 'Escape') done(false) }
+    const done = (answer) => { wrap.remove(); document.removeEventListener('keydown', onKey); if (previous && previous.focus) previous.focus(); resolve(answer) }
+    const onKey = (event) => { if (event.key === 'Escape') { event.stopImmediatePropagation(); done(false) } }
     wrap.querySelector('.ask__no').onclick = () => done(false)
     wrap.querySelector('.ask__yes').onclick = () => done(true)
     document.addEventListener('keydown', onKey)
     document.body.appendChild(wrap)
+    // The safe choice gets the initial focus, so Enter never confirms a delete.
     wrap.querySelector('.ask__no').focus()
   })
 }
@@ -950,16 +1090,24 @@ function askYes(message, { yes = '删除', no = '取消' } = {}) {
 // Same in-page prompt as askYes, but returns the typed value. prompt() itself
 // is unreliable inside the desktop WebView, and the plaintext item list needs a
 // 6-digit code the first time it is opened in an unlock session.
-function askCode(message) {
+function askCode(message, { type = 'text', inputmode = 'numeric', placeholder = '6 位验证码', maxlength = 6, label = '' } = {}) {
   return new Promise((resolve) => {
+    const previous = document.activeElement
     const wrap = document.createElement('div')
     wrap.className = 'ask'
-    wrap.innerHTML = '<div class="ask__text"></div><input class="ask__code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><div class="ask__row"><button class="ask__no">取消</button><button class="ask__yes">确定</button></div>'
+    wrap.setAttribute('role', 'group')
+    wrap.setAttribute('aria-label', '输入验证信息')
+    wrap.innerHTML = '<div class="ask__text"></div><input class="ask__code"><div class="ask__row"><button class="ask__no">取消</button><button class="ask__yes">确定</button></div>'
     wrap.querySelector('.ask__text').textContent = message
     const input = wrap.querySelector('.ask__code')
-    input.style.cssText = 'display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:10px 12px;border:1px solid #d0d5dd;border-radius:10px;font-size:15px'
-    const done = (answer) => { wrap.remove(); document.removeEventListener('keydown', onKey); resolve(answer) }
-    const onKey = (event) => { if (event.key === 'Escape') done('') }
+    input.type = type
+    input.setAttribute('inputmode', inputmode)
+    input.setAttribute('autocomplete', type === 'password' ? 'current-password' : 'one-time-code')
+    input.setAttribute('aria-label', label || placeholder)
+    input.placeholder = placeholder
+    if (maxlength) input.maxLength = maxlength
+    const done = (answer) => { wrap.remove(); document.removeEventListener('keydown', onKey); if (previous && previous.focus) previous.focus(); resolve(answer) }
+    const onKey = (event) => { if (event.key === 'Escape') { event.stopImmediatePropagation(); done('') } }
     wrap.querySelector('.ask__no').onclick = () => done('')
     wrap.querySelector('.ask__yes').onclick = () => done(input.value.replace(/\s+/g, ''))
     input.onkeydown = (event) => { if (event.key === 'Enter') done(input.value.replace(/\s+/g, '')) }
@@ -978,6 +1126,10 @@ function toast(text, error = false) {
     clearTimeout(toastTimer)
     toastTimer = setTimeout(() => el.classList.remove('show'), 3200)
   }
+  // Failures used to disappear into a purely visual toast; the assertive
+  // region makes them audible without disturbing polite success messages.
+  const live = $('live-alert')
+  if (live) live.textContent = error ? text : ''
   const statusEl = $('item-status')
   if (statusEl && !$('view-items').classList.contains('hidden')) status(statusEl.id, text, error ? 'error' : 'ok')
 }
@@ -1037,7 +1189,33 @@ $('bs-save').onclick = async () => {
     status('bs-status', '已保存', 'ok')
   } catch (error) { status('bs-status', error.message, 'error') }
 }
-$('login').onclick = async () => { try { status('login-status', '登录中…'); await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('admin-password').value, code: $('totp-code').value }) }); $('admin-password').value = ''; $('totp-code').value = ''; show('totp-row', false); await boot() } catch (error) { if (error.status === 401 && error.data?.totpRequired) { show('totp-row', true); status('login-status', error.data.error || '请输入两步验证码', 'error') } else status('login-status', error.message, 'error') } }
+$('login').onclick = async () => {
+  const button = $('login')
+  button.disabled = true
+  button.setAttribute('aria-busy', 'true')
+  status('login-status', '登录中…')
+  try {
+    await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('admin-password').value, code: $('totp-code').value }) })
+    $('admin-password').value = ''
+    $('totp-code').value = ''
+    show('totp-row', false)
+    await boot()
+  } catch (error) {
+    // The second factor has its own field; reveal it and move the cursor there
+    // instead of leaving the operator to guess which box to fill next.
+    if (error.status === 401 && error.data?.totpRequired) {
+      show('totp-row', true)
+      status('login-status', error.data.error || '请输入两步验证码', 'error')
+      $('totp-code').focus()
+    } else {
+      status('login-status', error.message, 'error')
+      $('admin-password').focus()
+    }
+  } finally {
+    button.disabled = false
+    button.removeAttribute('aria-busy')
+  }
+}
 $('avatar').onclick = (event) => { event.stopPropagation(); show('account-menu', $('account-menu').classList.contains('hidden')) }
 document.addEventListener('click', (event) => { if (!$('account-menu').classList.contains('hidden') && !event.target.closest('#account-menu') && !event.target.closest('#avatar')) show('account-menu', false) })
 document.addEventListener('click', async (event) => {
@@ -1068,7 +1246,14 @@ async function unlockLegacy(password, ttl = 'permanent') {
   await api('/api/unlock', { method: 'POST', body: JSON.stringify({ symEncKey: b64(userKey.slice(0, 32)), symMacKey: b64(userKey.slice(32, 64)), ttl }) })
 }
 $('unlock').onclick = async () => {
-  const password = $('master-password').value; if (!password) return
+  const password = $('master-password').value
+  const button = $('unlock')
+  // An empty field used to do literally nothing: no message, no focus, no sign
+  // that the click was seen. Say what is missing and put the cursor there.
+  if (!password) { status('unlock-status', '先输入 Vault 主密码', 'error'); $('master-password').focus(); return }
+  button.disabled = true
+  button.setAttribute('aria-busy', 'true')
+  button.textContent = '解锁中…'
   status('unlock-status', '正在浏览器本地派生密钥…（约 0.3–1 秒）')
   try {
     // Vault 2.0 has its own password envelope. If it is active, unlock it
@@ -1077,8 +1262,18 @@ $('unlock').onclick = async () => {
     if (v2?.initialized) return await unlockV2(password)
     await unlockLegacy(password, $('ttl').value)
     $('master-password').value = ''; status('unlock-status', '已解锁', 'ok'); show('unlock-card', false); show('dashboard', true); await loadAll()
-  } catch (error) { status('unlock-status', error.message, 'error') }
+  } catch (error) {
+    status('unlock-status', error.message, 'error')
+    $('master-password').focus()
+  } finally {
+    button.disabled = false
+    button.removeAttribute('aria-busy')
+    button.textContent = '解锁'
+  }
 }
+$('master-password').onkeydown = (event) => { if (event.key === 'Enter') $('unlock').click() }
+$('admin-password').onkeydown = (event) => { if (event.key === 'Enter') $('login').click() }
+$('totp-code').onkeydown = (event) => { if (event.key === 'Enter') $('login').click() }
 $('init-v2').onclick = async () => {
   const password = $('master-password').value
   if (password.length < 12) return status('unlock-status', '初始化密码至少 12 位', 'error')
@@ -1090,8 +1285,10 @@ $('init-v2').onclick = async () => {
 }
 api('/api/v2/status').then((v2) => { if (v2.initialized) $('init-v2').classList.add('hidden') }).catch(() => {})
 async function lock() {
-  const password = prompt('锁定后：当前 vault 会话会被清除，所有 Agent 立即无法读取；再次使用需要用该账户主密码重新解锁。\n\n请输入管理密码确认锁定：')
-  if (password === null) return
+  // prompt() is silently refused inside the desktop WebView, so the lock
+  // button did nothing there. Ask in the page instead.
+  const password = await askCode('锁定后：当前 vault 会话会被清除，所有 Agent 立即无法读取；再次使用需要用该账户主密码重新解锁。', { type: 'password', inputmode: 'text', placeholder: '输入当前管理密码', maxlength: 0, label: '管理密码' })
+  if (!password) return
   try {
     await api('/api/lock', { method: 'POST', body: JSON.stringify({ password }) })
     show('dashboard', false); show('unlock-card', true); status('unlock-status', '已锁定，需要重新解锁才能读取', 'ok')
@@ -1166,7 +1363,16 @@ $('global-search-results').addEventListener('click', (event) => {
 })
 $('trend-prev').onclick = () => { trendFace = (trendFace + trendFaces.length - 1) % trendFaces.length; renderTrendFace() }
 $('trend-next').onclick = () => { trendFace = (trendFace + 1) % trendFaces.length; renderTrendFace() }
-$('items-refresh').onclick = loadItems; $('items-select').onclick = () => { itemsSelecting = !itemsSelecting; if (!itemsSelecting) selectedItems.clear(); $('items-select').textContent = itemsSelecting ? '完成' : '选择'; renderItems() }; $('item-filter').oninput = renderItems; $('item-sort').onchange = () => { localStorage.setItem('sb-item-sort', $('item-sort').value); renderItems() }; $('item-create').onclick = createItemMenu; $('item-import').onclick = () => $('import-file').click(); $('import-file').onchange = importItems; $('item-export').onclick = exportItems; $('bulk-share').onclick = openBulkShare; $('bulk-kind').onclick = openBulkKind; $('bulk-delete').onclick = bulkDelete; $('bulk-clear').onclick = () => { selectedItems.clear(); renderItems() }; $('settings-save').onclick = saveSettings; $('ai-save').onclick = saveAiSettings; $('ai-model-fetch').onclick = fetchCustomModels; $('ai-help').onclick = () => openAiHelp();; $('ai-test').onclick = async () => { try { status('ai-status', '测试中…'); const d = await api('/api/ai/ask', { method: 'POST', body: JSON.stringify({ question: '用一个句子说明你能看到什么，并列出当前最需要处理的一件事。' }) }); status('ai-status', d.ok ? ('可用（' + ('自建 API') + '）：' + d.text.slice(0, 120)) : ('不可用：' + (d.error || '')), d.ok ? 'ok' : 'error') } catch (e) { status('ai-status', e.message, 'error') } }; $('notify-test').onclick = testNotifications; $('notify-test-approval').onclick = () => testNotifications(true); $('oidc-new').onclick = () => showOidcProviderForm(); $('op-save').onclick = saveOidcProvider; $('op-cancel').onclick = () => $('oidc-provider-form').classList.add('hidden'); $('op-discover').onclick = discoverOidcProvider; $('op-probe').onclick = probeOidcProvider; $('profile-save').onclick = saveProfile; $('password-save').onclick = changePassword; $('totp-setup').onclick = setup2fa; $('totp-enable').onclick = enable2fa; $('totp-disable').onclick = disable2fa; $('enable-browser-notify').onclick = enableBrowserNotifications; $('enable-webpush').onclick = enableWebPush; $('test-webpush').onclick = testWebPush; $('test-browser-notify').onclick = () => showBrowserNotification('测试通知', '浏览器通知工作正常'); $('vault-switch').onclick = switchAccount; $('vault-folder-save').onclick = saveFolder
+$('items-refresh').onclick = loadItems; $('items-select').onclick = () => { itemsSelecting = !itemsSelecting; if (!itemsSelecting) selectedItems.clear(); $('items-select').textContent = itemsSelecting ? '完成' : '选择'; renderItems() }; $('item-filter').oninput = () => { if ($('item-filter').value.trim()) localStorage.setItem('sb-item-filter', $('item-filter').value); else localStorage.removeItem('sb-item-filter'); renderItems() }; $('item-sort').onchange = () => { localStorage.setItem('sb-item-sort', $('item-sort').value); renderItems() }; $('item-density').onclick = () => { const dense = $('item-density').getAttribute('aria-pressed') !== 'true'; if (dense) localStorage.setItem('sb-item-density', 'compact'); else localStorage.removeItem('sb-item-density'); setItemDensity(dense) }; $('item-create').onclick = createItemMenu; $('item-import').onclick = () => $('import-file').click(); $('import-file').onchange = importItems; $('item-export').onclick = exportItems; $('bulk-share').onclick = openBulkShare; $('bulk-kind').onclick = openBulkKind; $('bulk-delete').onclick = bulkDelete; $('bulk-clear').onclick = () => { selectedItems.clear(); renderItems() }; $('settings-save').onclick = saveSettings; $('ai-save').onclick = saveAiSettings; $('ai-model-fetch').onclick = fetchCustomModels; $('ai-help').onclick = () => openAiHelp();; $('ai-test').onclick = async () => { try { status('ai-status', '测试中…'); const d = await api('/api/ai/ask', { method: 'POST', body: JSON.stringify({ question: '用一个句子说明你能看到什么，并列出当前最需要处理的一件事。' }) }); status('ai-status', d.ok ? ('可用（' + ('自建 API') + '）：' + d.text.slice(0, 120)) : ('不可用：' + (d.error || '')), d.ok ? 'ok' : 'error') } catch (e) { status('ai-status', e.message, 'error') } }; $('notify-test').onclick = testNotifications; $('notify-test-approval').onclick = () => testNotifications(true); $('oidc-new').onclick = () => showOidcProviderForm(); $('op-save').onclick = saveOidcProvider; $('op-cancel').onclick = () => $('oidc-provider-form').classList.add('hidden'); $('op-discover').onclick = discoverOidcProvider; $('op-probe').onclick = probeOidcProvider; $('profile-save').onclick = saveProfile; $('password-save').onclick = changePassword; $('totp-setup').onclick = setup2fa; $('totp-enable').onclick = enable2fa; $('totp-disable').onclick = disable2fa; $('enable-browser-notify').onclick = enableBrowserNotifications; $('enable-webpush').onclick = enableWebPush; $('test-webpush').onclick = testWebPush; $('test-browser-notify').onclick = () => showBrowserNotification('测试通知', '浏览器通知工作正常'); $('vault-switch').onclick = switchAccount; $('vault-folder-save').onclick = saveFolder
+// A reload should not silently reset how the list was being looked at: the
+// filter, the sort and the density are view state, not one-off input.
+{ const savedFilter = localStorage.getItem('sb-item-filter'); if (savedFilter && $('item-filter')) $('item-filter').value = savedFilter }
+{ const savedSort = localStorage.getItem('sb-item-sort'); if (savedSort && $('item-sort')) $('item-sort').value = savedSort }
+setItemDensity(localStorage.getItem('sb-item-density') === 'compact')
+// Labels are written next to their control, not pointed at it; wire them once
+// the markup exists and keep watching for panels that render later.
+associateLabels()
+new MutationObserver(() => associateLabels()).observe(document.body, { childList: true, subtree: true })
 $('mcp-url').textContent = location.origin + '/mcp'
 $('pair-command').textContent = 'secrets-broker pair --url ' + location.origin
 $('v2-refresh').onclick = loadVault2
@@ -1246,12 +1452,34 @@ $('modal-close').onclick = () => show('modal', false)
 $('modal-body').addEventListener('click', (event) => { const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); } })
 $('modal-close-x').onclick = () => show('modal', false)
 $('modal').addEventListener('click', (event) => { if (event.target === $('modal')) show('modal', false) })
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !$('modal').classList.contains('hidden')) show('modal', false) })
+// Escape closes the dialog, unless a confirmation sits on top of it. Both
+// listeners are on document, so without this guard one key press would take
+// the confirmation *and* the dialog underneath.
+document.addEventListener('keydown', (event) => { if (event.key !== 'Escape') return; if (document.querySelector('.ask')) return; if (!$('modal').classList.contains('hidden')) show('modal', false) })
 // 被拦下的请求 lives in its own card, not inside items-box, so the handler is
 // bound to that table. Binding it to items-box was why 授权 and 忽略 did nothing.
 $('denied-list').addEventListener('click', async (event) => {
   const allowDenied = event.target.closest('[data-allow-denied]')
   if (allowDenied) { openAllowDenied(allowDenied.dataset.agent, allowDenied.dataset.name, allowDenied.dataset.action); return }
+  // Scope is a different axis from grants: this only opens the door, it does
+  // not hand over anything. The agent record carries the allow list, so append
+  // to it and leave every other field untouched (the API patches partially).
+  const scopeDenied = event.target.closest('[data-scope-denied]')
+  if (scopeDenied) {
+    const agentName = scopeDenied.dataset.agent
+    const name = scopeDenied.dataset.name
+    const agent = ((app.data && app.data.agents) || []).find((entry) => entry.name === agentName)
+    if (!agent) { toast('找不到这个 Agent，先确认它还在', true); return }
+    if (agent.allowAll) { toast('这个 Agent 已可申请全部条目，不需要再开入口', true); return }
+    const allow = Array.from(new Set([...(agent.allow || []), name]))
+    scopeDenied.disabled = true
+    try {
+      await api('/api/agents/update', { method: 'POST', body: JSON.stringify({ name: agent.name, allow }) })
+      await refreshAll()
+      toast('已把「' + name + '」加入「' + agentName + '」的可申请范围，下一步再授权')
+    } catch (error) { toast(error.message, true); scopeDenied.disabled = false }
+    return
+  }
   const allowPlaintext = event.target.closest('[data-allow-plaintext]')
   if (allowPlaintext) {
     const days = Number(allowPlaintext.dataset.days || 1)
@@ -1274,6 +1502,15 @@ $('denied-list').addEventListener('click', async (event) => {
 })
 $('items-box').addEventListener('click', async (event) => {
   const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); return } const menu = event.target.closest('[data-item-menu]'); if (menu) { openItemMenu(menu.dataset.itemMenu); return } const toggle = event.target.closest('[data-policy]'); if (toggle) { const item = app.items.find((entry) => entry.name === toggle.dataset.policy); if (!item) return; try { await api('/api/policies', { method: 'POST', body: JSON.stringify({ name: item.name, noApproval: !item.noApproval }) }); await loadItems(); toast('已更新免审批策略') } catch (error) { toast(error.message, true) } return } const read = event.target.closest('[data-read]'); if (read) reveal(read.dataset.read) })
+// The row body is a div with role="button". A click opens it, so Enter and
+// Space have to do the same or the row is visible but unreachable by keyboard.
+$('items-box').addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  const row = event.target.closest('[data-item-menu]')
+  if (!row || event.target !== row) return
+  event.preventDefault()
+  openItemMenu(row.dataset.itemMenu)
+})
 $('agents-box').addEventListener('click', (event) => {
   const extend = event.target.closest('[data-agent-extend]')
   if (extend) { event.stopPropagation(); openExtendMenu(extend.dataset.agentExtend); return }
@@ -1553,7 +1790,7 @@ async function checkPendingNotifications() {
 function startPendingPolling() { updateBrowserNotifyStatus(); if (pendingTimer) return; checkPendingNotifications(); pendingTimer = setInterval(checkPendingNotifications, 30000) }
 let globeBooted = false
 async function loadState() { try { app.data = await api('/api/state'); const geoOn = app.data.geoEnabled === true; const globeCard = $('globe-card'); if (globeCard) globeCard.classList.toggle('hidden', !geoOn); renderNoticeBar(); renderAgents(); renderPending(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } } }
-async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; renderItems(); renderOverviewActions(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } else status('item-status', error.message, 'error') } }
+async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
 async function loadStats() { try { app.stats = await api('/api/stats?range=' + app.range); renderStats() } catch {} }
 // One operator action changes the logs, the counts and the item rows at once.
 // Reloading them together is cheaper than making the operator press 刷新 to
@@ -2224,6 +2461,24 @@ async function loadVault2(withItems = true) {
   }
 }
 
+// Empty, loading and failed are three different jobs: create something, clear
+// a filter, or retry. They all used to render as one grey "没有条目".
+function itemsStateHtml() {
+  const query = ($('item-filter')?.value || '').trim()
+  if (app.itemsError) return '<div class="state" data-tone="error"><div class="state__title">读取失败</div><div class="state__body">' + esc(app.itemsError) + '</div><div class="state__actions"><button class="primary" data-state-act="retry">重试</button></div></div>'
+  if (!app.itemsLoaded) return '<div class="state" data-tone="loading"><div class="state__title">正在读取条目…</div><div class="state__body">清单只从这台服务器读取，不会请求任何第三方。</div></div>'
+  if (query) return '<div class="state"><div class="state__title">没有匹配的条目</div><div class="state__body">名称、分组和网址里都没有“' + esc(query) + '”。</div><div class="state__actions"><button data-state-act="clear">清除筛选</button></div></div>'
+  return '<div class="state"><div class="state__title">还没有条目</div><div class="state__body">密钥只保存在这台服务器的 D1 里；Agent 每次读取都要经过策略或你的批准。</div><div class="state__actions"><button class="primary" data-state-act="create">新增条目</button><button data-state-act="import">导入 JSON</button></div></div>'
+}
+function setItemDensity(dense) {
+  const box = $('items-box')
+  const button = $('item-density')
+  if (box) box.dataset.density = dense ? 'compact' : 'comfortable'
+  if (button) {
+    button.setAttribute('aria-pressed', dense ? 'true' : 'false')
+    button.textContent = dense ? '舒适' : '紧凑'
+  }
+}
 function renderItems() {
   const query = ($('item-filter')?.value || '').trim().toLowerCase(); const items = (app.items || []).filter((item) => !query || item.name.toLowerCase().includes(query) || String(item.url || '').toLowerCase().includes(query) || String(item.group || '').toLowerCase().includes(query))
   // Which items are already classified, by name, and with which kind. The
@@ -2280,10 +2535,10 @@ function renderItems() {
     // made a successful toggle look like it did nothing. Expiry is a separate fact,
     // so it rides along in the subtitle instead.
     const approval = item.noApproval ? '免审批' : kind === 'web' ? '仅填充' : kind ? '需审批' : '未分类'
-    const trail = '<button class="ios-pill ' + (item.noApproval ? 'on' : kind === 'web' ? 'web' : kind ? '' : 'none') + '" data-policy="' + esc(item.name) + '" title="点击切换：免审批读取 / 需要审批">'
+    const trail = '<button class="ios-pill ' + (item.noApproval ? 'on' : kind === 'web' ? 'web' : kind ? '' : 'none') + '" data-policy="' + esc(item.name) + '" aria-pressed="' + (item.noApproval ? 'true' : 'false') + '" title="点击切换：免审批读取 / 需要审批">'
       + esc(approval) + '</button>'
     return '<div class="ios-row">' +
-      '<input type="checkbox" class="item-select ios-check" data-name="' + esc(item.name) + '" ' + (selectedItems.has(item.name) ? 'checked' : '') + ' title="选择">' +
+      '<input type="checkbox" class="item-select ios-check" data-name="' + esc(item.name) + '" ' + (selectedItems.has(item.name) ? 'checked' : '') + ' title="选择" aria-label="选择 ' + esc(item.name) + '">' +
       ico(kind) +
       '<div class="ios-main" data-item-menu="' + esc(item.name) + '" role="button" tabindex="0">' +
         '<div class="ios-title"><b>' + esc(item.name) + '</b>' + (kind === 'api' || kind === 'web' ? kindTag(kind) : '') + '</div>' +
@@ -2298,7 +2553,18 @@ function renderItems() {
   const group = (title, list) => (list.length
     ? '<div class="ios-group' + (showChecks ? ' selecting' : '') + '"><div class="ios-group-head"><span>' + title + ' · ' + list.length + '</span></div><div class="ios-card">' + list.map(row).join('') + '</div></div>'
     : '')
-  $('items-box').innerHTML = items.length ? group('已分类', classified) + group('未分类', unclassified) : '<div class="hint" style="margin-top:12px">没有条目</div>'
+  // Unclassified first: those are the ones that still need a decision, so the
+  // work that is left sits above the list that is already settled.
+  $('items-box').innerHTML = items.length ? group('未分类', unclassified) + group('已分类', classified) : itemsStateHtml()
+  $('items-box').querySelectorAll('[data-state-act]').forEach((button) => {
+    button.onclick = () => {
+      const action = button.dataset.stateAct
+      if (action === 'retry') loadItems()
+      else if (action === 'clear') { const filter = $('item-filter'); if (filter) { filter.value = ''; localStorage.removeItem('sb-item-filter') } renderItems() }
+      else if (action === 'create') $('item-create')?.click()
+      else if (action === 'import') $('item-import')?.click()
+    }
+  })
   $('items-box').querySelectorAll('.item-select').forEach((box) => { box.onchange = () => { if (box.checked) selectedItems.add(box.dataset.name); else selectedItems.delete(box.dataset.name); updateBulkBar() } })
   $('items-box').querySelectorAll('.ios-main').forEach((main) => { main.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openItemMenu(main.dataset.itemMenu) } } })
   updateBulkBar()
@@ -2560,6 +2826,9 @@ function initGlobe() {
     globe.paused = !globe.paused
     pauseBtn.textContent = globe.paused ? '▶' : '⏸'
     pauseBtn.title = globe.paused ? '继续播放' : '暂停动画'
+    // The glyph alone is not a name: announce what the button will do next.
+    pauseBtn.setAttribute('aria-label', globe.paused ? '继续地球动画' : '暂停地球动画')
+    pauseBtn.setAttribute('aria-pressed', globe.paused ? 'true' : 'false')
     if (globe.instance) globe.instance.setPaused(globe.paused)
     syncGlobePolling()
   }
@@ -2979,6 +3248,37 @@ function fillPolicyState() {
   return (app.data && app.data.fillPolicies) || { items: [], executionLayer: false }
 }
 
+// Three different refusals wear three different words. "not in scope" is not
+// "no grant": the first means the Agent never got the chance to ask, so an
+// 授权 button there promises something the click cannot deliver. "item not
+// found" means the name the Agent sent does not exist, so no grant is possible
+// at all. Only "no-grant" is actually answered by granting.
+const DENY_KINDS = ['no-grant', 'not-in-scope', 'item-not-found']
+function denyKind(entry) {
+  const code = String(entry.reasonCode || '')
+  if (DENY_KINDS.includes(code)) return code
+  // Records written before reasonCode existed only carry prose. Some of that
+  // prose is the code itself, so accept it verbatim.
+  const reason = String(entry.reason || '')
+  if (DENY_KINDS.includes(reason)) return reason
+  if (reason.includes('没有名为')) return 'item-not-found'
+  if (reason.includes('可申请范围')) return 'not-in-scope'
+  return 'no-grant'
+}
+const DENY_COPY = {
+  'no-grant': {
+    title: '缺少这一条授权',
+    body: '入口已开，只差授权。批准后这个 Agent 才能按你选定的范围读取。',
+  },
+  'not-in-scope': {
+    title: '入口还没开',
+    body: '这条不在该 Agent 的可申请范围内，所以连审批请求都没生成。先把它加入可申请范围，再回来授权。',
+  },
+  'item-not-found': {
+    title: '条目名对不上',
+    body: '当前账户里没有这个名字。Agent 发的名字必须和面板上完全一致，空格和大小写也算。',
+  },
+}
 // What the Agents were refused, with the reason and a one-click way to allow it.
 // The refusals are recorded by the broker; this only displays them and offers
 // the grant, so nothing is authorised without the operator clicking.
@@ -3004,6 +3304,7 @@ function renderDenied() {
     const kindTag = kind === 'api' ? '<span class="ios-tag">api</span>'
       : kind === 'web' ? '<span class="ios-tag">web</span>'
       : '<span class="ios-tag">未分类</span>'
+    const copy = DENY_COPY[denyKind(entry)]
     // A plaintext refusal is not a missing grant: the agent already has scope, it
     // is the item that still refuses to hand over a value. One chip opens it.
     const plaintextBtn = entry.plaintext
@@ -3012,13 +3313,23 @@ function renderDenied() {
     const useBtn = entry.action === 'secret.use'
       ? ''
       : '<button class="ios-chip" data-allow-use data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" title="只开代持调用，不给明文">http_request</button>'
+    // Only a real missing grant can be answered with 授权. Offering it for the
+    // other two kinds is a button that cannot keep its promise.
+    const grantBtn = denyKind(entry) === 'no-grant'
+      ? '<button class="ios-chip" data-allow-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" data-action="' + esc(entry.action || '') + '">授权</button>'
+      : ''
+    const scopeBtn = denyKind(entry) === 'not-in-scope'
+      ? '<button class="ios-chip" data-scope-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" title="只打开入口，不授予读取权限">加入可申请范围</button>'
+      : ''
     return '<div class="ios-row ios-row--stack">' +
       '<span class="ios-ico" data-kind="' + (kind === 'web' ? 'web' : kind === 'api' ? 'api' : 'none') + '">' + IOS_PERSON + '</span>' +
       '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(who(entry.agent)) + '</span>' + kindTag +
       '<span class="ios-pill bad">' + esc(actionLabel[entry.action] || entry.action || '') + '</span></div>' +
       '<div class="ios-sub">条目 ' + esc(entry.name || '') + '</div>' +
-      '<div class="ios-sub">被拦原因 ' + esc(entry.reason || '') + ' · ' + (entry.count ?? 1) + ' 次 · ' + esc(at) + '</div>' +
-      '<div class="ios-actions"><button class="ios-chip" data-allow-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" data-action="' + esc(entry.action || '') + '">授权</button>' +
+      '<div class="deny" data-kind="' + denyKind(entry) + '"><div class="deny__title">' + copy.title + '</div>' +
+      '<div class="deny-reason"><b>被拦原因</b>' + copy.body + '</div>' +
+      '<div class="ios-sub">' + (entry.count ?? 1) + ' 次 · ' + esc(at) + '</div></div>' +
+      '<div class="ios-actions">' + grantBtn + scopeBtn +
       useBtn +
       plaintextBtn +
       '<button class="ios-chip danger" data-dismiss-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" data-action="' + esc(entry.action || '') + '">忽略</button></div></div></div>'
@@ -3442,16 +3753,22 @@ async function bulkDelete() {
   const names = [...selectedItems]
   if (!names.length) return
   if (!(await askYes('删除选中的 ' + names.length + ' 个条目？'))) return
+  // A failed delete used to vanish: the loop swallowed the error, the toast said
+  // "已删除 N 个条目" even when none were, and the rows were gone on the next
+  // render only because the reload overwrote them. Report what actually stuck.
   let deleted = 0
+  const failed = []
   for (const name of names) {
-    try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name }) }); deleted++ } catch {}
+    try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name }) }); deleted++ } catch { failed.push(name) }
   }
-  selectedItems.clear(); await Promise.all([loadItems(), loadState()]); toast('已删除 ' + deleted + ' 个条目')
+  selectedItems.clear(); await Promise.all([loadItems(), loadState()])
+  if (failed.length) toast('已删除 ' + deleted + ' 个，' + failed.length + ' 个没删掉：' + failed.slice(0, 3).join('、') + (failed.length > 3 ? ' 等' : ''), true)
+  else toast('已删除 ' + deleted + ' 个条目')
 }
 async function exportItems() {
   // The file holds every password in the vault, so the server asks for a code.
   // Ask here too, rather than letting the click fail with a 428.
-  const code = prompt('导出文件包含全部明文。请输入 6 位验证码：')
+  const code = await askCode('导出文件包含全部明文。请输入验证器上的 6 位验证码。', { label: '导出验证码' })
   if (!code) return
   try {
     const data = await api('/api/items/export', { method: 'POST', body: JSON.stringify({ code }) }); const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'secrets-export-' + new Date().toISOString().slice(0, 10) + '.json'; link.click(); URL.revokeObjectURL(link.href); toast('已导出（包含明文，请妥善保存）')
@@ -3477,10 +3794,19 @@ function describeEvent(entry) {
   return map[entry.event] || entry.event || ''
 }
 function itemInfoHtml(item) {
-  const grants = (app.data.grants || []).filter((grant) => grant.name === item.name)
+  // Sharing arrives in two shapes: capabilities (agentActions) and legacy grant
+  // rows. The list above counts both, so this panel must too — otherwise the
+  // row said "3 个 Agent 可用" while this card said "当前没有分享".
+  const legacy = (app.data.grants || []).filter((grant) => grant.name === item.name)
+  const caps = ((app.data.agentActions || [])).filter((entry) => entry.action === 'secret.read' && entry.itemName === item.name && entry.usesLeft !== 0 && liveRight(entry))
+  const holders = new Map()
+  for (const grant of legacy) holders.set(grant.agent, { agent: grant.agent, mode: grant.mode || '授权', reads: grant.reads || 0, max: grant.maxReads, expiresAt: grant.expiresAt, legacy: true })
+  for (const cap of caps) if (!holders.has(cap.agent)) holders.set(cap.agent, { agent: cap.agent, mode: '能力', reads: cap.usedCount ?? 0, max: cap.maxUses, expiresAt: cap.expiresAt, legacy: false })
   const usage = (app.data.audit || []).filter((entry) => entry.name === item.name && ['secret.read', 'grant.share', 'grant.approve', 'transfer.complete', 'item.create', 'item.update'].includes(entry.event)).slice(0, 10)
   const durationLabel = (grant) => { if (!grant.expiresAt) return '永久'; const ms = grant.expiresAt - Date.now(); if (ms <= 0) return '已过期'; const days = Math.ceil(ms / 86400000); return days <= 1 ? Math.max(1, Math.ceil(ms / 3600000)) + ' 小时' : days + ' 天' }
-  const grantRows = grants.length ? grants.map((grant) => '<div class="ios-field"><label>' + esc(agentLabel(grant.agent)) + '<small>' + esc(grant.mode || '授权') + ' · 已读 ' + (grant.reads || 0) + '/' + (grant.maxReads || '∞') + '</small></label><button class="ios-pill plain" data-item-grant data-agent="' + esc(grant.agent) + '" data-name="' + esc(grant.name) + '" title="点击修改时长和读取次数">' + esc(durationLabel(grant)) + '</button></div>').join('') : '<div class="ios-field"><label>当前没有分享给 Agent</label></div>'
+  const grantRows = holders.size ? [...holders.values()].map((grant) => '<div class="ios-field"><label>' + esc(agentLabel(grant.agent)) + '<small>' + esc(grant.mode) + ' · 已读 ' + grant.reads + '/' + (grant.max || '∞') + '</small></label>' + (grant.legacy
+    ? '<button class="ios-pill plain" data-item-grant data-agent="' + esc(grant.agent) + '" data-name="' + esc(item.name) + '" title="点击修改时长和读取次数">' + esc(durationLabel(grant)) + '</button>'
+    : '<span class="ios-pill plain">' + esc(durationLabel(grant)) + '</span>') + '</div>').join('') : '<div class="ios-field"><label>当前没有分享给 Agent</label></div>'
   const usageRows = usage.length ? usage.map((entry) => '<div class="ios-row ios-row--log"><div class="ios-main"><div class="ios-log-text">' + esc(describeEvent(entry)) + '</div><div class="ios-sub">' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + ' · ' + esc(agentLabel(entry.agent)) + (entry.mode || entry.source ? ' · ' + esc(entry.mode || entry.source) : '') + '</div></div></div>').join('') : '<div class="ios-field"><label>暂无使用记录</label></div>'
   return '<div class="card"><div class="ios-head"><h2 style="margin:0">分享情况</h2><button class="ios-pill plain" id="mi-share-sync">分享 / 同步</button></div><div class="hint">创建：' + esc(item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + ' · 创建人：' + esc(item.creator || '-') + '</div>' + grantRows + '<h2 style="margin-top:var(--sp-4)">最近使用</h2>' + usageRows + '</div>'
 }
@@ -3526,9 +3852,23 @@ $('item-page-edit').onclick = () => {
   const next = page.dataset.editing !== 'true'
   page.dataset.editing = next ? 'true' : 'false'
   $('item-page-edit').textContent = next ? '完成' : '编辑'
-  if (next) $('item-page-body').scrollTo({ top: $('item-page-body').scrollHeight, behavior: 'smooth' })
+  // Jumping to the bottom of a long page hid the field you just asked to edit.
+  // Bring the first editable control into view and put the cursor in it.
+  if (next) {
+    const first = $('item-page-body').querySelector('.edit-only input,.edit-only select,.edit-only textarea')
+    if (first) { first.scrollIntoView({ block: 'center', behavior: 'smooth' }); first.focus() }
+  }
 }
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeItemPage() })
+// Esc should peel one layer at a time. Closing the dialog used to also close
+// the page underneath it, because both listeners saw the same key.
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return
+  // A dialog or a confirmation owns Escape while it is open; the page below it
+  // is the last thing that should close.
+  if (!document.getElementById('modal').classList.contains('hidden')) return
+  if (document.querySelector('.ask')) return
+  closeItemPage()
+})
 // A stored password is the one thing in this panel worth a second factor: the
 // cookie alone would otherwise be enough to empty the vault. So the button asks
 // for a TOTP code, and an account without TOTP is told to enrol instead of being
@@ -3556,20 +3896,34 @@ async function revealItemSecret(item) {
     '<div class="hint" id="rv-status">6 位数字，30 秒一换</div>' +
     '<div class="row"><button class="primary" id="rv-go" type="button">查看明文</button></div>')
   $('rv-code').focus()
+  // One press, one request: the button used to stay live so a double click or
+  // a slow verify fired twice, and a failure left the typed code in place with
+  // no hint that the code, not the network, was the problem.
   const submit = async () => {
     const code = $('rv-code').value.replace(/\s+/g, '')
-    if (!/^\d{6}$/.test(code)) return status('rv-status', '请输入 6 位数字', 'error')
+    if (!/^\d{6}$/.test(code)) { status('rv-status', '请输入 6 位数字', 'error'); $('rv-code').focus(); return }
+    const go = $('rv-go')
+    if (!go) return
+    go.disabled = true
+    go.setAttribute('aria-busy', 'true')
+    go.textContent = '验证中…'
     try {
       const data = await api('/api/secret/reveal', { method: 'POST', body: JSON.stringify({ name: item.name, code }) })
       $('modal-body').innerHTML = '<div class="kv"><span>用户名</span><b>' + esc(data.username || '未设置') + '</b></div>' +
         '<div class="kv"><span>密钥</span><b><code>' + esc(data.value || '') + '</code></b></div>' +
         (data.totp ? '<div class="kv"><span>验证码</span><b><code>' + esc(data.totp) + '</code></b></div>' : '') +
         '<div class="row"><button class="primary" id="rv-copy" type="button">复制密钥</button></div>'
-      $('rv-copy').onclick = () => {
-        if (navigator.clipboard) navigator.clipboard.writeText(data.value || '')
-        toast('已复制')
+      $('rv-copy').onclick = async () => {
+        try { await navigator.clipboard.writeText(data.value || ''); toast('已复制') } catch { toast('复制失败，请手动选择密钥文本', true) }
       }
-    } catch (error) { status('rv-status', error.message, 'error') }
+    } catch (error) {
+      go.disabled = false
+      go.removeAttribute('aria-busy')
+      go.textContent = '查看明文'
+      status('rv-status', error.message, 'error')
+      const input = $('rv-code')
+      if (input) { input.focus(); input.select() }
+    }
   }
   $('rv-go').onclick = submit
   $('rv-code').onkeydown = (event) => { if (event.key === 'Enter') submit() }
