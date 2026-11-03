@@ -21,13 +21,13 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
   if (hidden && webkit) pass('Z1 ranking scrolls with no visible scrollbar')
   else fail('Z1', JSON.stringify({ hidden, webkit }))
 }
-// Z2: the pause control is an icon inside the range group
+// Z2: the activity range switch sits in the card head, right of the title
 {
-  const seg = html.indexOf('id="globe-range"')
-  const pause = html.indexOf('id="globe-pause"')
-  const icon = html.includes('>⏸</button>')
-  if (pause > seg && pause < seg + 400 && icon) pass('Z2 pause icon lives in the range group')
-  else fail('Z2', JSON.stringify({ seg, pause, icon }))
+  const head = html.indexOf('id="activity-title"')
+  const seg = html.indexOf('id="activity-range"')
+  const tabs = html.includes('data-arange="24h"') && html.includes('data-arange="7d"')
+  if (seg > head && seg < head + 600 && tabs) pass('Z2 activity range switch lives in the card head')
+  else fail('Z2', JSON.stringify({ head, seg, tabs }))
 }
 // Z3: the globe panel is shorter, the donut gets more room
 {

@@ -45,17 +45,15 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
   if (asset.status === 200 && exportsMount && /javascript/.test(ct)) pass('G4 island serves as JS module with mountGlobe export')
   else fail('G4', JSON.stringify({ status: asset.status, exportsMount, ct }))
 }
-// G5: the map is opt-in, never started by loadState
+// G5: the globe is not mounted from the dashboard any more; the activity chart
+// takes its slot, and nothing starts a globe poll on load.
 {
-  const optIn = ui.includes('id="globe-open"')
-  // The card used to be hidden outright when GEO was off, which left a hole in
-  // the dashboard row and read as a broken page. It now stays on screen with a
-  // still earth, so "hidden by default" was replaced by the availability rule
-  // plus the still frame it falls back to.
-  const shownWhenOff = /card\.classList\.toggle\('globe-off', !geoOn\)/.test(ui) && ui.includes('id="globe-still"')
+  const noOpen = !ui.includes('id="globe-open"')
+  const noStill = !ui.includes('id="globe-still"')
   const noAutoStart = !/if \(!globeBooted\) \{ globeBooted = true; try \{ initGlobe\(\) \}/.test(ui)
-  if (optIn && shownWhenOff && noAutoStart) pass('G5 globe is closed until the operator opens it, with a still earth when geo is off')
-  else fail('G5', JSON.stringify({ optIn, shownWhenOff, noAutoStart }))
+  const hasChart = ui.includes('id="activity-card"') && ui.includes('function loadActivity')
+  if (noOpen && noStill && noAutoStart && hasChart) pass('G5 dashboard mounts the activity chart, not the globe')
+  else fail('G5', JSON.stringify({ noOpen, noStill, noAutoStart, hasChart }))
 }
 await mf.dispose()
 const passed = results.filter((r) => r.ok).length

@@ -29,13 +29,13 @@ const isrc = fs.readFileSync('src/index.js', 'utf8')
   if (cols && !earlyCollapse) pass('F2 agent stats stay in 3 columns')
   else fail('F2', JSON.stringify({ cols, earlyCollapse }))
 }
-// F3: the globe keeps a compact card of its own below the ranking pair
+// F3: the activity chart keeps a compact card below the ranking pair
 {
-  const before = html.indexOf('id="globe-card"')
+  const before = html.indexOf('id="activity-card"')
   const after = html.indexOf('id="recent-box"')
   const ranked = html.indexOf('id="top-box"')
   const inFlow = before > ranked && before < after
-  if (inFlow) pass('F3 globe card sits under the ranking pair')
+  if (inFlow) pass('F3 activity card sits under the ranking pair')
   else fail('F3', JSON.stringify({ before, ranked, after }))
 }
 // F4: globe canvas is compact, matching the donut card
@@ -45,12 +45,13 @@ const isrc = fs.readFileSync('src/index.js', 'utf8')
   if (px > 0 && px <= 280) pass('F4 globe box is compact (' + px + 'px)')
   else fail('F4', 'height=' + px)
 }
-// F5: corner icon opens the enlarged view
+// F5: the chart card carries its own range switch; the globe overlay is gone
 {
-  const btn = html.includes('id="globe-full"')
-  const opensModal = ui.includes("if (fullBtn) fullBtn.onclick = () => openGlobeModal()")
-  if (btn && opensModal) pass('F5 corner icon opens the detail view')
-  else fail('F5', JSON.stringify({ btn, opensModal }))
+  const tabs = html.includes('data-arange="24h"') && html.includes('data-arange="7d"')
+  const inlineSvg = html.includes("box.innerHTML = '<svg viewBox")
+  const noOverlay = !html.includes('id="globe-full"')
+  if (tabs && inlineSvg && noOverlay) pass('F5 activity card switches range without a modal')
+  else fail('F5', JSON.stringify({ tabs, inlineSvg, noOverlay }))
 }
 // F6: failed token exchanges are audited with a reason
 {

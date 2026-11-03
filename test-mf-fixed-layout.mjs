@@ -25,12 +25,12 @@ const skipBrowser = (n) => {
   results.push({ n, ok: true, skipped: true })
 }
 
-// S1: the overview reads headline, widgets, work, trend, ranking, share, globe, activity
+// S1: the overview reads headline, widgets, trend, ranking, work, share, activity, recent
 {
-  const order = ['id="ov-sub"', 'id="kpis"', 'id="chart-box"', 'id="top-box"', 'id="ov-actions"', 'id="donut-box"', 'id="globe-card"', 'id="recent-box"']
+  const order = ['id="ov-sub"', 'id="kpis"', 'id="chart-box"', 'id="top-box"', 'id="ov-actions"', 'id="donut-box"', 'id="activity-card"', 'id="recent-box"']
   const idx = order.map((id) => ui.indexOf(id))
   const inOrder = idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1]))
-  if (inOrder) pass('S1 overview ordered: headline, widgets, trend, ranking, work, share, globe, activity')
+  if (inOrder) pass('S1 overview ordered: headline, widgets, trend, ranking, work, share, activity, recent')
   else fail('S1', JSON.stringify(idx))
 }
 // S2: every panel is a fixed-height grid child
@@ -144,7 +144,7 @@ const skipBrowser = (n) => {
   var oa=document.getElementById('ov-actions'); if(oa) oa.innerHTML='<div class="ov-action"><div>有 3 条请求等待</div><button class="small">去处理</button></div>';
   var chart=document.getElementById('chart-box'); if(chart) chart.innerHTML='<svg viewBox="0 0 600 180"><rect x="40" y="40" width="20" height="120" fill="#5b6cff"/></svg>';
   function bottom(sel){ var el=document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().bottom) : 0 }
-  var o={ fold: innerHeight, trend: bottom('.dash>.span2'), row2: Math.max(bottom('#globe-card'), bottom('#ov-actions')) };
+  var o={ fold: innerHeight, trend: bottom('.dash>.span2'), row2: Math.max(bottom('#activity-card'), bottom('#ov-actions')) };
   var pre=document.createElement('pre'); pre.id='M'; pre.textContent=JSON.stringify(o); document.body.appendChild(pre);
 })();
 </script></body></html>`

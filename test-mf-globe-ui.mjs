@@ -15,22 +15,23 @@ await stub.fetch('https://do/state', { method: 'PUT', body: JSON.stringify({ age
 const cookie = String((await mf.dispatchFetch('https://broker.test/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: 'p' }) })).headers.get('set-cookie') || '').split(';')[0]
 const html = await mf.dispatchFetch('https://broker.test/', { headers: { cookie } }).then((r) => r.text())
 
-// U1: globe card and controls exist
+// U1: the third dashboard column is the activity chart; the globe is gone
 {
-  const need = ['id="globe-card"', 'id="globe-box"', 'id="globe-range"', 'id="globe-pause"', 'id="globe-full"', 'id="globe-empty"']
-  // The enlarged globe lives in a runtime overlay host, created on demand.
+  // The globe card was replaced by an audit-driven activity chart. The ids that
+  // remain are the ones the chart needs: the card, the range switch, the plot
+  // host and the hint/note lines.
+  const need = ['id="activity-card"', 'id="activity-range"', 'id="activity-chart"', 'id="activity-hint"', 'id="activity-note"']
   const missing = need.filter((m) => !html.includes(m))
-  if (!missing.length) pass('U1 globe card and controls present')
-  else fail('U1', missing.join(','))
+  const noGlobe = ['id="globe-card"', 'id="globe-box"', 'id="globe-open"', 'id="globe-still"', 'id="globe-pause"'].every((m) => !html.includes(m))
+  if (!missing.length && noGlobe) pass('U1 activity card present, globe entry points removed')
+  else fail('U1', JSON.stringify({ missing, noGlobe }))
 }
-// U2: honest labelling — IP estimate disclaimer, no "online" claim
+// U2: the chart states what it counts and never claims real-time presence
 {
-  const hasDisclaimer = html.includes('IP 估算位置') && html.includes('不代表实际物理位置')
-  // Only the globe card must avoid asserting presence; wording elsewhere that
-  // explicitly denies real-time status is correct and expected.
-  const globeCard = (html.match(/id="globe-card"[\s\S]{0,2200}/) || [''])[0]
-  const claimsOnline = /实时在线/.test(globeCard) && !/不代表[^<]*在线|不等同/.test(globeCard)
-  if (hasDisclaimer && !claimsOnline) pass('U2 disclaimer present, globe makes no online claim')
+  const hasDisclaimer = html.includes('按小时统计的读取次数') && html.includes('按天统计的读取次数')
+  const card = (html.match(/id="activity-card"[\s\S]{0,1200}/) || [''])[0]
+  const claimsOnline = /实时在线/.test(card)
+  if (hasDisclaimer && !claimsOnline) pass('U2 activity chart labels its metric honestly')
   else fail('U2', JSON.stringify({ hasDisclaimer, claimsOnline }))
 }
 // U3: polling stops when hidden/paused, at whatever cadence the UI ships.
@@ -53,10 +54,10 @@ const html = await mf.dispatchFetch('https://broker.test/', { headers: { cookie 
   if (guarded && fallback) pass('U4 globe load failure is isolated with fallback')
   else fail('U4', JSON.stringify({ guarded, fallback }))
 }
-// U5: empty state text exists and no fabricated data path
+// U5: the activity chart has an explicit empty state instead of blank axes
 {
-  const empty = html.includes('暂无访问记录') || html.includes('暂无真实访问记录')
-  if (empty) pass('U5 empty state present')
+  const empty = html.includes('还没有读取记录') && html.includes('Agent 读取密钥后会出现在这里')
+  if (empty) pass('U5 activity empty state present')
   else fail('U5', 'no empty state')
 }
 // U6: geo API returns the documented shape for incremental polling

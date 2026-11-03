@@ -75,13 +75,14 @@ const src = fs.readFileSync('src/globe/index.js', 'utf8')
   if (ok) pass('T7 globe container background follows theme')
   else fail('T7', 'background not themed')
 }
-// T8: click-to-enlarge toggles a fullscreen overlay and relabels the button
+// T8: the activity chart is announced as an image with a data summary, and the
+// fullscreen globe overlay it replaced is no longer reachable from the page.
 {
-  const hasBtn = html.includes('id="globe-full"')
-  const hasToggle = html.includes('function toggleGlobeFullscreen') && html.includes("classList.toggle('globe-full'")
-  const hasCss = html.includes('.globe-box.globe-full')
-  if (hasBtn && hasToggle && hasCss) pass('T8 click-to-enlarge implemented')
-  else fail('T8', JSON.stringify({ hasBtn, hasToggle, hasCss }))
+  const hasRole = html.includes("box.setAttribute('role', 'img')") && html.includes("box.setAttribute('aria-label', aria)")
+  const hasSummary = html.includes("'读取次数柱状图，共 ' + total + ' 次读取，峰值 '")
+  const noFullBtn = !html.includes('id="globe-full"')
+  if (hasRole && hasSummary && noFullBtn) pass('T8 activity chart exposes an accessible summary')
+  else fail('T8', JSON.stringify({ hasRole, hasSummary, noFullBtn }))
 }
 // T9: bundle keeps drag usable on touch (touch-action none)
 {

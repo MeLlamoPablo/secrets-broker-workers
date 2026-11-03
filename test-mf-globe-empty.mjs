@@ -6,12 +6,12 @@ const pass = (n) => { results.push({ n, ok: true }); console.log('PASS  ' + n) }
 const fail = (n, d) => { results.push({ n, ok: false, d }); console.log('FAIL  ' + n + ' :: ' + d) }
 const ui = fs.readFileSync('src/ui.js', 'utf8')
 
-// G1: no caption is rendered inside the globe frame
+// G1: the plot host is empty in the markup; the chart draws into it at runtime,
+// so no caption can sit inside the plotting area and swallow the pointer.
 {
-  const markup = /<div class="globe-empty" id="globe-empty">([^<]*)<\/div>/.exec(ui)
-  const caption = markup ? markup[1].trim() : 'MARKUP MISSING'
-  if (caption === '') pass('G1 globe frame carries no caption')
-  else fail('G1', 'caption=' + JSON.stringify(caption))
+  const markup = /<div id="activity-chart" class="activity-chart"><\/div>/.exec(ui)
+  if (markup) pass('G1 activity plot host is empty in the markup')
+  else fail('G1', 'plot host missing or pre-filled')
 }
 // G2: the empty overlay is never shown for the no-traffic case
 {
