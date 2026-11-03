@@ -20,9 +20,10 @@ const html = await r.text()
   const used = [...html.matchAll(/\$\('([a-zA-Z0-9_-]+)'\)/g)].map((m) => m[1])
   const defined = new Set([...html.matchAll(/id="([a-zA-Z0-9_-]+)"/g)].map((m) => m[1]))
   // Elements whose binding is explicitly null-guarded are allowed to be absent.
-  // Elements created at runtime (the enlarged-globe overlay) are never in the
-  // served markup, so they are expected to be missing here.
-  const guarded = new Set(['copy-token', 'globe-overlay', 'globe-big-box', 'globe-danmu', 'globe-big-close', 'ai-panel', 'ai-chat', 'ai-question', 'ai-ask', 'ai-insights', 'ai-chat-status', 'ai-panel-close', 'ai-clear'])
+  // The globe console helpers are kept for the desktop build but are no longer
+  // mounted on the dashboard (the activity card took their slot), so every id
+  // they bind to is runtime-only; each helper returns early when it is missing.
+  const guarded = new Set(['copy-token', 'globe-overlay', 'globe-big-box', 'globe-danmu', 'globe-big-close', 'ai-panel', 'ai-chat', 'ai-question', 'ai-ask', 'ai-insights', 'ai-chat-status', 'ai-panel-close', 'ai-clear', 'globe-card', 'globe-open', 'globe-box', 'globe-still', 'globe-range', 'globe-pause', 'globe-full', 'globe-empty', 'globe-status', 'globe-cap'])
   const missing = [...new Set(used)].filter((id) => !defined.has(id) && !guarded.has(id))
   if (missing.length === 0) pass('U1 all ' + new Set(used).size + ' bound element ids exist or are guarded')
   else fail('U1', 'missing: ' + missing.join(','))
