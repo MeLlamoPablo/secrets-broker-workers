@@ -48,10 +48,14 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
 // G5: the map is opt-in, never started by loadState
 {
   const optIn = ui.includes('id="globe-open"')
-  const hiddenByDefault = /globeCard\.classList\.toggle\('hidden', !geoOn\)/.test(ui)
+  // The card used to be hidden outright when GEO was off, which left a hole in
+  // the dashboard row and read as a broken page. It now stays on screen with a
+  // still earth, so "hidden by default" was replaced by the availability rule
+  // plus the still frame it falls back to.
+  const shownWhenOff = /card\.classList\.toggle\('globe-off', !geoOn\)/.test(ui) && ui.includes('id="globe-still"')
   const noAutoStart = !/if \(!globeBooted\) \{ globeBooted = true; try \{ initGlobe\(\) \}/.test(ui)
-  if (optIn && hiddenByDefault && noAutoStart) pass('G5 globe is closed until the operator opens it')
-  else fail('G5', JSON.stringify({ optIn, hiddenByDefault, noAutoStart }))
+  if (optIn && shownWhenOff && noAutoStart) pass('G5 globe is closed until the operator opens it, with a still earth when geo is off')
+  else fail('G5', JSON.stringify({ optIn, shownWhenOff, noAutoStart }))
 }
 await mf.dispose()
 const passed = results.filter((r) => r.ok).length

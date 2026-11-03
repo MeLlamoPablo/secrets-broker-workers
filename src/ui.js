@@ -605,7 +605,17 @@ html[data-theme="dark"] .page .row>button.danger{background:color-mix(in srgb,va
    instead of setting that height and pushing the row past the fold. */
 .dash #globe-card{display:flex;flex-direction:column;min-height:0}
 .globe-split{display:flex;align-items:center;gap:var(--sp-3);flex:1 1 auto;min-height:0;margin-top:var(--sp-2)}
-#globe-card.globe-off .globe-split,#globe-card.globe-off #globe-status{display:none}
+/* The live map is opt-in behind GEO_ENABLED. Hiding the whole card left a bare
+   hole in the dashboard row, which reads as a broken page; the card stays and
+   swaps in a still earth plus the access summary instead. */
+#globe-card.globe-off .globe-side,#globe-card.globe-off #globe-open,#globe-card.globe-off #globe-full{display:none}
+.globe-still{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;border-radius:12px;overflow:hidden}
+/* Until the live globe is actually mounted (and whenever it cannot be), the
+   still earth is what the card shows, so the frame is never blank. */
+#globe-card.globe-live .globe-still{display:none}
+.globe-still img{width:128px;height:128px;border-radius:50%;object-fit:cover;object-position:50% 45%;box-shadow:0 10px 24px rgba(8,20,40,.26),inset 0 0 0 1px rgba(255,255,255,.1)}
+html[data-theme="dark"] .globe-still img{filter:brightness(.86) saturate(.95)}
+.globe-cap{margin-top:auto;padding-top:6px;border-top:1px solid var(--separator);font-size:var(--text-caption);color:var(--label-2);display:flex;flex-wrap:wrap;gap:2px 8px;min-height:16px}
 .dash #globe-card .globe-split .globe-box{width:196px;height:140px;flex:0 0 auto;min-height:0;margin:0}
 .globe-side{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:4px;min-width:0;flex:1 1 auto;height:140px}
 .seg--vert{flex-direction:column;gap:2px;width:92px;max-width:100%;flex:0 0 auto;background:transparent;padding:0}
@@ -801,7 +811,7 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
       <div class="card"><h2>条目读取排行</h2><div class="hint" style="margin-bottom:6px">按被读取次数排序</div><div id="top-box" class="rank-box"></div></div>
       <div id="ov-actions" class="card ov-actions"></div>
       <div class="card"><h2>Agent 读取占比</h2><div class="hint" style="margin-bottom:6px">按 agent 聚合 · 点击扇区查看</div><div id="donut-box" class="donut-wrap"></div></div>
-      <div class="card globe-off" id="globe-card">
+      <div class="card globe-off" id="globe-card" role="region" aria-label="Agent 访问地球与访问概览">
         <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
           <h2 style="margin:0">Agent Live Globe</h2>
           <span class="hint globe-note" title="IP 估算位置，不代表实际物理位置">IP 估算</span>
@@ -809,6 +819,7 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
         </div>
         <div class="globe-split">
           <div id="globe-box" class="globe-box">
+            <div class="globe-still" id="globe-still" aria-hidden="true"><img src="/earth.jpg" alt="" loading="lazy" decoding="async"></div>
             <button class="small globe-expand" id="globe-full" title="放大地球" aria-label="放大地球">⤢</button>
             <div class="globe-empty" id="globe-empty"></div>
           </div>
@@ -818,6 +829,7 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
           </div>
         </div>
         <div class="hint" id="globe-status"></div>
+        <div class="globe-cap" id="globe-cap" role="status" aria-live="polite" aria-label="访问概览"></div>
       </div>
       <div class="card span3"><h2>最近活动</h2><div id="recent-box" class="recent"></div></div>
     <div id="chart-tip" class="chart-tip"></div>
@@ -1813,8 +1825,30 @@ async function checkPendingNotifications() {
 }
 function startPendingPolling() { updateBrowserNotifyStatus(); if (pendingTimer) return; checkPendingNotifications(); pendingTimer = setInterval(checkPendingNotifications, 30000) }
 let globeBooted = false
-async function loadState() { try { app.data = await api('/api/state'); const geoOn = app.data.geoEnabled === true; const globeCard = $('globe-card'); if (globeCard) globeCard.classList.toggle('hidden', !geoOn); renderNoticeBar(); renderAgents(); renderPending(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } } }
-async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
+// The card itself is always on screen now; only the live map is gated. A still
+// earth plus the access summary fills the slot, so an opt-out deployment never
+// shows a bare hole where the globe used to be.
+function renderGlobeCap() {
+  const el = $('globe-cap')
+  if (!el) return
+  if (!app.itemsLoaded) { el.textContent = '正在读取条目…'; return }
+  const agents = new Set()
+  ;((app.data && app.data.grants) || []).forEach((grant) => { if (grant && grant.agent) agents.add(grant.agent) })
+  const pending = ((app.data && app.data.pending) || []).length
+  const text = (app.items || []).length + ' 条条目 · ' + agents.size + ' 个 Agent 可读 · ' + pending + ' 待审批'
+  if (el.textContent !== text) el.textContent = text
+}
+function applyGlobeAvailability(geoOn) {
+  const card = $('globe-card')
+  if (!card) return
+  card.classList.toggle('globe-off', !geoOn)
+  const note = $('globe-status')
+  if (!note) return
+  if (!geoOn) note.textContent = '实时访问未启用 · 设置 GEO_ENABLED=1 后显示实时连接'
+  else if (note.textContent.indexOf('实时访问未启用') === 0) note.textContent = ''
+}
+async function loadState() { try { app.data = await api('/api/state'); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderNoticeBar(); renderAgents(); renderPending(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } } }
+async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); renderGlobeCap(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
 async function loadStats() { try { app.stats = await api('/api/stats?range=' + app.range); renderStats() } catch {} }
 // One operator action changes the logs, the counts and the item rows at once.
 // Reloading them together is cheaper than making the operator press 刷新 to
@@ -2649,16 +2683,19 @@ async function ensureGlobe() {
     const mod = await import('/globe.js')
     if (typeof mod.mountGlobe !== 'function') throw new Error('globe module did not export mountGlobe')
     globe.instance = mod.mountGlobe(box, { reduceMotion: globe.reduceMotion })
+    const card = $('globe-card'); if (card) { card.classList.remove('globe-failed'); card.classList.add('globe-live') }
     if (globe.paused) globe.instance.setPaused(true)
     return globe.instance
   } catch (error) {
     // Never let the globe break the console, but do surface why it failed so
-    // the cause is diagnosable instead of being swallowed.
+    // the cause is diagnosable instead of being swallowed. The still earth
+    // stays behind the message; a failure must not leave an empty frame.
     globe.failed = true
     const detail = String((error && (error.message || error.reason)) || error || 'unknown')
     try { console.error('[globe] load failed:', error) } catch {}
-    const box = $('globe-box')
-    if (box) box.innerHTML = '<div class="globe-empty">地球组件不可用（不影响其他功能）<br><span style="font-size:11px;opacity:.7">' + esc(detail.slice(0, 160)) + '</span></div>'
+    const card = $('globe-card'); if (card) card.classList.add('globe-failed')
+    const empty = $('globe-empty')
+    if (empty) empty.innerHTML = '<div>地球组件不可用（不影响其他功能）<br><span style="font-size:11px;opacity:.7">' + esc(detail.slice(0, 160)) + '</span></div>'
     const st = $('globe-status')
     if (st) st.textContent = '地球加载失败：' + detail.slice(0, 120)
     return null
@@ -2669,8 +2706,8 @@ async function refreshGlobe(reset) {
   try {
     const result = await fetchGlobeEvents(reset)
     if (result.disabled) {
-      const box = $('globe-box')
-      if (box) box.innerHTML = '<div class="globe-empty">全球态势未启用</div>'
+      const card = $('globe-card'); if (card) card.classList.add('globe-failed')
+      const empty = $('globe-empty'); if (empty) empty.innerHTML = '<div>全球态势未启用</div>'
       const st = $('globe-status'); if (st) st.textContent = '功能开关 GEO_ENABLED 未开启'
       stopGlobePolling()
       return
@@ -2837,7 +2874,7 @@ function closeBigGlobe() {
 function initGlobe() {
   if (!$('globe-box')) return
   globe.reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (globe.reduceMotion) { globe.paused = true; const b = $('globe-pause'); if (b) b.textContent = '继续' }
+  if (globe.reduceMotion) { globe.paused = true; const b = $('globe-pause'); if (b) { b.textContent = '继续'; b.setAttribute('aria-pressed', 'true'); b.setAttribute('aria-label', '继续地球动画') } }
   const rangeRow = $('globe-range')
   if (rangeRow) rangeRow.onclick = (event) => {
     const button = event.target.closest('[data-grange]')
@@ -2889,7 +2926,7 @@ function initGlobe() {
 const globeOpen = $('globe-open')
 if (globeOpen) globeOpen.onclick = () => {
   const card = $('globe-card')
-  if (!card || card.classList.contains('hidden')) return
+  if (!card || card.classList.contains('hidden') || (app.data && app.data.geoEnabled) !== true) return
   card.classList.remove('globe-off')
   globe.hidden = false
   if (!globeBooted) { globeBooted = true; initGlobe() } else syncGlobePolling()
