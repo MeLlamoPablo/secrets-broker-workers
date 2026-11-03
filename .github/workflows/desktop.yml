@@ -113,13 +113,18 @@ jobs:
             libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
 
-      - name: Create the generated sidecar resource directory
-        # `tauri-build` panics with "resource path resources\sidecar doesn't
-        # exist" when a `bundle.resources` entry is missing, and that directory
-        # comes from `npm run desktop:sidecar` and is git-ignored, so a fresh
-        # checkout never has it. This job only compiles, so an empty placeholder
-        # is enough; the Windows job still packs the real sidecar.
-        run: mkdir -p desktop/src-tauri/resources/sidecar
+      - name: Create the git-ignored inputs the build script expects
+        # Both inputs are generated and git-ignored, so a fresh checkout has
+        # neither: `tauri-build` panics when a `bundle.resources` entry is
+        # missing (resources/sidecar, from `npm run desktop:sidecar`) and
+        # `tauri-codegen` panics when `frontendDist` does not exist (desktop/ui,
+        # from `npm run desktop:ui`). This job only compiles, so an empty
+        # resource dir and a stub page are enough; the Windows job still builds
+        # the real ones before it bundles.
+        run: |
+          mkdir -p desktop/src-tauri/resources/sidecar
+          mkdir -p desktop/ui
+          printf '<!doctype html><title>compile check</title>\n' > desktop/ui/index.html
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
