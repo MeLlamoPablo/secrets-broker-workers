@@ -188,6 +188,22 @@ export async function vault2Update(env, key, id, item) {
   return { id, kind, revision, updatedAt: at }
 }
 
+// Rotation keeps the previous ciphertext so an operator can roll a bad secret
+// back for a few days without ever storing a plaintext copy. The snapshot is
+// the sealed row: same DEK, same algorithm, no new key material.
+export async function vault2SnapshotItem(env, id) {
+  return env.VAULT_DB.prepare('SELECT id, kind, ciphertext, revision FROM vault_items WHERE id = ? AND deleted_at IS NULL').bind(id).first()
+}
+
+export async function vault2RestoreItem(env, id, snapshot) {
+  const revision = await nextRevision(env)
+  const at = new Date().toISOString()
+  await env.VAULT_DB.prepare('UPDATE vault_items SET kind = ?, ciphertext = ?, revision = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL')
+    .bind(snapshot.kind, snapshot.ciphertext, revision, at, id)
+    .run()
+  return { id, revision, updatedAt: at }
+}
+
 export async function vault2Delete(env, id) {
   const existing = await env.VAULT_DB.prepare('SELECT id FROM vault_items WHERE id = ?').bind(id).first()
   if (!existing) return null

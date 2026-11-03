@@ -9,7 +9,7 @@ import {
 } from './crypto.js'
 import { parseJwt, verifyJwtSignature, validateIdTokenClaims, checkUserinfoSub, ALLOWED_ALGS } from './oidc.js'
 import { pullRemote, diffVaults, diffSummary } from './vaultdiff.js'
-import { vault2Status, vault2Init, vault2Unlock, vault2List, vault2ListPlain, vault2Create, vault2Update, vault2Delete, vault2Read, vault2Pair, vault2Devices, vault2RevokeDevice, vault2SetDeviceWrite, vault2PurgeDevice, vault2DeviceByToken, vault2Rekey, vault2RekeyPending, vault2DeviceSelf, vault2Push, vault2MigrateAccount, vault2MigratePending } from './vault2.js'
+import { vault2Status, vault2Init, vault2Unlock, vault2List, vault2ListPlain, vault2Create, vault2Update, vault2Delete, vault2Read, vault2Pair, vault2Devices, vault2RevokeDevice, vault2SetDeviceWrite, vault2PurgeDevice, vault2DeviceByToken, vault2Rekey, vault2RekeyPending, vault2DeviceSelf, vault2Push, vault2MigrateAccount, vault2MigratePending, vault2SnapshotItem, vault2RestoreItem } from './vault2.js'
 import { publicKeyFingerprint, dekFingerprint } from './envelope.js'
 import { generateVapid, vapidAuthorization } from './webpush.js'
 import { scrubSecret } from './redact.js'
@@ -3460,6 +3460,10 @@ function behaviourSettings(state) {
     webPlaintext: settings.webPlaintext === true,
     unclassifiedPlaintext: settings.unclassifiedPlaintext === true,
     useAnyTarget: settings.useAnyTarget === true,
+    // Expiry is a reminder by default. Only an explicit operator choice turns
+    // it into a read gate, and even then it gates reads only: fill/use still
+    // follow their own policy so a dated login can keep filling a form.
+    expiryBlocksReads: settings.expiryBlocksReads === true,
   }
 }
 
@@ -3999,6 +4003,13 @@ export function policyNoApprovalFor(state, itemName, accountId) {
 export function authorizeSecretAction(state, { agent, agentName, itemId, itemName, action, target, accountId }) {
   if (!SECRET_ACTIONS.has(action)) return { ok: false, reason: 'unknown-action' }
   if (!itemId) return { ok: false, reason: 'no-item-id' }
+  // Reminder-only by default. When an operator explicitly chooses to block
+  // reads after expiry, the date becomes an authority for secret.read and
+  // nothing else: a dated website login may still be filled in.
+  if (action === 'secret.read' && state.settings?.expiryBlocksReads === true) {
+    const expiresAt = Number(state.secretExpiry?.[itemName]?.expiresAt ?? 0)
+    if (expiresAt > 0 && expiresAt <= Date.now()) return { ok: false, reason: 'item-expired' }
+  }
   const subjectId = agentName
   const key = capabilityKey(subjectId, itemId, action)
   let cap = state.capabilities?.[key] ?? null
@@ -4243,7 +4254,38 @@ function accessStatusLabel(access) {
   if (reason === 'no-plaintext-read-policy') {
     return { status: 'read-forbidden-by-kind', message: 'plaintext reads are not enabled for this credential' }
   }
+  if (reason === 'item-expired') {
+    return { status: 'expired', message: 'the credential passed its expiry date and this deployment blocks reads after expiry; rotate it or extend the date' }
+  }
   return { status: 'forbidden', code: access.code ?? 'no_grant', message: access.error ?? 'access denied' }
+}
+
+// Display-only projection of authorizeSecretAction for the permission matrix.
+// It reports what the current state would do for one (agent, item, action) and
+// never consumes a use, writes a shadow record or asks for approval. The four
+// visible states are deliberately distinct: "granted" is a live authority,
+// "noapproval" is the legacy direct-read path, "requestable" means the agent is
+// in scope but needs an approval, "none" means it cannot even ask.
+function matrixCell(state, agent, agentName, itemId, itemName, action) {
+  const cap = state.capabilities?.[capabilityKey(agentName, itemId, action)] ?? null
+  if (cap) {
+    const status = capabilityStatus(cap)
+    if (status === 'valid' || status === 'expiring') {
+      return { state: 'granted', source: 'capability', status, expiresAt: cap.expiresAt ?? null, maxUses: cap.maxUses ?? null, usedCount: cap.usedCount ?? 0 }
+    }
+    return { state: 'blocked', source: 'capability', status, expiresAt: cap.expiresAt ?? null }
+  }
+  const grant = state.actionGrants?.[actionGrantKey(agentName, itemId)]
+  const grantAction = Boolean(grant && Array.isArray(grant.actions) && grant.actions.includes(action))
+  const inScope = Boolean(itemId) && agentInScope(agent, state.itemGroups, itemName)
+  if (agent?.legacy === true && action === 'secret.read' && inScope) {
+    const noApproval = state.policies?.[itemName]?.noApproval === true
+    return { state: noApproval ? 'noapproval' : 'granted', source: 'legacy-scope', status: 'legacy', expiresAt: null }
+  }
+  // An action grant outlives a scope edit, so it counts as askable even when
+  // the item is no longer in the allowlist.
+  if (inScope || grantAction) return { state: 'requestable', source: grantAction ? 'action-grant' : 'scope', status: 'none' }
+  return { state: 'none', source: 'none', status: 'none' }
 }
 
 async function agentAccess(env, { session, agentName, agent, state, name, origin, ctx, consumeRead = true, action = 'secret.read', target = null, createRequest = false }) {
@@ -5660,6 +5702,79 @@ export default {
         return fail(String(error.message ?? error), error.status ?? 500)
       }
     }
+    if (url.pathname === '/api/items/rotate' && request.method === 'POST') {
+      if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      const session = await getSession(env)
+      if (!session) return fail('locked', 423)
+      const body = await request.json().catch(() => ({}))
+      const name = String(body.name ?? '').trim()
+      if (!name) return fail('name required', 400)
+      if (typeof body.value !== 'string' || !body.value.length) return fail('value required', 400)
+      // Keeping the old value is opt-in, bounded and stored as the sealed row,
+      // never as plaintext. The console warns before enabling it.
+      const keepOldDays = Math.max(0, Math.min(30, Number(body.keepOldDays) || 0))
+      const state = await loadState(env)
+      const itemId = String(body.itemId ?? state.itemIds?.[name] ?? '')
+      // The snapshot doubles as the v2 check: only the v2 table can roll back,
+      // and only it should be named v2 in the audit record.
+      const snapshot = itemId && env.VAULT_DB ? await vault2SnapshotItem(env, itemId).catch(() => null) : null
+      const backup = keepOldDays > 0 && snapshot ? snapshot : null
+      try {
+        const nextName = await updateCipher(env, env.NODEWARDEN_DB, session, name, { ...body, itemId: itemId || undefined })
+        if (!nextName) return fail('item not found', 404)
+        const actor = session.email || ''
+        const metaKey = itemId || nextName
+        const until = backup ? Date.now() + keepOldDays * 86400000 : 0
+        await updateState(env, (next) => {
+          next.itemMeta ??= {}
+          const entry = next.itemMeta[metaKey] ?? {}
+          entry.itemId = itemId || entry.itemId || ''
+          entry.lastRotatedAt = nowIso()
+          entry.rotatedBy = actor
+          if (backup) entry.backup = { kind: backup.kind, ciphertext: backup.ciphertext, revision: backup.revision, until, createdAt: nowIso() }
+          next.itemMeta[metaKey] = entry
+          // Rotation may also push the expiry forward; omitting it leaves the
+          // existing date alone so a rotation never silently changes reminders.
+          if (body.expiresAt !== undefined) {
+            const raw = body.expiresAt
+            const stamp = raw === null || raw === 0 || raw === '' ? 0 : Date.parse(String(raw))
+            if (Number.isFinite(stamp)) {
+              next.secretExpiry ??= {}
+              if (stamp > 0) next.secretExpiry[nextName] = { itemId: nextName, expiresAt: stamp }
+              else delete next.secretExpiry[nextName]
+            }
+          }
+          return next
+        })
+        await addAudit(env, { event: 'item.rotate', name: nextName, itemId: itemId || undefined, source: snapshot ? 'v2' : 'legacy', actor, keepOldDays })
+        return json({ ok: true, name: nextName, itemId, backup: Boolean(backup), backupUntil: until, backupUnavailable: keepOldDays > 0 && !backup })
+      } catch (error) {
+        if (error.code === 'ambiguous_item_name') return json({ ok: false, error: '同名条目不止一个，请改用 itemId 指定要轮换哪一个', ids: error.ids }, 409)
+        return fail(String(error.message ?? error), error.status ?? 500)
+      }
+    }
+    if (url.pathname === '/api/items/rotate/restore' && request.method === 'POST') {
+      if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      const session = await getSession(env)
+      if (!session) return fail('locked', 423)
+      const body = await request.json().catch(() => ({}))
+      const state = await loadState(env)
+      const itemId = String(body.itemId ?? '')
+      const entry = itemId ? state.itemMeta?.[itemId] : null
+      const backup = entry?.backup ?? null
+      if (!itemId || !backup) return fail('no backup for this item', 404)
+      if (Number(backup.until ?? 0) <= Date.now()) return fail('the backup window has expired', 410)
+      if (!env.VAULT_DB) return fail('restore is only supported on the v2 vault', 400)
+      await vault2RestoreItem(env, itemId, backup)
+      const name = Object.keys(state.itemIds ?? {}).find((key) => state.itemIds[key] === itemId) ?? entry.itemId ?? itemId
+      await updateState(env, (next) => {
+        const current = next.itemMeta?.[itemId]
+        if (current) { delete current.backup; current.lastRestoredAt = nowIso(); current.restoredBy = session.email || '' }
+        return next
+      })
+      await addAudit(env, { event: 'item.rotate.restore', name, itemId, actor: session.email || '' })
+      return json({ ok: true, name, itemId })
+    }
     if (url.pathname === '/api/items/delete' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const session = await getSession(env)
@@ -5811,11 +5926,17 @@ export default {
         }
         const enriched = items.map((item) => {
           const hit = latest.get(item.name)
+          const meta = state.itemMeta?.[item.id]
           return {
             ...item,
             lastActivityAt: hit ? new Date(hit.time).toISOString() : '',
             lastActor: hit ? (hit.actor || '管理员') : '',
             lastEvent: hit ? hit.event : '',
+            lastRotatedAt: meta?.lastRotatedAt || '',
+            rotatedBy: meta?.rotatedBy || '',
+            // A backup that already aged out is not offered: the operator would
+            // click restore and get a 410.
+            backupUntil: Number(meta?.backup?.until ?? 0) > Date.now() ? meta.backup.until : 0,
           }
         })
         return json({ items: enriched, completedTransfers })
@@ -7594,7 +7715,7 @@ export default {
           if (typeof body.siteName === 'string' && body.siteName.trim()) state.settings.siteName = body.siteName.trim().slice(0, 60)
           // Defaults to ON when absent, so nothing can turn it off by omission.
           if (typeof body.requireClassification === 'boolean') state.settings.requireClassification = body.requireClassification
-          for (const key of ['webPlaintext', 'unclassifiedPlaintext', 'useAnyTarget']) if (typeof body[key] === 'boolean') state.settings[key] = body[key]
+          for (const key of ['webPlaintext', 'unclassifiedPlaintext', 'useAnyTarget', 'expiryBlocksReads']) if (typeof body[key] === 'boolean') state.settings[key] = body[key]
           return state
         })
         await addAudit(env, { event: 'settings.update', scope: 'notifications-oidc' })

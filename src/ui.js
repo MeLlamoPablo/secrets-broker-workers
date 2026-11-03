@@ -406,6 +406,7 @@ ul.items .type{font-size:var(--text-caption);color:var(--label-2)}
 .ios-pill.on{background:color-mix(in srgb,var(--green) var(--mix-badge),transparent);color:var(--green)}
 .ios-pill.web{background:color-mix(in srgb,var(--purple) var(--mix-badge),transparent);color:var(--purple)}
 .ios-sub .ios-expired{color:var(--red);font-weight:500}
+.ios-sub .ios-soon{color:var(--orange);font-weight:500}
 /* A share target list has to be tappable one row at a time; a native
    multiple select on a phone is a tiny scroll box where a tap replaces the
    selection instead of adding to it. */
@@ -1166,6 +1167,7 @@ body.auth-mode header{display:none}
       <div class="ios-field"><label>允许读取网页登录的明文<div class="hint">关闭时，网站密码只能被填充进指定站点，任何 Agent 都拿不到明文。</div></label><input type="checkbox" class="ios-switch" id="bs-web"></div>
       <div class="ios-field"><label>允许读取未分类条目的明文<div class="hint">关闭时，没有分类的凭据即使被授权也只返回拒绝。</div></label><input type="checkbox" class="ios-switch" id="bs-unclassified"></div>
       <div class="ios-field"><label>允许 Agent 代调任意主机<div class="hint">关闭时只能调条目里登记过的站点；开启后仍要逐次批准。</div></label><input type="checkbox" class="ios-switch" id="bs-target"></div>
+      <div class="ios-field"><label>到期后禁止 Agent 读取<div class="hint">默认关闭：到期只做提醒。开启后 secret.read 会被拒绝，但填充/代调仍按各自策略，且这是显式的授权收紧，旧 Agent 也会立即受影响。</div></label><input type="checkbox" class="ios-switch" id="bs-expiry"></div>
       <div class="row" style="margin-top:10px"><button class="primary" id="bs-save">保存行为设置</button></div>
       <div class="status" id="bs-status"></div>
     </div>
@@ -1597,7 +1599,7 @@ $('mat-save').onclick = async () => {
 $('bs-save').onclick = async () => {
   try {
     status('bs-status', '保存中…')
-    await api('/api/settings', { method: 'POST', body: JSON.stringify({ webPlaintext: $('bs-web').checked, unclassifiedPlaintext: $('bs-unclassified').checked, useAnyTarget: $('bs-target').checked }) })
+    await api('/api/settings', { method: 'POST', body: JSON.stringify({ webPlaintext: $('bs-web').checked, unclassifiedPlaintext: $('bs-unclassified').checked, useAnyTarget: $('bs-target').checked, expiryBlocksReads: $('bs-expiry').checked }) })
     status('bs-status', '已保存', 'ok')
   } catch (error) { status('bs-status', error.message, 'error') }
 }
@@ -2982,7 +2984,7 @@ function healthRowsHtml() {
     + row('web', '只能填充', web, web ? '网页登录，值不出站' : '没有网页登录', 'purple')
     + row('none', '未分类', none, none ? '默认拒绝读取' : '都分类了', none ? 'orange' : 'green')
     + row('noApproval', '免审批', noApproval, noApproval ? 'Agent 读它不用问' : '全部需要批准', 'green')
-    + row('expiry', '7 天内到期', soon + past, past ? past + ' 条已过期' : '近期没有到期', soon || past ? 'orange' : 'green')
+    + row('expiry', '7 天内到期', soon + past, past ? past + ' 条已过期' : soon ? soon + ' 条将在 7 天内到期，去处理' : '近期没有到期', soon || past ? 'orange' : 'green')
     + '</div>'
 }
 // Week × hour, for the same reason the trend exists but at a scale a single
@@ -3272,8 +3274,13 @@ function renderItems() {
     const granted = rightsOf(item)
     const meta = [item.group, when, item.lastActor, granted ? granted + ' 个 Agent 可用' : ''].filter(Boolean).map((part) => esc(part)).join(' · ')
     // 0 means "no expiry" in state.secretExpiry, so a plain numeric test made
-  // every credential without a date read as expired.
-  const expired = typeof item.expiresAt === 'number' && item.expiresAt > 0 && item.expiresAt <= Date.now()
+    // every credential without a date read as expired.
+    const expired = typeof item.expiresAt === 'number' && item.expiresAt > 0 && item.expiresAt <= Date.now()
+    // A credential that still works but expires within the week is the one an
+    // operator can act on; "已过期" is already too late for that job.
+    const soonDays = typeof item.expiresAt === 'number' && item.expiresAt > Date.now() && item.expiresAt <= Date.now() + 7 * 86400000
+      ? Math.ceil((item.expiresAt - Date.now()) / 86400000)
+      : 0
     // The pill is the approval state and nothing else: it used to read 已过期
     // whenever the credential expired, which hid the state the click changes and
     // made a successful toggle look like it did nothing. Expiry is a separate fact,
@@ -3288,7 +3295,7 @@ function renderItems() {
         // The ellipsis cut long names with no way to read the rest; the title
         // attribute carries the full text on hover and in the a11y tree.
         '<div class="ios-title"><b title="' + esc(item.name) + '">' + esc(item.name) + '</b>' + (kind === 'api' || kind === 'web' ? kindTag(kind) : '') + '</div>' +
-        '<div class="ios-sub">' + meta + (expired ? ' · <span class="ios-expired">已过期</span>' : '') + '</div>' +
+        '<div class="ios-sub">' + meta + (expired ? ' · <span class="ios-expired">已过期</span>' : '') + (soonDays ? ' · <span class="ios-soon">' + soonDays + ' 天后到期</span>' : '') + '</div>' +
       '</div>' +
       '<div class="ios-trail">' + trail + '</div>' +
     '</div>'
@@ -4794,8 +4801,11 @@ function openItemMenu(name) {
     '<div class="kv"><span>密钥</span><b><button class="ios-pill plain" id="item-reveal" type="button">查看</button></b></div>' +
     '<div class="kv"><span>网址</span><b>' + (item.url ? '<a href="' + esc(item.url) + '" target="_blank" rel="noreferrer">' + esc(item.url) + '</a>' : '未设置') + '</b></div>' +
     '<div class="kv"><span>分组</span><b>' + esc(item.group || '未分组') + '</b></div>' +
-    '<div class="kv"><span>有效期</span><b>' + expiryLabel(item.expiresAt) + '</b></div></div>' +
-    fillEditorHtml(item) + '<div class="card edit-only"><label class="field">名称</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">用户名（留空不改）</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret（留空不改）</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">分组</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="例如 blog/prod"><label class="field">网址</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">备注（留空不改）</label><input id="mi-notes" placeholder="新的备注"><label class="field">新密钥值（留空不改）</label><input id="mi-value" type="password" placeholder="留空保留原值"><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> 免审批（自动读取，仍记录）</label><div class="row editor-zone" style="margin-top:14px"><button class="primary" id="mi-save" aria-label="保存修改（无改动）">保存修改</button><button id="mi-discard" aria-label="放弃修改，恢复进入编辑时的值">放弃</button><button id="mi-share">分享 / 跨账户复制</button></div></div><div class="card edit-only danger-zone" role="group" aria-label="删除条目"><div class="danger-zone__text"><b>删除这个条目</b><span class="hint">删除后无法恢复，正在使用它的 Agent 会立刻失去访问。</span></div><button class="danger" id="mi-delete">删除</button></div><div class="card edit-only share-zone"><div class="hint">分享给 Agent（同账户直接授权；跨账户会先复制到目标账户文件夹，切回目标账户解锁后自动完成）</div><label class="field">分享给（可多选）</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">跨账户目标文件夹（同账户可留空）</label><input id="mi-share-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="mi-share-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
+    '<div class="kv"><span>有效期</span><b>' + expiryLabel(item.expiresAt) + '</b></div>' +
+    '<div class="kv"><span>上次轮换</span><b>' + (item.lastRotatedAt ? relativeTime(Date.parse(item.lastRotatedAt)) + (item.rotatedBy ? ' · ' + esc(item.rotatedBy) : '') : '无记录') + '</b></div>' +
+    (item.backupUntil ? '<div class="kv"><span>旧值备份</span><b>保留至 ' + new Date(item.backupUntil).toLocaleString('zh-CN', { hour12: false }) + ' <button class="small" id="mi-restore" type="button">恢复旧值</button></b></div>' : '') +
+    '</div>' +
+    fillEditorHtml(item) + '<div class="card edit-only"><label class="field">名称</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">用户名（留空不改）</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret（留空不改）</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">分组</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="例如 blog/prod"><label class="field">网址</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">备注（留空不改）</label><input id="mi-notes" placeholder="新的备注"><label class="field">新密钥值（留空不改；填写即轮换并记录 item.rotate）</label><input id="mi-value" type="password" placeholder="留空保留原值"><label class="field">轮换时保留旧值</label><select id="mi-keepold"><option value="0" selected>不保留（默认，最安全）</option><option value="7">7 天（可回滚）</option><option value="14">14 天（可回滚）</option><option value="30">30 天（可回滚）</option></select><div class="hint">开启后服务端只保存旧的<strong>密文行</strong>，不存明文；窗口内可一键恢复，窗口结束自动丢弃。保留越久，被撤销/泄露旧密钥仍可被取回的风险越久。</div><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> 免审批（自动读取，仍记录）</label><div class="row editor-zone" style="margin-top:14px"><button class="primary" id="mi-save" aria-label="保存修改（无改动）">保存修改</button><button id="mi-discard" aria-label="放弃修改，恢复进入编辑时的值">放弃</button><button id="mi-share">分享 / 跨账户复制</button></div></div><div class="card edit-only danger-zone" role="group" aria-label="删除条目"><div class="danger-zone__text"><b>删除这个条目</b><span class="hint">删除后无法恢复，正在使用它的 Agent 会立刻失去访问。</span></div><button class="danger" id="mi-delete">删除</button></div><div class="card edit-only share-zone"><div class="hint">分享给 Agent（同账户直接授权；跨账户会先复制到目标账户文件夹，切回目标账户解锁后自动完成）</div><label class="field">分享给（可多选）</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">跨账户目标文件夹（同账户可留空）</label><input id="mi-share-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="mi-share-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
   $('item-reveal').onclick = () => revealItemSecret(item)
   // 分享 / 同步 leaves the detail for another screen, so it is an exit too.
   $('mi-share-sync').onclick = async () => { if (!(await confirmDiscard())) return; closeItemPage(); selectedItems.clear(); selectedItems.add(item.name); openBulkShare() }
@@ -4803,14 +4813,41 @@ function openItemMenu(name) {
   // answering it was the point of the button.
   $('mi-discard').onclick = () => { restoreSnapshot(); exitEditMode(); $('item-page-edit').focus() }
   // Only a changed policy needs the extra proof; ordinary edits do not.
+  // A filled value is a rotation, not an ordinary edit: it re-encrypts the row,
+  // bumps the revision, records item.rotate with the actor, and optionally
+  // keeps the old sealed row for rollback. Keeping that on the same endpoint as
+  // "save" would lose the audit event, so it takes its own path.
   $('mi-save').onclick = async () => {
     try {
-      const payload = { name: item.name, newName: $('mi-name').value.trim(), username: $('mi-username').value, totp: $('mi-totp').value, group: $('mi-group').value.trim(), url: $('mi-url').value.trim(), notes: $('mi-notes').value.trim() ? $('mi-notes').value : undefined, value: $('mi-value').value, noApproval: $('mi-noapproval').checked, expiresAt: $('mi-expires').value }
-      if (payload.noApproval !== (item.noApproval === true)) await sensitivePost('/api/items/update', payload, '修改免审批策略')
+      const value = $('mi-value').value
+      const payload = { name: item.name, itemId: item.id, newName: $('mi-name').value.trim(), username: $('mi-username').value, totp: $('mi-totp').value, group: $('mi-group').value.trim(), url: $('mi-url').value.trim(), notes: $('mi-notes').value.trim() ? $('mi-notes').value : undefined, value, noApproval: $('mi-noapproval').checked, expiresAt: $('mi-expires').value }
+      const policyChanged = payload.noApproval !== (item.noApproval === true)
+      if (value) {
+        const keepOldDays = Number($('mi-keepold')?.value || 0)
+        const body = { ...payload, keepOldDays }
+        const result = policyChanged
+          ? await sensitivePost('/api/items/rotate', body, '轮换密钥并修改免审批策略')
+          : await api('/api/items/rotate', { method: 'POST', body: JSON.stringify(body) })
+        closeItemPage()
+        await Promise.all([loadItems(), loadState()])
+        toast('已轮换' + (result.backup ? '，旧值保留 ' + keepOldDays + ' 天' : '') + (result.backupUnavailable ? '；旧值备份未创建（当前存储不支持）' : ''))
+        return
+      }
+      if (policyChanged) await sensitivePost('/api/items/update', payload, '修改免审批策略')
       else await api('/api/items/update', { method: 'POST', body: JSON.stringify(payload) })
       closeItemPage()
       await Promise.all([loadItems(), loadState()])
       toast('已保存')
+    } catch (error) { toast(error.message, true) }
+  }
+  const restore = $('mi-restore')
+  if (restore) restore.onclick = async () => {
+    if (!(await askYes('恢复旧值？当前值会被替换，revision 会 +1，并记录审计。'))) return
+    try {
+      await api('/api/items/rotate/restore', { method: 'POST', body: JSON.stringify({ itemId: item.id }) })
+      closeItemPage()
+      await Promise.all([loadItems(), loadState()])
+      toast('已恢复旧值')
     } catch (error) { toast(error.message, true) }
   }
   $('mi-delete').onclick = async () => { if (!(await askYes('删除条目「' + item.name + '」？'))) return; try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name: item.name }) }); closeItemPage(); await Promise.all([loadItems(), loadState()]); toast('已删除') } catch (error) { toast(error.message, true) } }
@@ -5046,6 +5083,7 @@ async function loadSecurity() {
     $('bs-web').checked = settings.webPlaintext === true
     $('bs-unclassified').checked = settings.unclassifiedPlaintext === true
     $('bs-target').checked = settings.useAnyTarget === true
+    $('bs-expiry').checked = settings.expiryBlocksReads === true
   } catch (error) { status('profile-status', error.message, 'error') }
 }
 async function changePassword() { try { await api('/api/security/password', { method: 'POST', body: JSON.stringify({ currentPassword: $('current-password').value, newPassword: $('new-password').value }) }); $('current-password').value = ''; $('new-password').value = ''; status('password-status', '密码已修改', 'ok'); await loadSecurity() } catch (error) { status('password-status', error.message, 'error') } }
