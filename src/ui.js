@@ -83,6 +83,9 @@ html[data-theme="dark"] .notice-bar .notice-count{background:rgba(255,255,255,.1
 .notice-bar[data-level="notice"]{background:#eef4ff;border-color:#cddcf7;color:#2b4f8a}
 .notice-bar[data-level="notice"] .notice-dot{background:#3f6ec4}
 .notice-bar .notice-more{flex:0 0 auto;font-size:12px;opacity:.75}
+/* Pending reads are a warning, not an outage: amber in both themes. */
+.notice-bar[data-level="pending"]{background:color-mix(in srgb,var(--orange) 10%,var(--surface));border-color:color-mix(in srgb,var(--orange) 30%,var(--hair));color:var(--warn-text)}
+.notice-bar[data-level="notice"]{background:color-mix(in srgb,var(--brand) 8%,var(--surface));border-color:color-mix(in srgb,var(--brand) 24%,var(--hair));color:color-mix(in srgb,var(--brand) 70%,var(--ink-1))}
 .globe-box{position:relative;height:210px;margin-top:8px;border-radius:12px;overflow:hidden;background:transparent;border:1px solid var(--line);touch-action:none}
 .globe-pause{margin-left:4px;padding:2px 7px;font-size:11px;line-height:1.2}
 .globe-expand{position:absolute;top:6px;right:6px;z-index:3;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:13px;line-height:1.2;cursor:pointer}
@@ -771,9 +774,150 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
   .page,.page-nav,.modal .card,.ask,.toast,input.ios-switch::after,.card-caret,.health-chev{transition:none !important;animation:none !important}
   .page{transform:none !important}
 }
+
+/* ── Console visual system ─────────────────────────────────────────────────
+   One documented direction instead of piecemeal overrides: near-white canvas,
+   ink text, a single brand blue plus amber/red for states, an 8pt spacing
+   rhythm, thin borders and one very light shadow. Radii stay small so cards
+   read as panels, not pills.
+
+   Type scale      28 / 20 / 15 / 13   (page / section / card / caption)
+   Spacing         4 8 12 16 20 24 32  (--sp-1 … --sp-7, all multiples of 4)
+   Radius          12 card · 8 control · 999 pill
+   Shadow          1px hairline lift only; no stacked glows
+   Palette         canvas / surface / hairline / ink / brand / warn / danger
+   The legacy aliases (--label, --blue, --separator …) are re-pointed at these
+   tokens, so every component written against the old names follows along. */
+:root{
+  --ink-1:#0f172a;--ink-2:#475569;--ink-3:#5b6b82;
+  --canvas:#f5f6f8;--surface:#ffffff;--surface-2:#f0f2f5;
+  --hair:#e1e5ea;--hair-strong:#ccd3dc;
+  --brand:#2563eb;--brand-strong:#1d4ed8;--brand-soft:#edf2ff;
+  --warn-ink:#8a5a00;--danger-ink:#b3261e;--ok-ink:#0b6b58;
+  --t-title:28px;--lh-title:34px;
+  --t-headline:20px;--lh-headline:26px;
+  --t-subtitle:15px;--lh-subtitle:22px;
+  --t-body:14px;--lh-body:22px;
+  --t-caption:13px;--lh-caption:18px;
+  --r-card:12px;--r-control:8px;--r-pill:999px;
+  --shadow-1:0 1px 2px rgba(15,23,42,.04);
+  --shadow-2:0 1px 3px rgba(15,23,42,.05),0 10px 28px rgba(15,23,42,.05);
+  /* aliases the older layers resolve against */
+  --label:var(--ink-1);--label-2:var(--ink-2);--label-3:var(--ink-3);--label-muted:var(--ink-2);
+  --bg-grouped:var(--canvas);--bg:var(--canvas);--card:var(--surface);--card-2:var(--surface-2);
+  --separator:var(--hair);--line:var(--hair);--fill:#eceff3;--fill-2:#f3f5f8;
+  --blue:var(--brand);--green:#0f7a5c;--orange:#b45309;--red:#b3261e;--purple:#6d4bb8;
+  --ok:var(--green);--warn:var(--orange);--danger:var(--red);--text:var(--ink-1);--muted:var(--ink-2);--btn:#eceff3;--accent:var(--brand);
+  --text-title:var(--t-title);--text-headline:var(--t-headline);--text-body-lg:var(--t-subtitle);--text-body:var(--t-body);--text-sub:var(--t-caption);--text-caption:12px;
+  --radius-card:var(--r-card);--ios-radius:var(--r-card);--ios-shadow:var(--shadow-1);
+  --warn-text:var(--warn-ink);--danger-text:var(--danger-ink);--ok-text:var(--ok-ink);
+}
+html[data-theme="dark"]{
+  --ink-1:#e8edf5;--ink-2:#a8b7ca;--ink-3:#93a4ba;
+  --canvas:#0b1220;--surface:#121a28;--surface-2:#18212e;
+  --hair:#263244;--hair-strong:#38485f;
+  --brand:#2f6fe8;--brand-strong:#4b86f5;--brand-soft:#16253d;
+  --warn-ink:#f0b45a;--danger-ink:#ff9a92;--ok-ink:#5fd8b6;
+  --fill:#1c2635;--fill-2:#18212e;
+  --label:var(--ink-1);--label-2:var(--ink-2);--label-3:var(--ink-3);--label-muted:var(--ink-2);
+  --bg-grouped:var(--canvas);--bg:var(--canvas);--card:var(--surface);--card-2:var(--surface-2);
+  --separator:var(--hair);--line:var(--hair);--text:var(--ink-1);--muted:var(--ink-2);--btn:#1c2635;
+  --ok:#5fd8b6;--warn:#f0a94a;--danger:#ff8a80;--accent:var(--brand);
+  --warn-text:var(--warn-ink);--danger-text:var(--danger-ink);--ok-text:var(--ok-ink);
+  --shadow-1:none;--shadow-2:0 1px 0 rgba(255,255,255,.03);
+}
+body{background:var(--canvas);color:var(--ink-1);font:var(--t-body)/var(--lh-body) var(--font-family)}
+.wrap{max-width:1200px;margin:0 auto;padding:0 28px 56px}
+/* App bar: brand and account on top, sections underneath as underlined tabs.
+   One bar instead of a title row plus a floating segmented control. */
+header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"brand actions" "tabs tabs";
+  align-items:center;gap:6px 18px;position:sticky;top:0;z-index:45;margin:0 0 16px;padding:6px 0 0;
+  background:color-mix(in srgb,var(--canvas) 90%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--hair)}
+.brand{grid-area:brand;display:flex;align-items:center;gap:10px;min-width:0}
+.brand img{width:30px;height:30px;border-radius:8px;object-fit:cover}
+.brand h1{font-size:20px;line-height:26px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .badge{flex:0 0 auto;background:var(--brand-soft);color:var(--brand);border:1px solid color-mix(in srgb,var(--brand) 22%,transparent);font-size:12px;padding:2px 8px;border-radius:var(--r-pill)}
+.hdr-actions{grid-area:actions;display:flex;align-items:center;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+nav{grid-area:tabs;display:flex;align-items:center;gap:2px;margin:0;padding:0;background:none;border-radius:0;flex-wrap:wrap}
+nav button{position:relative;padding:7px 14px 9px;border-radius:0;background:transparent;color:var(--ink-2);font-size:13px;font-weight:500;line-height:18px}
+nav button:hover{color:var(--ink-1);background:transparent}
+nav button.active{color:var(--ink-1);background:transparent;box-shadow:none;border-bottom:2px solid var(--brand)}
+html[data-theme="dark"] nav button.active{background:transparent;color:var(--ink-1)}
+nav button svg{display:none}
+nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+/* Sections and panels */
+.card{border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:var(--shadow-1);background:var(--surface);padding:18px 20px;margin-bottom:16px}
+.card>h2,h2{font-size:15px;line-height:22px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;color:var(--ink-1)}
+.hint{font-size:13px;line-height:18px;color:var(--ink-2)}
+.ov-head{align-items:center;margin-bottom:14px}
+.ov-title{font-size:var(--t-title);line-height:var(--lh-title);font-weight:700;letter-spacing:-.025em;margin:0}
+.ov-sub{margin-top:4px;font-size:13px;color:var(--ink-2)}
+#updated{color:var(--ink-3);font-size:12px}
+.kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:20px}
+.kpi{min-height:96px;padding:14px 16px;border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:none;background:var(--surface)}
+.kpi .label{font-size:12px;font-weight:500;letter-spacing:.06em;color:var(--ink-2)}
+.kpi .value{font-size:30px;line-height:36px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:13px;color:var(--ink-2)}
+.kpi[data-kpi]:hover{border-color:var(--hair-strong);background:var(--surface-2);transform:none}
+/* Dashboard: a 12-column rhythm so the first row is 7/5 and the three working
+   panels under it are equal thirds. Heights come from the grid, not content. */
+.dash{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:stretch;margin-bottom:16px}
+.dash>.card,.dash>.ov-actions{margin:0;min-width:0}
+.dash .trend-card{grid-column:span 7;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
+.dash .rank-card{grid-column:span 5;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
+.dash #ov-actions{grid-column:span 4;height:240px;min-height:240px;overflow:hidden}
+.dash .donut-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
+.dash #globe-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
+.dash .recent-card{grid-column:span 12}
+.dash .rank-box{max-height:none;flex:1 1 auto;min-height:0}
+.dash #ov-actions .health{max-height:170px;overflow-y:auto;scrollbar-width:none;mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent)}
+.dash #ov-actions .health::-webkit-scrollbar{width:0;height:0;display:none}
+.dash #recent-box{max-height:288px}
+.dash .trend-box{flex:1 1 auto;min-height:0}
+@media(max-width:1100px){
+  .dash{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .dash .trend-card,.dash .rank-card{grid-column:span 6}
+  .dash #ov-actions,.dash .donut-card,.dash #globe-card{grid-column:span 2}
+  .dash .recent-card{grid-column:span 6}
+}
+@media(max-width:900px){
+  .dash{grid-template-columns:1fr}
+  .dash .trend-card,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #globe-card,.dash .recent-card{grid-column:auto;height:auto;min-height:0}
+  .dash .trend-card,.dash .rank-card{min-height:260px}
+  .dash #ov-actions,.dash .donut-card,.dash #globe-card{min-height:220px}
+}
+/* Inputs: one control height, one border, a visible focus ring. */
+input,select,textarea{min-height:42px;border:1px solid var(--hair);border-radius:var(--r-control);background:var(--surface);padding:9px 12px;font-size:14px;color:var(--ink-1)}
+html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{background:var(--surface-2);border-color:var(--hair);color:var(--ink-1)}
+input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 26%,transparent);outline:none}
+label.field{font-size:13px;color:var(--ink-2);margin:12px 0 6px}
+button{border-radius:var(--r-control);font-size:14px;font-weight:500}
+button.primary{background:var(--brand);color:#fff;border:1px solid transparent}
+button.primary:hover{background:var(--brand-strong)}
+button.danger{background:color-mix(in srgb,var(--red) 10%,transparent);color:var(--danger-text);border:1px solid color-mix(in srgb,var(--red) 24%,transparent)}
+button.small{min-height:34px;padding:6px 12px;font-size:13px}
+/* Empty, loading and error are one component in three tones, with the same
+   frame, title, explanation and optional action. */
+.state{display:flex;flex-direction:column;align-items:center;gap:6px;margin:16px 0;padding:36px 20px;border:1px solid var(--hair);border-radius:var(--r-card);background:var(--surface-2);text-align:center}
+.state__title{display:flex;align-items:center;gap:8px;margin:0;font-size:15px;line-height:22px;font-weight:600;color:var(--ink-1)}
+.state__body{margin:0 auto 10px;max-width:52ch;color:var(--ink-2);font-size:13px;line-height:20px}
+.state__actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.state[data-tone="error"]{border-color:color-mix(in srgb,var(--red) 30%,var(--hair));background:color-mix(in srgb,var(--red) 6%,var(--surface))}
+.state[data-tone="error"] .state__title{color:var(--danger-text)}
+.state[data-tone="loading"] .state__title::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid color-mix(in srgb,var(--brand) 30%,transparent);border-top-color:var(--brand);animation:state-spin .9s linear infinite}
+@keyframes state-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.state[data-tone="loading"] .state__title::before{animation:none}}
+@media(max-width:720px){
+  header{position:static;grid-template-columns:1fr auto;padding-top:8px}
+  nav{grid-area:tabs}
+  .wrap{padding:0 16px 40px}
+  .kpi{min-height:88px;padding:12px 14px}
+  .kpi .value{font-size:26px;line-height:30px}
+  .ov-title{font-size:24px;line-height:30px}
+}
 </style></head><body><div class="wrap">
 <div id="db-down" class="notice-bar hidden" data-level="critical"><span class="notice-dot"></span><span class="notice-text"></span></div>
-<header><img id="site-logo" src="/logo.png" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;cursor:pointer"><h1 id="site-title" style="cursor:pointer">Secrets Broker</h1><span class="badge">Cloudflare Workers</span>
+<header><div class="brand"><img id="site-logo" src="/logo.png" alt="" style="cursor:pointer"><h1 id="site-title" style="cursor:pointer">Secrets Broker</h1><span class="badge">Cloudflare Workers</span></div>
 <div class="hdr-actions">
 <button id="theme-cycle" class="theme-cycle" title="切换主题：浅色 / 深色 / 跟随系统" aria-label="切换主题（当前：浅色）">☀️</button>
 <button id="ai-help" class="small" title="用 AI 解释当前状态">问 AI</button>
@@ -807,10 +951,10 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
     <div id="notice-bar" class="notice-bar hidden" role="button" tabindex="0" title="点击查看全部通知"></div>
     <div id="kpis" class="kpis"></div>
     <div class="dash">
-      <div class="card span2"><div class="card-head"><h2 id="trend-title">读取趋势</h2><div class="trend-nav"><button class="trend-arrow" id="trend-prev" title="上一张" aria-label="上一张">‹</button><span class="trend-count" id="trend-count">1/2</span><button class="trend-arrow" id="trend-next" title="下一张" aria-label="下一张">›</button></div></div><div class="hint" id="trend-hint" style="margin-bottom:6px">按时间聚合 · 悬停查看数值</div><div id="chart-box" class="trend-box"></div><div id="heat-box" class="hidden"></div></div>
-      <div class="card"><h2>条目读取排行</h2><div class="hint" style="margin-bottom:6px">按被读取次数排序</div><div id="top-box" class="rank-box"></div></div>
+      <div class="card span2 trend-card"><div class="card-head"><h2 id="trend-title">读取趋势</h2><div class="trend-nav"><button class="trend-arrow" id="trend-prev" title="上一张" aria-label="上一张">‹</button><span class="trend-count" id="trend-count">1/2</span><button class="trend-arrow" id="trend-next" title="下一张" aria-label="下一张">›</button></div></div><div class="hint" id="trend-hint" style="margin-bottom:6px">按时间聚合 · 悬停查看数值</div><div id="chart-box" class="trend-box"></div><div id="heat-box" class="hidden"></div></div>
+      <div class="card rank-card"><h2>条目读取排行</h2><div class="hint" style="margin-bottom:6px">按被读取次数排序</div><div id="top-box" class="rank-box"></div></div>
       <div id="ov-actions" class="card ov-actions"></div>
-      <div class="card"><h2>Agent 读取占比</h2><div class="hint" style="margin-bottom:6px">按 agent 聚合 · 点击扇区查看</div><div id="donut-box" class="donut-wrap"></div></div>
+      <div class="card donut-card"><h2>Agent 读取占比</h2><div class="hint" style="margin-bottom:6px">按 agent 聚合 · 点击扇区查看</div><div id="donut-box" class="donut-wrap"></div></div>
       <div class="card globe-off" id="globe-card" role="region" aria-label="Agent 访问地球与访问概览">
         <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
           <h2 style="margin:0">Agent Live Globe</h2>
@@ -831,7 +975,7 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
         <div class="hint" id="globe-status"></div>
         <div class="globe-cap" id="globe-cap" role="status" aria-live="polite" aria-label="访问概览"></div>
       </div>
-      <div class="card span3"><h2>最近活动</h2><div id="recent-box" class="recent"></div></div>
+      <div class="card span3 recent-card"><h2>最近活动</h2><div id="recent-box" class="recent"></div></div>
     <div id="chart-tip" class="chart-tip"></div>
     </div>
   </section>
@@ -1250,10 +1394,30 @@ document.addEventListener('click', async (event) => {
 })
 $('account-logout').onclick = async () => { try { await api('/api/logout', { method: 'POST' }) } catch {} location.reload() }
 document.querySelectorAll('#account-menu [data-view]').forEach((button) => { button.onclick = async () => { if (!(await confirmDiscard())) return; if (editor.dirty) closeItemPage(); show('account-menu', false); document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', false)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + button.dataset.view)); if (button.dataset.view === 'settings') loadSettings(); if (button.dataset.view === 'profile') loadProfile() } })
-function applyTheme(mode) { const next = mode || localStorage.getItem('theme') || 'light'; const effective = next === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : (next === 'dark' ? 'dark' : 'light'); document.documentElement.dataset.theme = effective; localStorage.setItem('theme', next); const button = $('theme-cycle'); if (button) { button.textContent = next === 'light' ? '☀️' : next === 'dark' ? '🌙' : '💻'; button.title = '当前：' + (next === 'light' ? '浅色' : next === 'dark' ? '深色' : '跟随系统') + '（点击切换）' } }
-$('theme-cycle').onclick = () => { const current = localStorage.getItem('theme') || 'auto'; applyTheme(current === 'light' ? 'dark' : current === 'dark' ? 'auto' : 'light') }
+function applyTheme(mode) {
+  const next = mode || localStorage.getItem('theme') || 'light'
+  const effective = next === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : (next === 'dark' ? 'dark' : 'light')
+  document.documentElement.dataset.theme = effective; localStorage.setItem('theme', next)
+  const label = next === 'light' ? '浅色' : next === 'dark' ? '深色' : '跟随系统'
+  const button = $('theme-cycle'); if (button) { button.textContent = next === 'light' ? '☀️' : next === 'dark' ? '🌙' : '💻'; button.title = '当前：' + label + '（点击切换）' }
+}
+const cycleTheme = () => { const current = localStorage.getItem('theme') || 'auto'; applyTheme(current === 'light' ? 'dark' : current === 'dark' ? 'auto' : 'light') }
+$('theme-cycle').onclick = cycleTheme
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((localStorage.getItem('theme') || 'auto') === 'auto') applyTheme('auto') })
 applyTheme()
+{
+  const open = !$('login-card').classList.contains('hidden') || !$('unlock-card').classList.contains('hidden')
+  $('auth-shell').classList.toggle('hidden', !open)
+  document.body.classList.toggle('auth-mode', open)
+  if (open) {
+    const title = $('site-title').textContent
+    if (title) $('auth-site-name').textContent = title
+    $('auth-logo').src = $('site-logo').src
+  }
+}
+new MutationObserver(syncAuthSurface).observe($('login-card'), { attributes: true, attributeFilter: ['class'] })
+new MutationObserver(syncAuthSurface).observe($('unlock-card'), { attributes: true, attributeFilter: ['class'] })
+syncAuthSurface()
 async function unlockV2(password) {
   const ttlMs = $('ttl')?.value === '3600' ? 60 * 60 * 1000 : 12 * 60 * 60 * 1000
   await api('/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password, ttlMs }) })
