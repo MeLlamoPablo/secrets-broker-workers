@@ -1526,7 +1526,7 @@ function renderLockedSurface() {
     $('locked-unlock').dataset.mode = 'plain'
   }
 }
-async function boot() { try { app.me = await api('/api/me'); show('login-card', false); $('who').textContent = app.me.name || String(app.me.email || '').split('@')[0] || ''; $('site-title').textContent = app.me.siteName || 'Secrets Broker'; renderAvatar(app.me.name || app.me.email, app.me.avatarUrl); show('lock', true); const vault = await api('/api/v2/status').catch(() => null); app.v2 = vault; app.plainOk = vault?.initialized === true ? vault.plainOk !== false : true; if (!app.me.unlocked && sessionStorage.getItem('broker-lock-intent') !== '1') await tryDeviceOpen().catch(() => false); app.locked = app.me.unlocked !== true; // A vault that exists but is locked opens straight into the console: approvals
+async function boot() { try { app.me = await api('/api/me'); show('login-card', false); $('who').textContent = app.me.name || String(app.me.email || '').split('@')[0] || ''; $('site-title').textContent = app.me.siteName || 'Secrets Broker'; renderAvatar(app.me.name || app.me.email, app.me.avatarUrl); show('lock', true); const vault = await api('/api/v2/status').catch(() => null); app.v2 = vault; applyTierAvailability(); app.plainOk = vault?.initialized === true ? vault.plainOk !== false : true; if (!app.me.unlocked && sessionStorage.getItem('broker-lock-intent') !== '1') await tryDeviceOpen().catch(() => false); app.locked = app.me.unlocked !== true; // A vault that exists but is locked opens straight into the console: approvals
   // and masking work without the key. Only an uninitialized vault needs the
   // entry screen, because it has nothing to browse.
   const canBrowse = app.me.unlocked === true || vault?.initialized === true; show('dashboard', canBrowse); show('unlock-card', !canBrowse); if (canBrowse) { await loadAll(); renderLockedSurface(); if (new URLSearchParams(location.search).get('view') === 'profile') { document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-profile')); document.querySelectorAll('#nav button').forEach((button) => button.classList.remove('active')); await loadProfile(); history.replaceState({}, '', '/') } } } catch { show('login-card', true); show('dashboard', false); show('unlock-card', false); loadOidcLogin() } }
@@ -1649,6 +1649,18 @@ function syncAuthSurface() {
 new MutationObserver(syncAuthSurface).observe($('login-card'), { attributes: true, attributeFilter: ['class'] })
 new MutationObserver(syncAuthSurface).observe($('unlock-card'), { attributes: true, attributeFilter: ['class'] })
 syncAuthSurface()
+// The device tier pairs a browser against the v2 vault, so a legacy vault has
+// nothing to bind. Offering it there would promise "long-term" and then expire
+// with the one-hour session, so say what is actually available.
+function applyTierAvailability() {
+  const select = $('ttl')
+  const option = select?.querySelector('option[value="device"]')
+  if (!option) return
+  const supported = app.v2?.initialized === true
+  option.disabled = !supported
+  option.textContent = supported ? '长期（绑定本设备）' : '长期（仅 Vault 2.0 可用）'
+  if (!supported && select.value === 'device') select.value = '12h'
+}
 function legacyTtlSeconds(tier) {
   if (tier === '12h') return 12 * 60 * 60
   if (tier === '7d') return 7 * 24 * 60 * 60
@@ -1683,6 +1695,9 @@ async function unlockV2(password, options = {}) {
   await finishUnlock(options)
 }
 async function unlockLegacy(password, ttl = '12h', options = {}) {
+  // No v2 vault means no device to bind to; a "long-term" pick falls back to
+  // the default window instead of quietly expiring after an hour.
+  if (ttl === 'device') ttl = '12h'
   const info = await api('/api/bootstrap')
   if (info.kdfType !== 0) throw new Error('这个账户使用 Argon2 KDF（常见于从 NodeWarden/Bitwarden 导入），当前控制台只支持 PBKDF2。')
   const masterKey = await pbkdf2(password, String(info.email).toLowerCase(), info.kdfIterations)
