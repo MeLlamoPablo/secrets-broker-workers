@@ -1096,7 +1096,7 @@ function askYes(message, { yes = '删除', no = '取消' } = {}) {
 // Same in-page prompt as askYes, but returns the typed value. prompt() itself
 // is unreliable inside the desktop WebView, and the plaintext item list needs a
 // 6-digit code the first time it is opened in an unlock session.
-function askCode(message, { type = 'text', inputmode = 'numeric', placeholder = '6 位验证码', maxlength = 6, label = '' } = {}) {
+function askCode(message, { type = 'text', inputmode = 'numeric', placeholder = '6 位验证码', maxlength = 6, label = '', trim = true } = {}) {
   return new Promise((resolve) => {
     const previous = document.activeElement
     const wrap = document.createElement('div')
@@ -1115,8 +1115,11 @@ function askCode(message, { type = 'text', inputmode = 'numeric', placeholder = 
     const done = (answer) => { wrap.remove(); document.removeEventListener('keydown', onKey); if (previous && previous.focus) previous.focus(); resolve(answer) }
     const onKey = (event) => { if (event.key === 'Escape') { event.stopImmediatePropagation(); done('') } }
     wrap.querySelector('.ask__no').onclick = () => done('')
-    wrap.querySelector('.ask__yes').onclick = () => done(input.value.replace(/\s+/g, ''))
-    input.onkeydown = (event) => { if (event.key === 'Enter') done(input.value.replace(/\s+/g, '')) }
+    // Codes are typed with spaces by some authenticator apps, so they are
+    // stripped; a password must be handed over exactly as typed, spaces included.
+    const read = () => (trim ? input.value.replace(/\s+/g, '') : input.value)
+    wrap.querySelector('.ask__yes').onclick = () => done(read())
+    input.onkeydown = (event) => { if (event.key === 'Enter') done(read()) }
     document.addEventListener('keydown', onKey)
     document.body.appendChild(wrap)
     input.focus()
@@ -1403,7 +1406,9 @@ $('v2-devices').addEventListener('click', async (event) => {
   const purge = event.target.closest('[data-v2-purge]')
   if (purge) {
     const name = purge.closest('[data-device]')?.querySelector('b')?.textContent || ''
-    if (!confirm('删除设备「' + name + '」的记录？\n\n只对已撤销的设备可用，删掉后这条记录和它留下的钥匙信封都不再保留，无法恢复。')) return
+    // The desktop WebView drops native confirm(), and the row silently survived
+    // the click. Ask in the page: same wording, danger-weighted confirmation.
+    if (!(await askYes('删除设备「' + name + '」的记录？\n\n只对已撤销的设备可用，删掉后这条记录和它留下的钥匙信封都不再保留，无法恢复。', { yes: '删除记录', no: '取消' }))) return
     purge.disabled = true
     try {
       await api('/api/v2/devices/' + encodeURIComponent(purge.dataset.v2Purge) + '?purge=1', { method: 'DELETE' })
@@ -1415,7 +1420,7 @@ $('v2-devices').addEventListener('click', async (event) => {
   const button = event.target.closest('[data-v2-revoke]')
   if (!button) return
   const name = button.closest('[data-device]')?.querySelector('b')?.textContent || ''
-  if (!confirm('撤销设备「' + name + '」？\n\n撤销后它不能再拉取条目；它已经拿到的钥匙，只有跑一次重加密才会失效。')) return
+  if (!(await askYes('撤销设备「' + name + '」？\n\n撤销后它不能再拉取条目；它已经拿到的钥匙，只有跑一次重加密才会失效。', { yes: '撤销', no: '取消' }))) return
   button.disabled = true
   try {
     await api('/api/v2/devices/' + encodeURIComponent(button.dataset.v2Revoke), { method: 'DELETE' })
@@ -1440,7 +1445,10 @@ $('v2-lock').onclick = async () => {
 $('v2-import').onclick = async () => {
   const oldPassword = $('v2-legacy-password').value
   if (!oldPassword) { $('v2-msg').textContent = '先输入旧密文库的主密码'; return }
-  if (!confirm('用旧主密码解锁一次旧密文库，把条目复制一份到 Vault 2.0？原来的密文库不会被动。')) return
+  // Import copies the whole legacy vault, so the confirmation stays in-page for
+  // the same reason as the device buttons: a refused native dialog looks like a
+  // dead button.
+  if (!(await askYes('用旧主密码解锁一次旧密文库，把条目复制一份到 Vault 2.0？原来的密文库不会被动。', { yes: '开始导入', no: '取消' }))) return
   $('v2-msg').textContent = '正在解锁旧密文库并导入…'
   try {
     await unlockLegacy(oldPassword)
@@ -2578,7 +2586,7 @@ function renderItems() {
     }
   })
   $('items-box').querySelectorAll('.item-select').forEach((box) => { box.onchange = () => { if (box.checked) selectedItems.add(box.dataset.name); else selectedItems.delete(box.dataset.name); updateBulkBar() } })
-  $('items-box').querySelectorAll('.ios-main').forEach((main) => { main.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openItemMenu(main.dataset.itemMenu) } } })
+  $('items-box').querySelectorAll('.ios-main').forEach((main) => { main.onkeydown = async (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!(await confirmDiscard())) return; openItemMenu(main.dataset.itemMenu) } } })
   updateBulkBar()
 }
 function updateBulkBar() { const bar = $('bulk-bar'); if (!bar) return; bar.classList.toggle('hidden', selectedItems.size === 0); $('bulk-count').textContent = '已选择 ' + selectedItems.size + ' 个条目' }
@@ -4277,7 +4285,14 @@ async function loadSecurity() {
 async function changePassword() { try { await api('/api/security/password', { method: 'POST', body: JSON.stringify({ currentPassword: $('current-password').value, newPassword: $('new-password').value }) }); $('current-password').value = ''; $('new-password').value = ''; status('password-status', '密码已修改', 'ok'); await loadSecurity() } catch (error) { status('password-status', error.message, 'error') } }
 async function setup2fa() { try { const data = await api('/api/2fa/setup', { method: 'POST' }); $('totp-secret').textContent = data.secret; $('totp-setup-box').classList.remove('hidden'); status('totp-message', '把密钥加入验证器后输入验证码', 'ok') } catch (error) { status('totp-message', error.message, 'error') } }
 async function enable2fa() { try { await api('/api/2fa/enable', { method: 'POST', body: JSON.stringify({ code: $('totp-enable-code').value }) }); $('totp-setup-box').classList.add('hidden'); $('totp-enable-code').value = ''; status('totp-message', '两步验证已启用', 'ok'); await loadSecurity() } catch (error) { status('totp-message', error.message, 'error') } }
-async function disable2fa() { const password = prompt('输入当前登录密码以关闭两步验证'); if (password === null) return; try { await api('/api/2fa/disable', { method: 'POST', body: JSON.stringify({ password }) }); status('totp-message', '两步验证已关闭', 'ok'); await loadSecurity() } catch (error) { status('totp-message', error.message, 'error') } }
+async function disable2fa() {
+  // prompt() is silently refused inside the desktop WebView, so 关闭两步验证 did
+  // nothing there. The in-page field keeps the same one-field flow; an empty or
+  // cancelled answer sends no request at all.
+  const password = await askCode('关闭两步验证会降低账户安全。请输入当前登录密码后继续。', { type: 'password', inputmode: 'text', placeholder: '当前登录密码', maxlength: 0, label: '当前登录密码', trim: false })
+  if (!password) return
+  try { await api('/api/2fa/disable', { method: 'POST', body: JSON.stringify({ password }) }); status('totp-message', '两步验证已关闭', 'ok'); await loadSecurity() } catch (error) { status('totp-message', error.message, 'error') }
+}
 // Replaced by the create modal (openAgentCreate). Kept as a thin alias so any
 // stale inline handler still works.
 async function createAgent() { openAgentCreate() }
