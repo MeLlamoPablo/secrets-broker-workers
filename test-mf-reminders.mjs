@@ -129,13 +129,39 @@ const state = async () => mf.dispatchFetch('https://broker.test/api/state', { he
   else fail('R10', JSON.stringify({ status: response.status, type, head: body.slice(0, 80) }))
 }
 // R11 (additive): a csv request without the second factor is refused, not
-// silently downgraded, and the filter is applied on the server.
+// silently downgraded, and the filter is applied on the server. The refusal has
+// to be machine-readable too: an outside script that only reads `code` must be
+// able to tell "switch to POST" apart from "your login expired".
 {
   const refused = await mf.dispatchFetch('https://broker.test/api/audit?format=csv', { headers: { cookie } })
+  const refusedBody = await refused.json().catch(() => ({}))
   const filtered = await mf.dispatchFetch('https://broker.test/api/audit?agent=d1&limit=10', { headers: { cookie } }).then((r) => r.json())
-  const ok = refused.status === 428 && filtered.total === 1 && filtered.entries.length === 1 && filtered.entries[0].agent === 'd1'
+  const ok = refused.status === 428
+    && refusedBody.code === 'audit_export_post_only'
+    && typeof refusedBody.next_step === 'string' && refusedBody.next_step.indexOf('POST /api/audit') !== -1
+    && typeof refusedBody.docs === 'string' && refusedBody.docs.indexOf('upgrade-notes') !== -1
+    && filtered.total === 1 && filtered.entries.length === 1 && filtered.entries[0].agent === 'd1'
   if (ok) pass('R11 csv needs confirmation and the agent filter runs server-side')
-  else fail('R11', JSON.stringify({ status: refused.status, total: filtered.total }))
+  else fail('R11', JSON.stringify({ status: refused.status, code: refusedBody.code, total: filtered.total }))
+}
+// R12 (additive): a page must not look like the whole log. The response carries
+// the totals both in the body and in headers, and the second page is marked as
+// not-first, so a client that only reads `entries` still learns it is partial.
+{
+  const first = await mf.dispatchFetch('https://broker.test/api/audit?limit=1', { headers: { cookie } })
+  const firstBody = await first.json()
+  const second = await mf.dispatchFetch('https://broker.test/api/audit?limit=1&offset=1', { headers: { cookie } }).then((r) => r.json())
+  const ok = firstBody.total === 2
+    && firstBody.entries.length === 1
+    && firstBody.hasMore === true
+    && firstBody.firstPage === true
+    && firstBody.page === 1
+    && typeof firstBody.pageCount === 'number' && firstBody.pageCount === 2
+    && first.headers.get('x-audit-total') === '2'
+    && first.headers.get('x-audit-has-more') === 'true'
+    && second.firstPage === false && second.hasMore === false
+  if (ok) pass('R12 audit pages expose total/hasMore/page markers')
+  else fail('R12', JSON.stringify({ total: firstBody.total, page: firstBody.page, hasMore: firstBody.hasMore, firstPage: firstBody.firstPage }))
 }
 
 await mf.dispose()

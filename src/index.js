@@ -40,7 +40,7 @@ const AUDIT_EVENT_GROUPS = {
   grant: ['grant.share', 'grant.revoke', 'grant.extend', 'request.approve', 'request.deny', 'request.auto-approve', 'request.create'],
   ai: ['ai.ask', 'telegram.*'],
   login: ['admin.login', 'admin.login-fail', 'admin.oidc-login', 'admin.origin-mismatch', 'vault.unlock', 'vault.lock', 'vault.oidc-unlock'],
-  item: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update'],
+  item: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.rotate.purge', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update'],
   oauth: ['oauth.*', 'fill.*'],
   risk: AUDIT_RED_EVENTS,
 }
@@ -2457,6 +2457,8 @@ function publicState(state, options = {}) {
     profile: state.profile ?? {},
     // The UI labels an unclassified credential differently depending on this.
     requireClassification: requireClassification(state),
+    // Reminder cadence for the health card. Display-only: no auth path reads it.
+    rotateReminderDays: rotateReminderDays(state),
     grants: Object.values(state.grants ?? {}),
     pending: Object.values(state.pending ?? {}),
     // Legacy grants that have no recorded identity binding cannot be migrated
@@ -3495,7 +3497,16 @@ function behaviourSettings(state) {
     // it into a read gate, and even then it gates reads only: fill/use still
     // follow their own policy so a dated login can keep filling a form.
     expiryBlocksReads: settings.expiryBlocksReads === true,
+    // Rotation is a reminder too: 180 days is the default cadence the health
+    // card nudges with, and it never appears in an authorisation decision.
+    rotateReminderDays: rotateReminderDays(state),
   }
+}
+
+function rotateReminderDays(state) {
+  const raw = Number(state?.settings?.rotateReminderDays)
+  if (!Number.isFinite(raw) || raw <= 0) return 180
+  return Math.min(3650, Math.max(30, Math.round(raw)))
 }
 
 function requireClassification(state) {
@@ -5806,6 +5817,28 @@ export default {
       await addAudit(env, { event: 'item.rotate.restore', name, itemId, actor: session.email || '' })
       return json({ ok: true, name, itemId })
     }
+    // A kept old value is a second copy of the credential. Waiting out the
+    // window is not the only safe answer: the operator may want it gone now,
+    // and that act itself has to be visible in the audit trail.
+    if (url.pathname === '/api/items/rotate/purge' && request.method === 'POST') {
+      if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      const session = await getSession(env)
+      if (!session) return fail('locked', 423)
+      const body = await request.json().catch(() => ({}))
+      const state = await loadState(env)
+      const itemId = String(body.itemId ?? '')
+      const entry = itemId ? state.itemMeta?.[itemId] : null
+      if (!itemId || !entry?.backup) return fail('no backup for this item', 404)
+      const name = Object.keys(state.itemIds ?? {}).find((key) => state.itemIds[key] === itemId) ?? entry.itemId ?? itemId
+      const hadUntil = Number(entry.backup.until ?? 0)
+      await updateState(env, (next) => {
+        const current = next.itemMeta?.[itemId]
+        if (current) { delete current.backup; current.backupPurgedAt = nowIso(); current.backupPurgedBy = session.email || '' }
+        return next
+      })
+      await addAudit(env, { event: 'item.rotate.purge', name, itemId, actor: session.email || '', hadUntil })
+      return json({ ok: true, name, itemId })
+    }
     if (url.pathname === '/api/items/delete' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const session = await getSession(env)
@@ -7280,8 +7313,17 @@ export default {
       const format = param('format')
       if (format === 'csv') {
         // Audit is still an export: the same second factor as any other export
-        // is required, not waived because the content is "only logs".
-        if (request.method !== 'POST') return json({ error: 'confirmation_required', message: '审计导出需要二次验证，请从控制台导出' }, 428)
+        // is required, not waived because the content is "only logs". A GET used
+        // to return the file, so an outside script that still calls it now needs
+        // an answer it can branch on instead of a bare 428 that reads like a
+        // broken login.
+        if (request.method !== 'POST') return json({
+          error: 'confirmation_required',
+          code: 'audit_export_post_only',
+          message: '审计导出已改为 POST + 二次验证：GET 不再返回 CSV。请用 POST /api/audit，body 带 {"format":"csv","confirmPassword":"<密码或动态验证码>"}；控制台右上角「导出」按钮已按新流程实现。',
+          next_step: 'POST /api/audit with {"format":"csv","confirmPassword":"<password or TOTP>"}',
+          docs: 'docs/upgrade-notes.md',
+        }, 428)
         const refused = await confirmSensitive(request, env, body, 'audit.export', true)
         if (refused) return refused
         const fields = ['time', 'event', 'agent', 'name', 'action', 'source', 'ok', 'account', 'targetOrigin', 'reason']
@@ -7307,7 +7349,26 @@ export default {
       // whole log just to filter it locally.
       const limit = Math.min(500, Math.max(1, Number(param('limit')) || 200))
       const offset = Math.max(0, Number(param('offset')) || 0)
-      return json({ entries: filtered.slice(offset, offset + limit), total: filtered.length, offset, limit, hasMore: offset + limit < filtered.length, masked })
+      const page = filtered.slice(offset, offset + limit)
+      // A client that only reads `entries` can no longer mistake a page for the
+      // whole log: firstPage says which window this is, and the headers repeat
+      // the totals for callers that never parse the body.
+      return json({
+        entries: page,
+        total: filtered.length,
+        offset,
+        limit,
+        hasMore: offset + limit < filtered.length,
+        firstPage: offset === 0,
+        page: Math.floor(offset / limit) + 1,
+        pageCount: Math.max(1, Math.ceil(filtered.length / limit)),
+        masked,
+      }, 200, {
+        'x-audit-total': String(filtered.length),
+        'x-audit-has-more': String(offset + limit < filtered.length),
+        'x-audit-page-size': String(limit),
+        'x-audit-offset': String(offset),
+      })
     }
     if (url.pathname === '/api/audit/clear' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
@@ -7783,6 +7844,11 @@ export default {
           // Defaults to ON when absent, so nothing can turn it off by omission.
           if (typeof body.requireClassification === 'boolean') state.settings.requireClassification = body.requireClassification
           for (const key of ['webPlaintext', 'unclassifiedPlaintext', 'useAnyTarget', 'expiryBlocksReads']) if (typeof body[key] === 'boolean') state.settings[key] = body[key]
+          if (body.rotateReminderDays !== undefined) {
+            const days = Number(body.rotateReminderDays)
+            if (!Number.isFinite(days) || days <= 0) delete state.settings.rotateReminderDays
+            else state.settings.rotateReminderDays = Math.min(3650, Math.max(30, Math.round(days)))
+          }
           return state
         })
         await addAudit(env, { event: 'settings.update', scope: 'notifications-oidc' })
@@ -8466,7 +8532,21 @@ const TOOL_META = {
             const label = accessStatusLabel(access)
             if (label.status === 'allowed') return result(text(label.message))
             if (label.status === 'pending') return result(text({ status: 'pending', request_id: label.requestId, approval_url: label.approvalUrl, item_id: label.itemId }))
-            return result(text({ status: label.status, code: label.code, error: label.message, ...(label.retryAfterMs ? { retry_after_ms: label.retryAfterMs } : {}) }, true))
+            // A third-party client may render only `code`, never `error`, so the
+            // remedy travels as its own machine-readable field instead of living
+            // inside a prose sentence.
+            const nextStep = label.code === 'not-in-scope' || label.status === 'outside_scope'
+              ? 'admin: Agents → 权限矩阵 → this agent → add the item to its requestable scope, then call request_access again'
+              : label.code === 'no-grant'
+                ? 'admin: Agents → 权限矩阵 → this agent → grant 7 days for this item, or approve this pending request'
+                : ''
+            return result(text({
+              status: label.status,
+              code: label.code,
+              error: label.message,
+              ...(nextStep ? { next_step: nextStep, docs: 'docs/upgrade-notes.md' } : {}),
+              ...(label.retryAfterMs ? { retry_after_ms: label.retryAfterMs } : {}),
+            }, true))
           }
           if (name === 'get_secret') {
             if (env.MCP_ALLOW_READ !== '1') return result(text('get_secret is disabled; set MCP_ALLOW_READ=1 to expose values', true))
