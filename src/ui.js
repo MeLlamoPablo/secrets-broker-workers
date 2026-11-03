@@ -886,6 +886,59 @@ nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
   .dash .trend-card,.dash .rank-card{min-height:260px}
   .dash #ov-actions,.dash .donut-card,.dash #globe-card{min-height:220px}
 }
+/* Credential list: a dense, scannable group. Name leads, metadata follows,
+   the approval state stays right-aligned; hover and the open row are different
+   surfaces so a click that changes nothing is still visible. */
+.ios-group{margin-top:24px}
+.ios-group-head{padding:0 4px 8px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ink-2)}
+.ios-card{border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:var(--shadow-1);background:var(--surface)}
+.ios-row{min-height:60px;padding:10px 14px;gap:12px;transition:background .15s ease}
+.ios-row+.ios-row::before{left:calc(14px + var(--ios-lead) + 36px + 12px)}
+.ios-row:hover{background:var(--surface-2)}
+.ios-row.current{background:var(--brand-soft)}
+.ios-row.current::after{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
+.ios-ico{width:36px;height:36px;border-radius:var(--r-control);border:1px solid var(--hair)}
+.ios-title{font-size:15px;line-height:20px;font-weight:600;color:var(--ink-1)}
+.ios-title b{font-weight:600}
+.ios-sub{font-size:13px;line-height:18px;color:var(--ink-2)}
+.ios-pill{font-size:12px;min-height:26px;padding:2px 9px;border:1px solid var(--hair);background:var(--surface-2);color:var(--ink-2);font-weight:500}
+.ios-pill.on{background:color-mix(in srgb,var(--green) 14%,transparent);border-color:color-mix(in srgb,var(--green) 30%,transparent);color:var(--ok-text)}
+.ios-pill.web{background:color-mix(in srgb,var(--purple) 14%,transparent);border-color:color-mix(in srgb,var(--purple) 30%,transparent);color:color-mix(in srgb,var(--purple) 80%,var(--ink-1))}
+.ios-pill.bad{background:color-mix(in srgb,var(--red) 12%,transparent);border-color:color-mix(in srgb,var(--red) 28%,transparent);color:var(--danger-text)}
+.ios-pill.none,.ios-pill.warn{background:color-mix(in srgb,var(--orange) 12%,transparent);border-color:color-mix(in srgb,var(--orange) 28%,transparent);color:var(--warn-text)}
+.kind-tag{border-radius:var(--r-pill);padding:1px 8px;font-size:11px;font-weight:600}
+/* Detail sheet: the title bar reads as a toolbar, the body is a form sheet.
+   Labels and values share one grid so every row lines up; long values wrap
+   instead of disappearing behind an ellipsis. */
+.page{background:var(--canvas)}
+.page-nav{height:60px;padding:0 20px;gap:12px;background:var(--surface);border-bottom:1px solid var(--hair)}
+.page-title{text-align:left;font-size:20px;line-height:26px;font-weight:650;letter-spacing:-.01em;color:var(--ink-1)}
+.page-back,.page-action{font-size:14px;font-weight:500;color:var(--brand);min-height:44px;min-width:44px}
+.page-action{border:1px solid var(--hair);border-radius:var(--r-control);padding:0 14px;min-height:36px;background:var(--surface);color:var(--ink-1)}
+.page-action:hover{background:var(--surface-2)}
+.page-body{padding:20px 24px 40px}
+.page-body>.card{max-width:760px;border-radius:var(--r-card);padding:20px 24px;margin-bottom:16px}
+.kv{display:grid;grid-template-columns:112px minmax(0,1fr);gap:16px;align-items:start;padding:12px 0;border-bottom:1px solid var(--hair);font-size:14px;line-height:22px}
+.kv:last-child{border-bottom:0}
+.kv>span{color:var(--ink-2);font-size:13px;line-height:22px}
+.kv>b{margin:0;text-align:right;font-weight:500;min-width:0;white-space:normal;overflow:visible;overflow-wrap:anywhere}
+.kv a{color:var(--brand);text-decoration:none}
+.kv code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+/* Editing replaces the read-only panels in place, so the eye does not have to
+   scroll to a second copy of the same credential. */
+.page[data-editing="true"] .read-card{display:none}
+.card.edit-only{border-top:2px solid var(--brand)}
+.editor-zone{padding-bottom:8px}
+/* The destructive action has its own card, away from save and share. */
+.card.edit-only.danger-zone{display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border:1px solid color-mix(in srgb,var(--red) 30%,var(--hair));border-top:1px solid color-mix(in srgb,var(--red) 30%,var(--hair));background:color-mix(in srgb,var(--red) 6%,var(--surface));border-radius:var(--r-card)}
+.page[data-editing="true"] .card.edit-only.danger-zone{display:flex}
+.danger-zone__text{min-width:0}
+.danger-zone__text b{display:block;font-size:14px;color:var(--ink-1)}
+.danger-zone__text .hint{font-size:12px;margin-top:2px}
+.danger-zone button.danger{flex:0 0 auto;min-height:40px;background:var(--red);color:#fff;border:0}
+.danger-zone button.danger:hover{background:color-mix(in srgb,var(--red) 86%,#000)}
+.page .row>button{min-height:44px;border-radius:var(--r-control);font-size:14px}
+.page-body .card>.row>button{flex:0 0 auto;min-width:104px}
 /* Inputs: one control height, one border, a visible focus ring. */
 input,select,textarea{min-height:42px;border:1px solid var(--hair);border-radius:var(--r-control);background:var(--surface);padding:9px 12px;font-size:14px;color:var(--ink-1)}
 html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{background:var(--surface-2);border-color:var(--hair);color:var(--ink-1)}
@@ -907,13 +960,47 @@ button.small{min-height:34px;padding:6px 12px;font-size:13px}
 .state[data-tone="loading"] .state__title::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid color-mix(in srgb,var(--brand) 30%,transparent);border-top-color:var(--brand);animation:state-spin .9s linear infinite}
 @keyframes state-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion: reduce){.state[data-tone="loading"] .state__title::before{animation:none}}
+/* The sign-in surface is its own screen, not a card under the app bar. */
+body.auth-mode{overflow:auto}
+.auth{position:fixed;inset:0;z-index:55;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:radial-gradient(1200px 600px at 50% -10%,color-mix(in srgb,var(--brand) 8%,transparent),transparent 60%),var(--canvas);overflow-y:auto}
+.auth.hidden{display:none}
+.auth__panel{width:100%;max-width:420px}
+.auth__brand{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.auth__lead{margin:0 0 22px;font-size:13px;line-height:19px;color:var(--ink-2)}
+.auth__brand img{width:40px;height:40px;border-radius:10px;object-fit:cover}
+.auth__name{display:block;font-size:20px;line-height:26px;font-weight:700;letter-spacing:-.01em;color:var(--ink-1)}
+.auth__tag{display:block;font-size:12px;line-height:16px;letter-spacing:.06em;color:var(--ink-3);margin-top:2px}
+.auth__card{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:var(--shadow-2);padding:24px;margin:0}
+.auth__card>h2{font-size:20px;line-height:26px;font-weight:650;letter-spacing:-.01em;margin:0 0 6px}
+.auth__card .hint{font-size:13px;line-height:19px}
+.auth__card .status{min-height:20px;margin-top:10px;font-size:13px}
+.auth__card input{min-height:44px;font-size:15px}
+.auth__card .row>button{width:100%;min-height:46px;font-size:15px;font-weight:600}
+.auth__card .row{gap:8px;margin-top:16px}
+.auth__card .row>#lock2{flex:0 0 auto;width:auto;background:transparent;border:1px solid var(--hair)}
+.auth__card .row.auth__secondary{margin-top:10px}
+.auth__card .row>#init-v2{width:auto;min-height:38px;background:transparent;border:1px solid var(--hair);color:var(--ink-2);font-size:13px;font-weight:500}
+.auth__trust{display:flex;gap:8px;margin:20px 0 0;padding-top:14px;border-top:1px solid var(--hair);font-size:13px;line-height:19px;color:var(--ink-2)}
+.auth__trust svg{flex:0 0 auto;width:16px;height:16px;margin-top:2px;stroke:var(--ink-3);fill:none}
+.auth__foot{display:flex;align-items:center;justify-content:flex-end;margin-top:10px}
+.auth__theme{background:transparent;border:0;color:var(--ink-2);font-size:13px;padding:6px 8px;min-height:36px}
+.auth__theme:hover{color:var(--ink-1);background:var(--surface-2)}
+body.auth-mode header{display:none}
 @media(max-width:720px){
+  .auth{position:static;min-height:100svh;padding:24px 16px;align-items:flex-start}
+  .auth__panel{max-width:none}
+  .auth__brand{margin-bottom:20px}
+  .auth__card{padding:20px 18px}
   header{position:static;grid-template-columns:1fr auto;padding-top:8px}
   nav{grid-area:tabs}
   .wrap{padding:0 16px 40px}
   .kpi{min-height:88px;padding:12px 14px}
   .kpi .value{font-size:26px;line-height:30px}
   .ov-title{font-size:24px;line-height:30px}
+  .page-nav{padding:0 12px}
+  .page-body{padding:14px 12px 28px}
+  .page-body>.card{padding:16px}
+  .kv{grid-template-columns:88px minmax(0,1fr);gap:10px}
 }
 </style></head><body><div class="wrap">
 <div id="db-down" class="notice-bar hidden" data-level="critical"><span class="notice-dot"></span><span class="notice-text"></span></div>
@@ -1405,19 +1492,6 @@ const cycleTheme = () => { const current = localStorage.getItem('theme') || 'aut
 $('theme-cycle').onclick = cycleTheme
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((localStorage.getItem('theme') || 'auto') === 'auto') applyTheme('auto') })
 applyTheme()
-{
-  const open = !$('login-card').classList.contains('hidden') || !$('unlock-card').classList.contains('hidden')
-  $('auth-shell').classList.toggle('hidden', !open)
-  document.body.classList.toggle('auth-mode', open)
-  if (open) {
-    const title = $('site-title').textContent
-    if (title) $('auth-site-name').textContent = title
-    $('auth-logo').src = $('site-logo').src
-  }
-}
-new MutationObserver(syncAuthSurface).observe($('login-card'), { attributes: true, attributeFilter: ['class'] })
-new MutationObserver(syncAuthSurface).observe($('unlock-card'), { attributes: true, attributeFilter: ['class'] })
-syncAuthSurface()
 async function unlockV2(password) {
   const ttlMs = $('ttl')?.value === '3600' ? 60 * 60 * 1000 : 12 * 60 * 60 * 1000
   await api('/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password, ttlMs }) })
@@ -4048,7 +4122,7 @@ function itemInfoHtml(item) {
     ? '<button class="ios-pill plain" data-item-grant data-agent="' + esc(grant.agent) + '" data-name="' + esc(item.name) + '" title="点击修改时长和读取次数">' + esc(durationLabel(grant)) + '</button>'
     : '<span class="ios-pill plain">' + esc(durationLabel(grant)) + '</span>') + '</div>').join('') : '<div class="ios-field"><label>当前没有分享给 Agent</label></div>'
   const usageRows = usage.length ? usage.map((entry) => '<div class="ios-row ios-row--log"><div class="ios-main"><div class="ios-log-text">' + esc(describeEvent(entry)) + '</div><div class="ios-sub">' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + ' · ' + esc(agentLabel(entry.agent)) + (entry.mode || entry.source ? ' · ' + esc(entry.mode || entry.source) : '') + '</div></div></div>').join('') : '<div class="ios-field"><label>暂无使用记录</label></div>'
-  return '<div class="card"><div class="ios-head"><h2 style="margin:0">分享情况</h2><button class="ios-pill plain" id="mi-share-sync">分享 / 同步</button></div><div class="hint">创建：' + esc(item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + ' · 创建人：' + esc(item.creator || '-') + '</div>' + grantRows + '<h2 style="margin-top:var(--sp-4)">最近使用</h2>' + usageRows + '</div>'
+  return '<div class="card read-card"><div class="ios-head"><h2 style="margin:0">分享情况</h2><button class="ios-pill plain" id="mi-share-sync">分享 / 同步</button></div><div class="hint">创建：' + esc(item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + ' · 创建人：' + esc(item.creator || '-') + '</div>' + grantRows + '<h2 style="margin-top:var(--sp-4)">最近使用</h2>' + usageRows + '</div>'
 }
 // The expiry field of the edit dialog. A secret without an expiry shows an
 // empty date, and an empty date on save means no expiry.
@@ -4260,13 +4334,13 @@ async function revealItemSecret(item) {
 function openItemMenu(name) {
   const item = app.items.find((entry) => entry.name === name); if (!item) return
   const agents = app.data.agents || []
-  openItemPage(name, itemInfoHtml(item) + '<div class="card"><h2>凭据</h2>' +
+  openItemPage(name, itemInfoHtml(item) + '<div class="card read-card"><h2>凭据</h2>' +
         '<div class="kv"><span>用户名</span><b>' + esc(item.username || '未设置') + '</b></div>' +
     '<div class="kv"><span>密钥</span><b><button class="ios-pill plain" id="item-reveal" type="button">查看</button></b></div>' +
     '<div class="kv"><span>网址</span><b>' + (item.url ? '<a href="' + esc(item.url) + '" target="_blank" rel="noreferrer">' + esc(item.url) + '</a>' : '未设置') + '</b></div>' +
     '<div class="kv"><span>分组</span><b>' + esc(item.group || '未分组') + '</b></div>' +
     '<div class="kv"><span>有效期</span><b>' + expiryLabel(item.expiresAt) + '</b></div></div>' +
-    fillEditorHtml(item) + '<div class="card edit-only"><label class="field">名称</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">用户名（留空不改）</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret（留空不改）</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">分组</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="例如 blog/prod"><label class="field">网址</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">备注（留空不改）</label><input id="mi-notes" placeholder="新的备注"><label class="field">新密钥值（留空不改）</label><input id="mi-value" type="password" placeholder="留空保留原值"><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> 免审批（自动读取，仍记录）</label><div class="row" style="margin-top:14px"><button class="primary" id="mi-save" aria-label="保存修改（无改动）">保存修改</button><button id="mi-discard" aria-label="放弃修改，恢复进入编辑时的值">放弃</button><button id="mi-share">分享 / 跨账户复制</button><button class="danger" id="mi-delete">删除</button></div><div style="border-top:1px solid var(--line);margin-top:14px;padding-top:10px"><div class="hint">分享给 Agent（同账户直接授权；跨账户会先复制到目标账户文件夹，切回目标账户解锁后自动完成）</div><label class="field">分享给（可多选）</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">跨账户目标文件夹（同账户可留空）</label><input id="mi-share-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="mi-share-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
+    fillEditorHtml(item) + '<div class="card edit-only"><label class="field">名称</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">用户名（留空不改）</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret（留空不改）</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">分组</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="例如 blog/prod"><label class="field">网址</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">备注（留空不改）</label><input id="mi-notes" placeholder="新的备注"><label class="field">新密钥值（留空不改）</label><input id="mi-value" type="password" placeholder="留空保留原值"><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> 免审批（自动读取，仍记录）</label><div class="row editor-zone" style="margin-top:14px"><button class="primary" id="mi-save" aria-label="保存修改（无改动）">保存修改</button><button id="mi-discard" aria-label="放弃修改，恢复进入编辑时的值">放弃</button><button id="mi-share">分享 / 跨账户复制</button></div></div><div class="card edit-only danger-zone" role="group" aria-label="删除条目"><div class="danger-zone__text"><b>删除这个条目</b><span class="hint">删除后无法恢复，正在使用它的 Agent 会立刻失去访问。</span></div><button class="danger" id="mi-delete">删除</button></div><div class="card edit-only share-zone"><div class="hint">分享给 Agent（同账户直接授权；跨账户会先复制到目标账户文件夹，切回目标账户解锁后自动完成）</div><label class="field">分享给（可多选）</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">跨账户目标文件夹（同账户可留空）</label><input id="mi-share-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="mi-share-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
   $('item-reveal').onclick = () => revealItemSecret(item)
   // 分享 / 同步 leaves the detail for another screen, so it is an exit too.
   $('mi-share-sync').onclick = async () => { if (!(await confirmDiscard())) return; closeItemPage(); selectedItems.clear(); selectedItems.add(item.name); openBulkShare() }
