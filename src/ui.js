@@ -1016,20 +1016,29 @@ body.auth-mode header{display:none}
 <nav id="nav"><button data-view="overview" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span>概览</span></button><button data-view="items"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.6"/><path d="M10.6 10.6 20 20"/><path d="M15.6 15.6l2-2"/><path d="M17.8 17.8l2-2"/></svg><span>密钥</span></button><button data-view="devices"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="1.6"/><path d="M9 20h6"/><path d="M12 16.5V20"/></svg><span>电脑</span></button><button data-view="agents"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.4" r="3"/><path d="M3.5 19c0-2.9 2.5-4.6 5.5-4.6s5.5 1.7 5.5 4.6"/><path d="M16.2 6.6a2.6 2.6 0 0 1 0 5"/><path d="M17.6 14.6c2 .6 3.4 2.2 3.4 4.4"/></svg><span>Agents</span></button><button data-view="grants"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 5 6.4v5c0 4.3 2.9 7.4 7 8.9 4.1-1.5 7-4.6 7-8.9v-5z"/><path d="M9 12.1l2.1 2.1 4-4.4"/></svg><span>授权</span></button><button data-view="logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.5h11"/><path d="M8.5 12h11"/><path d="M8.5 17.5h11"/><circle cx="4.6" cy="6.5" r="1.1"/><circle cx="4.6" cy="12" r="1.1"/><circle cx="4.6" cy="17.5" r="1.1"/></svg><span>日志</span></button></nav>
 </header>
 
-<section id="login-card" class="card hidden">
-  <h2>管理登录</h2><div class="hint">管理登录密码（不是 Agent token，也不是 Vault 主密码）。</div>
-  <label class="field">管理登录密码</label><input id="admin-password" type="password" autocomplete="current-password">
-  <div id="totp-row" class="hidden"><label class="field">两步验证码</label><input id="totp-code" inputmode="numeric" placeholder="6 位验证码"></div>
-  <div style="margin-top:12px"><button class="primary" id="login">登录</button></div><div class="status" id="login-status"></div><div id="login-oidc" style="margin-top:10px"></div>
-</section>
+<div id="auth-shell" class="auth hidden">
+<div class="auth__panel">
+  <div class="auth__brand"><img id="auth-logo" src="/logo.png" alt=""><div><span class="auth__name" id="auth-site-name">Secrets Broker</span><span class="auth__tag">SELF-HOSTED SECRETS BROKER</span></div></div>
+  <p class="auth__lead">为 Agent 发放按时限、按范围的密钥读取授权，并把每一次读取记进审计日志。</p>
+  <section id="login-card" class="auth__card card hidden" aria-labelledby="login-title">
+    <h2 id="login-title">登录管理控制台</h2>
+    <div class="hint">管理登录只保护这个控制台；Agent 使用另外签发的访问令牌。</div>
+    <label class="field" for="admin-password">管理登录密码</label><input id="admin-password" type="password" autocomplete="current-password" enterkeyhint="go">
+    <div id="totp-row" class="hidden"><label class="field" for="totp-code">两步验证码</label><input id="totp-code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 位验证码"></div>
+    <div class="row"><button class="primary" id="login">登录</button></div><div class="status" id="login-status" role="status" aria-live="polite"></div><div id="login-oidc"></div>
+  </section>
 
-<section id="unlock-card" class="card hidden">
-  <h2>解锁 vault</h2><div class="hint">这是 Vault 主密码：初始化 Vault 时设置的密码，不是 NodeWarden/Bitwarden 登录密码，也不是上面的管理登录密码。主密码只在本机做 PBKDF2/HKDF，服务器只收到派生出的会话密钥。</div>
-  <label class="field">Vault 主密码</label><input id="master-password" type="password" autocomplete="current-password">
-  <label class="field">解锁有效期</label><select id="ttl"><option value="permanent">12 小时（最长）</option><option value="3600">1 小时</option></select>
-  <div class="row" style="margin-top:12px"><button class="primary" id="unlock">解锁</button><button id="lock2">锁定</button></div><div class="status" id="unlock-status"></div>
-  <div class="row" style="margin-top:8px"><button id="init-v2">初始化 Vault 2.0（至少 12 位）</button></div>
-</section>
+  <section id="unlock-card" class="auth__card card hidden" aria-labelledby="unlock-title">
+    <h2 id="unlock-title">解锁 Vault</h2><div class="hint">Vault 主密码是初始化 Vault 时设置的密码，不是管理登录密码。它只在本机做 PBKDF2/HKDF，服务器只收到派生出的会话密钥。</div>
+    <label class="field" for="master-password">Vault 主密码</label><input id="master-password" type="password" autocomplete="current-password" enterkeyhint="go">
+    <label class="field" for="ttl">解锁有效期</label><select id="ttl"><option value="permanent">12 小时（最长）</option><option value="3600">1 小时</option></select>
+    <div class="row"><button class="primary" id="unlock">解锁</button><button id="lock2">锁定</button></div><div class="status" id="unlock-status" role="status" aria-live="polite"></div>
+    <div class="row auth__secondary"><button id="init-v2">初始化 Vault 2.0（至少 12 位）</button></div>
+  </section>
+  <p class="auth__trust"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 5.5 6v5.2c0 4 2.7 7 6.5 8.3 3.8-1.3 6.5-4.3 6.5-8.3V6z" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 11.8l2 2 4-4.2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>密钥保存在你自己的 Cloudflare Worker 中，不经过第三方托管；登录会话只存在这个浏览器里。</span></p>
+  <div class="auth__foot"><button id="auth-theme" class="auth__theme" type="button" aria-label="切换主题（当前：浅色）">切换主题</button></div>
+</div>
+</div>
 
 <section id="dashboard" class="hidden">
   <section id="view-overview" class="view">
@@ -1448,6 +1457,8 @@ $('bs-save').onclick = async () => {
 $('login').onclick = async () => {
   const button = $('login')
   button.disabled = true
+  button.dataset.idle = button.textContent
+  button.textContent = '登录中…'
   button.setAttribute('aria-busy', 'true')
   status('login-status', '登录中…')
   try {
@@ -1469,6 +1480,8 @@ $('login').onclick = async () => {
     }
   } finally {
     button.disabled = false
+    if (button.dataset.idle) button.textContent = button.dataset.idle
+    delete button.dataset.idle
     button.removeAttribute('aria-busy')
   }
 }
@@ -1487,11 +1500,30 @@ function applyTheme(mode) {
   document.documentElement.dataset.theme = effective; localStorage.setItem('theme', next)
   const label = next === 'light' ? '浅色' : next === 'dark' ? '深色' : '跟随系统'
   const button = $('theme-cycle'); if (button) { button.textContent = next === 'light' ? '☀️' : next === 'dark' ? '🌙' : '💻'; button.title = '当前：' + label + '（点击切换）' }
+  // The sign-in screen hides the app bar, so it carries its own theme control.
+  const authButton = $('auth-theme'); if (authButton) { authButton.textContent = label + ' · 切换'; authButton.setAttribute('aria-label', '切换主题（当前：' + label + '）') }
 }
 const cycleTheme = () => { const current = localStorage.getItem('theme') || 'auto'; applyTheme(current === 'light' ? 'dark' : current === 'dark' ? 'auto' : 'light') }
 $('theme-cycle').onclick = cycleTheme
+$('auth-theme').onclick = cycleTheme
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((localStorage.getItem('theme') || 'auto') === 'auto') applyTheme('auto') })
 applyTheme()
+// Sign-in is a screen of its own. Whenever either auth card is visible the
+// shell takes over the viewport; once the dashboard unlocks, it disappears.
+// Watching the existing cards keeps every show()/lock() call site unchanged.
+function syncAuthSurface() {
+  const open = !$('login-card').classList.contains('hidden') || !$('unlock-card').classList.contains('hidden')
+  $('auth-shell').classList.toggle('hidden', !open)
+  document.body.classList.toggle('auth-mode', open)
+  if (open) {
+    const title = $('site-title').textContent
+    if (title) $('auth-site-name').textContent = title
+    $('auth-logo').src = $('site-logo').src
+  }
+}
+new MutationObserver(syncAuthSurface).observe($('login-card'), { attributes: true, attributeFilter: ['class'] })
+new MutationObserver(syncAuthSurface).observe($('unlock-card'), { attributes: true, attributeFilter: ['class'] })
+syncAuthSurface()
 async function unlockV2(password) {
   const ttlMs = $('ttl')?.value === '3600' ? 60 * 60 * 1000 : 12 * 60 * 60 * 1000
   await api('/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password, ttlMs }) })
