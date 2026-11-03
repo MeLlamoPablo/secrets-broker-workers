@@ -7016,7 +7016,14 @@ export default {
     if (url.pathname === '/api/audit') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const state = await loadState(env)
-      const entries = state.audit ?? []
+      // The audit CSV is an export of the same records /api/state shows masked.
+      // Leaving raw names here would let a locked console read them by
+      // re-exporting the log, so mask the name field and nothing else: events,
+      // timestamps, actions and outcomes keep their audit meaning.
+      const masked = await shouldMaskConsole(env)
+      const entries = masked
+        ? (state.audit ?? []).map((entry) => ({ ...entry, name: entry.name ? maskName(entry.name) : entry.name, oldName: entry.oldName ? maskName(entry.oldName) : entry.oldName, nameMasked: true }))
+        : (state.audit ?? [])
       if (url.searchParams.get('format') === 'csv') {
         // A BOM first, or Excel reads the Chinese fields as mojibake.
         const fields = ['time', 'event', 'agent', 'name', 'action', 'source', 'ok', 'account', 'targetOrigin', 'reason']
