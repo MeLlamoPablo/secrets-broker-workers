@@ -147,21 +147,26 @@ const state = async () => mf.dispatchFetch('https://broker.test/api/state', { he
 // R12 (additive): a page must not look like the whole log. The response carries
 // the totals both in the body and in headers, and the second page is marked as
 // not-first, so a client that only reads `entries` still learns it is partial.
+// Assertions are relative to the observed total: earlier checks add audit rows,
+// and a hard-coded count would break whenever a new event joins the suite.
 {
+  const all = await mf.dispatchFetch('https://broker.test/api/audit?limit=500', { headers: { cookie } }).then((r) => r.json())
+  const total = all.total
   const first = await mf.dispatchFetch('https://broker.test/api/audit?limit=1', { headers: { cookie } })
   const firstBody = await first.json()
   const second = await mf.dispatchFetch('https://broker.test/api/audit?limit=1&offset=1', { headers: { cookie } }).then((r) => r.json())
-  const ok = firstBody.total === 2
+  const ok = total > 0
+    && firstBody.total === total
     && firstBody.entries.length === 1
-    && firstBody.hasMore === true
+    && firstBody.hasMore === (total > 1)
     && firstBody.firstPage === true
     && firstBody.page === 1
-    && typeof firstBody.pageCount === 'number' && firstBody.pageCount === 2
-    && first.headers.get('x-audit-total') === '2'
-    && first.headers.get('x-audit-has-more') === 'true'
-    && second.firstPage === false && second.hasMore === false
+    && firstBody.pageCount === total
+    && first.headers.get('x-audit-total') === String(total)
+    && first.headers.get('x-audit-has-more') === String(total > 1)
+    && second.firstPage === false && second.hasMore === (total > 2)
   if (ok) pass('R12 audit pages expose total/hasMore/page markers')
-  else fail('R12', JSON.stringify({ total: firstBody.total, page: firstBody.page, hasMore: firstBody.hasMore, firstPage: firstBody.firstPage }))
+  else fail('R12', JSON.stringify({ total, totalField: firstBody.total, page: firstBody.page, hasMore: firstBody.hasMore, firstPage: firstBody.firstPage, header: first.headers.get('x-audit-total') }))
 }
 
 await mf.dispose()
