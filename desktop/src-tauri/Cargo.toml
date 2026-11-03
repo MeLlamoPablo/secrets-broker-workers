@@ -14,7 +14,9 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
-tauri-plugin-deep-link = "2"
+# 2.6.3 is the patch that fills rust-ini's new ParseOption fields with
+# `..Default::default()`; 2.6.2 does not compile on Linux against rust-ini 0.21.3.
+tauri-plugin-deep-link = "2.6.3"
 tauri-plugin-notification = "2"
 url = "2"
 serde = { version = "1", features = ["derive"] }
