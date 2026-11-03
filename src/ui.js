@@ -1144,11 +1144,14 @@ body.auth-mode header{display:none}
       <select id="logs-agent-filter" style="flex:0 0 auto"><option value="">全部 Agent</option></select>
       <select id="logs-event-filter" style="flex:0 0 auto"><option value="">全部事件类型</option></select>
       <input id="logs-search" placeholder="搜索事件、Agent、条目、原因…" style="flex:1;min-width:180px">
+      <label class="field" style="margin:0">从 <input id="logs-from" type="datetime-local" style="width:auto"></label>
+      <label class="field" style="margin:0">到 <input id="logs-to" type="datetime-local" style="width:auto"></label>
       <button id="logs-reset" style="flex:0 0 auto">清空筛选</button>
     <button id="logs-export" style="flex:0 0 auto">导出 CSV</button>
     </div>
     <div class="hint" id="logs-count" style="margin-top:8px"></div>
     <div id="logs-box" class="scroll-list" style="margin-top:var(--sp-3)"></div>
+    <div class="row" id="logs-more-wrap" style="margin-top:10px"><button id="logs-more" class="small">加载更多</button></div>
   </div></section>
 
   <section id="view-profile" class="view hidden">
@@ -1563,7 +1566,7 @@ async function refreshCurrent() {
     if (view === 'overview') await Promise.all([loadState(), loadStats()])
     else if (view === 'items') await Promise.all([loadState(), loadItems()])
     else if (view === 'agents' || view === 'grants') await loadState()
-    else if (view === 'logs') { await loadState(); renderLogs() }
+    else if (view === 'logs') { await loadState(); await refreshLogs() }
     else if (view === 'profile') await Promise.all([loadProfile(), loadState()])
     else if (view === 'settings') await loadSettings()
     toast('已刷新')
@@ -2083,18 +2086,22 @@ if (noticeBar) {
   noticeBar.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openNoticeModal() } }
 }
 $('agent-new').onclick = openAgentCreate
+const agentMatrixButton = $('agent-matrix'); if (agentMatrixButton) agentMatrixButton.onclick = openPermissionMatrix
 $('agent-search').oninput = renderAgents
 $('agent-type-filter').onchange = renderAgents
 $('agent-sort').onchange = renderAgents
-// Filters only re-render the log view; the rows are already in app.data.
-$('logs-item-filter').onchange = renderLogs
-$('logs-agent-filter').onchange = renderLogs
-$('logs-event-filter').onchange = renderLogs
-$('logs-search').oninput = renderLogs
-$('logs-reset').onclick = () => { for (const id of ['logs-item-filter', 'logs-agent-filter', 'logs-event-filter', 'logs-search']) { const el = $(id); if (el) el.value = '' } renderLogs() }
-// The server writes the CSV, so the file holds the whole stored trail instead of
-// whatever 500 rows happen to be in memory.
-const logsExport = $('logs-export'); if (logsExport) logsExport.onclick = () => { location.href = '/api/audit?format=csv' }
+// Every filter asks the server for its own window; the browser never holds the
+// full trail just to narrow it.
+$('logs-item-filter').onchange = () => refreshLogs()
+$('logs-agent-filter').onchange = () => refreshLogs()
+$('logs-event-filter').onchange = () => refreshLogs()
+$('logs-search').oninput = scheduleLogs
+$('logs-from').onchange = () => refreshLogs()
+$('logs-to').onchange = () => refreshLogs()
+$('logs-reset').onclick = resetLogFilters
+$('logs-more').onclick = () => refreshLogs(true)
+// Export carries the current filter and still asks for the second factor.
+const logsExport = $('logs-export'); if (logsExport) logsExport.onclick = () => exportAuditCsv().catch((error) => toast(error.message, true))
 // A checkbox list of what actually exists, so the operator picks from real
 // item and group names instead of guessing at comma-separated text. Rendered as
 // a scrollable box that matches the modal's other fields.
@@ -4356,7 +4363,7 @@ const LOG_EVENT_GROUPS = [
   { key: 'grant', label: '授权变更', match: ['grant.share', 'grant.revoke', 'grant.extend', 'request.approve', 'request.deny', 'request.auto-approve', 'request.create'] },
   { key: 'ai', label: 'AI 与 Telegram', match: ['ai.ask', 'telegram.*'] },
   { key: 'login', label: '登录与解锁', match: ['admin.login', 'admin.login-fail', 'admin.oidc-login', 'admin.origin-mismatch', 'vault.unlock', 'vault.lock', 'vault.oidc-unlock'] },
-  { key: 'item', label: '条目与分类', match: ['item.create', 'item.update', 'item.delete', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update'] },
+  { key: 'item', label: '条目与分类', match: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update', 'audit.export'] },
   { key: 'oauth', label: 'OAuth 与填充', match: ['oauth.*', 'fill.*'] },
   { key: 'risk', label: '仅风险事件', red: true, match: [] },
 ]
@@ -4375,6 +4382,81 @@ function logEventInGroup(group, event) {
   return (group.match || []).some((kind) => (kind.endsWith('.*') ? event.startsWith(kind.slice(0, -1)) : event === kind))
 }
 
+// Filters go to the server. Keeping only the matching window in memory is the
+// point: a large trail used to arrive in full and be filtered in the browser.
+const logState = { rows: [], total: 0, more: false, masked: false }
+function logFilterQuery() {
+  const params = new URLSearchParams()
+  for (const [key, id] of [['item', 'logs-item-filter'], ['agent', 'logs-agent-filter'], ['event', 'logs-event-filter'], ['q', 'logs-search'], ['from', 'logs-from'], ['to', 'logs-to']]) {
+    const value = String(($(id) || {}).value || '').trim()
+    if (value) params.set(key, value)
+  }
+  return params
+}
+async function refreshLogs(append = false) {
+  const params = logFilterQuery()
+  params.set('limit', '100')
+  params.set('offset', String(append ? logState.rows.length : 0))
+  const box = $('logs-box')
+  if (box && !append) box.innerHTML = '<div class="hint">正在读取…</div>'
+  const count = $('logs-count')
+  if (count && !append) count.textContent = '正在读取…'
+  try {
+    const result = await api('/api/audit?' + params.toString())
+    logState.rows = append ? logState.rows.concat(result.entries || []) : (result.entries || [])
+    logState.total = Number(result.total ?? logState.rows.length)
+    logState.more = result.hasMore === true
+    logState.masked = result.masked === true
+    renderLogs()
+  } catch (error) {
+    if (box) box.innerHTML = '<div class="state" data-tone="error"><div class="state__title">日志读取失败</div><div class="state__body">' + esc(error.message) + '</div><div class="state__actions"><button data-logs-retry>重试</button></div></div>'
+    const retry = box && box.querySelector('[data-logs-retry]')
+    if (retry) retry.onclick = () => refreshLogs()
+    if (count) count.textContent = ''
+  }
+}
+let logFilterTimer = 0
+function scheduleLogs() {
+  clearTimeout(logFilterTimer)
+  logFilterTimer = setTimeout(() => refreshLogs(), 260)
+}
+function resetLogFilters() {
+  for (const id of ['logs-item-filter', 'logs-agent-filter', 'logs-event-filter', 'logs-search', 'logs-from', 'logs-to']) { const el = $(id); if (el) el.value = '' }
+  refreshLogs()
+}
+// The CSV is a real export of the current filter, so it needs the same second
+// factor as any other export. api() only speaks JSON, hence the raw fetch.
+async function exportAuditCsv() {
+  const confirm = await askConfirm('导出审计日志')
+  if (!confirm) return
+  const payload = { format: 'csv' }
+  for (const [key, value] of logFilterQuery().entries()) payload[key] = value
+  const response = await fetch('/api/audit', {
+    method: 'POST',
+    cache: 'no-store',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...payload, ...confirm }),
+  })
+  if (!response.ok) {
+    let message = '导出失败（HTTP ' + response.status + '）'
+    try { const body = await response.json(); message = body.error || body.message || message } catch {}
+    return toast(message, true)
+  }
+  const disposition = response.headers.get('content-disposition') || ''
+  const matched = disposition.match(/filename="([^"]+)"/)
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)
+  const filename = matched ? matched[1] : 'secrets-broker-audit-' + stamp + '.csv'
+  const url = URL.createObjectURL(await response.blob())
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  toast('已导出 ' + logState.total + ' 条（当前筛选条件）')
+}
 function fillLogSelect(id, options, allLabel) {
   const select = $(id); if (!select) return
   const current = select.value
@@ -4387,28 +4469,25 @@ function renderLogs() {
   fillLogSelect('logs-item-filter', names.map((name) => ({ value: name, label: name })), '全部条目')
   fillLogSelect('logs-agent-filter', agents.map((name) => ({ value: name, label: agentLabel(name) })), '全部 Agent')
   fillLogSelect('logs-event-filter', LOG_EVENT_GROUPS.map((group) => ({ value: group.key, label: group.label })), '全部事件类型')
-  const item = ($('logs-item-filter') || {}).value || ''
-  const agent = ($('logs-agent-filter') || {}).value || ''
-  const group = LOG_EVENT_GROUPS.find((entry) => entry.key === (($('logs-event-filter') || {}).value || ''))
-  const query = String((($('logs-search') || {}).value || '') || '').trim().toLowerCase()
-  const rows = all.filter((entry) => {
-    if (item && entry.name !== item) return false
-    if (agent && entry.agent !== agent) return false
-    if (group && !logEventInGroup(group, String(entry.event || ''))) return false
-    if (query && !['event', 'agent', 'name', 'reason'].some((key) => String(entry[key] ?? '').toLowerCase().includes(query))) return false
-    return true
-  })
-  // The table stays capped at 200 rows, so the count reports what is actually drawn.
-  const shown = rows.slice(0, 200)
-  const count = $('logs-count'); if (count) count.textContent = '显示 ' + shown.length + ' / 共 ' + all.length + ' 条'
-  $('logs-box').innerHTML = shown.length ? '<div class="ios-group"><div class="ios-card">' + shown.map((entry) => {
+  const rows = logState.rows
+  const count = $('logs-count')
+  if (count) count.textContent = '显示 ' + rows.length + ' / 共 ' + esc(String(Number(logState.total) || 0)) + ' 条' + (logState.masked ? ' · 锁定态，条目名称已脱敏' : '')
+  const more = $('logs-more-wrap')
+  if (more) more.style.display = logState.more ? 'flex' : 'none'
+  const clearable = ['logs-item-filter', 'logs-agent-filter', 'logs-event-filter', 'logs-search', 'logs-from', 'logs-to'].some((id) => String(($(id) || {}).value || '').trim())
+  $('logs-box').innerHTML = rows.length ? '<div class="ios-group"><div class="ios-card">' + rows.map((entry) => {
     const red = RED_LOG_EVENTS.has(String(entry.event || '')) || entry.noApproval === true || entry.severity === 'warn'
     return '<div class="ios-row ios-row--log"><div class="ios-main">' +
       '<div class="ios-log-time">' + esc(new Date(entry.time).toLocaleString('zh-CN', { hour12: false })) + '</div>' +
       '<div class="ios-log-text' + (red ? ' bad' : '') + '">' + esc(describe(entry)) + '</div>' +
       ([entry.agent, entry.name].filter(Boolean).length ? '<div class="ios-sub">' + esc([entry.agent, entry.name].filter(Boolean).join(' · ')) + '</div>' : '') +
       '</div></div>'
-  }).join('') + '</div></div>' : '<div class="hint">' + (all.length ? '没有符合筛选条件的日志' : '暂无日志') + '</div>'
+  }).join('') + '</div></div>'
+    : '<div class="state"><div class="state__title">' + (clearable ? '没有符合筛选条件的日志' : '暂无日志') + '</div>'
+      + '<div class="state__body">' + (clearable ? '换一个条目、Agent、事件类型或时间范围；筛选会发送到服务端，只取回匹配的行。' : '这里会记录读取、授权、策略修改和导出的每一次动作。') + '</div>'
+      + (clearable ? '<div class="state__actions"><button data-logs-clear>清空筛选</button></div>' : '') + '</div>'
+  const clear = $('logs-box').querySelector('[data-logs-clear]')
+  if (clear) clear.onclick = resetLogFilters
 }
 async function createItemMenu() {
   try {

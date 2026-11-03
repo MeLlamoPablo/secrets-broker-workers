@@ -32,13 +32,16 @@ const span = (startMark) => {
   if (!missing.length && inView) pass('L1 three selects + search + count + reset are in the logs view')
   else fail('L1', 'missing: ' + missing.join(',') + ' inView=' + inView)
 }
-// L2 - each dropdown offers an "全部" default and is wired to a re-render.
+// L2 - each dropdown offers an "全部" default and is wired to a server fetch.
+// Changed from `= renderLogs` to `= () => refreshLogs()` because filtering moved
+// to the server: asserting the old wiring would pin the client-side filter the
+// task explicitly asked to remove.
 {
   const alls = ['全部条目', '全部 Agent', '全部事件类型']
   const missing = alls.filter((label) => !uiHtml.includes(label))
-  const wiring = ["$('logs-item-filter').onchange = renderLogs", "$('logs-agent-filter').onchange = renderLogs", "$('logs-event-filter').onchange = renderLogs", "$('logs-search').oninput = renderLogs", "$('logs-reset').onclick"]
+  const wiring = ["$('logs-item-filter').onchange = () => refreshLogs()", "$('logs-agent-filter').onchange = () => refreshLogs()", "$('logs-event-filter').onchange = () => refreshLogs()", "$('logs-search').oninput = scheduleLogs", "$('logs-reset').onclick"]
   const unwired = wiring.filter((mark) => !code.includes(mark))
-  if (!missing.length && !unwired.length) pass('L2 all four controls default to 全部 and re-render on change')
+  if (!missing.length && !unwired.length) pass('L2 all four controls default to 全部 and refetch on change')
   else fail('L2', 'missingLabels=' + missing.join(',') + ' unwired=' + unwired.join(','))
 }
 // L3 - the curated event groups cover every event name the log can contain.
@@ -95,19 +98,41 @@ const span = (startMark) => {
   if (scroll && !missing.length && red) pass('L6 scroll container, timeline rows and red rows preserved')
   else fail('L6', JSON.stringify({ scroll, missing, red }))
 }
-// L7 - filters AND together and never refetch: the view only reads app.data.
+// L7 - filters are sent to the server, which applies them and returns one
+// window. This used to assert "never refetch"; the new requirement is the
+// opposite for large trails, so the assertion now checks that the fetch carries
+// filters and paging, and that renderLogs only draws what it was given.
 {
-  const body = span('function renderLogs')
-  const ands = (body.match(/return false/g) || []).length
-  const noFetch = !/api\(/.test(body)
-  if (ands >= 4 && noFetch) pass('L7 filters combine (AND) and re-render from app.data without a refetch')
-  else fail('L7', JSON.stringify({ ands, noFetch }))
+  const renderBody = span('function renderLogs')
+  const fetchBody = span('async function refreshLogs')
+  const sendsFilters = fetchBody.includes("logFilterQuery()") && fetchBody.includes("'/api/audit?'")
+  const pages = fetchBody.includes("params.set('limit'") && fetchBody.includes("params.set('offset'")
+  const noClientFilter = !/return false/.test(renderBody) && !/api\(/.test(renderBody)
+  if (sendsFilters && pages && noClientFilter) pass('L7 filters+paging go to /api/audit, renderLogs only draws the window')
+  else fail('L7', JSON.stringify({ sendsFilters, pages, noClientFilter }))
+}
+// L9 - the filter builder covers every server-side dimension.
+{
+  const body = span('function logFilterQuery')
+  const keys = ['item', 'agent', 'event', 'q', 'from', 'to']
+  const missing = keys.filter((key) => !body.includes("['" + key + "'"))
+  if (!missing.length) pass('L9 the filter builder sends item/agent/event/q/from/to')
+  else fail('L9', 'missing ' + missing.join(','))
+}
+// L10 - export reuses the current filters and still asks for confirmation.
+{
+  const body = span('async function exportAuditCsv')
+  const usesFilters = body.includes('logFilterQuery()')
+  const confirms = body.includes('askConfirm(')
+  const postsCsv = body.includes("format: 'csv'") && body.includes("method: 'POST'")
+  if (usesFilters && confirms && postsCsv) pass('L10 export posts the current filter and requires confirmation')
+  else fail('L10', JSON.stringify({ usesFilters, confirms, postsCsv }))
 }
 // L8 - the inline script still parses, and the count line has the asked-for shape.
 {
   let ok = false
   try { new Function(code); ok = true } catch (e) { console.log('   parse error: ' + String(e.message).slice(0, 100)) }
-  const count = code.includes("'显示 ' + shown.length + ' / 共 ' + all.length + ' 条'")
+  const count = code.includes("'显示 ' + rows.length + ' / 共 '") && code.includes("' 条'")
   if (ok && count) pass('L8 inline script parses and the count reads 显示 N / 共 M 条')
   else fail('L8', JSON.stringify({ ok, count }))
 }

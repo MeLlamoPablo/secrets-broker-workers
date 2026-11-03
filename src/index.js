@@ -30,6 +30,37 @@ const fail = (message, status = 400) => json({ error: message }, status)
 const failBase = fail
 const nowIso = () => new Date().toISOString()
 
+// Audit is searched and exported on the server. These groups mirror the
+// console's own grouping so a filter means the same thing on both sides; a
+// trailing .* is a prefix, matching the UI's rule rather than a second dialect.
+const AUDIT_RED_EVENTS = ['secret.read-noapproval', 'access.denied', 'secret.read-deny', 'secret.write-deny', 'grant.revoke', 'fill.redeem-deny', 'credential.cancel', 'policy.shadow-mismatch', 'admin.login-fail']
+const AUDIT_EVENT_GROUPS = {
+  read: ['secret.read', 'secret.read-deny', 'secret.read-noapproval'],
+  blocked: ['access.denied'],
+  grant: ['grant.share', 'grant.revoke', 'grant.extend', 'request.approve', 'request.deny', 'request.auto-approve', 'request.create'],
+  ai: ['ai.ask', 'telegram.*'],
+  login: ['admin.login', 'admin.login-fail', 'admin.oidc-login', 'admin.origin-mismatch', 'vault.unlock', 'vault.lock', 'vault.oidc-unlock'],
+  item: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update'],
+  oauth: ['oauth.*', 'fill.*'],
+  risk: AUDIT_RED_EVENTS,
+}
+function auditEventMatches(kinds, event) {
+  const text = String(event ?? '')
+  return (kinds ?? []).some((kind) => (kind.endsWith('.*') ? text.startsWith(kind.slice(0, -1)) : text === kind))
+}
+// Accepts epoch millis or any Date.parse-able string. A date-only upper bound
+// means the whole day, which is what someone picking 2026-03-05 expects.
+function parseAuditBound(value, endOfDay) {
+  const text = String(value ?? '').trim()
+  if (!text) return null
+  const numeric = Number(text)
+  if (Number.isFinite(numeric) && numeric > 0) return numeric
+  const date = new Date(text)
+  if (Number.isNaN(date.getTime())) return null
+  if (endOfDay && /^\d{4}-\d{2}-\d{2}$/.test(text)) date.setHours(23, 59, 59, 999)
+  return date.getTime()
+}
+
 const emptyState = () => ({ agents: {}, policies: {}, grants: {}, pending: {}, audit: [], settings: { notifications: {} } })
 
 // Every write to the state document must bump the version that /state/cas
@@ -7215,32 +7246,68 @@ export default {
     }
     if (url.pathname === '/api/audit') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      const body = request.method === 'POST' ? await request.json().catch(() => ({})) : {}
+      const param = (key) => String(url.searchParams.get(key) ?? body[key] ?? '').trim()
       const state = await loadState(env)
       // The audit CSV is an export of the same records /api/state shows masked.
       // Leaving raw names here would let a locked console read them by
       // re-exporting the log, so mask the name field and nothing else: events,
       // timestamps, actions and outcomes keep their audit meaning.
       const masked = await shouldMaskConsole(env)
-      const entries = masked
-        ? (state.audit ?? []).map((entry) => ({ ...entry, name: entry.name ? maskName(entry.name) : entry.name, oldName: entry.oldName ? maskName(entry.oldName) : entry.oldName, nameMasked: true }))
-        : (state.audit ?? [])
-      if (url.searchParams.get('format') === 'csv') {
-        // A BOM first, or Excel reads the Chinese fields as mojibake.
+      const all = state.audit ?? []
+      // Mask before filtering: when the console is locked its item picker only
+      // has masked labels, so matching on the raw name would return nothing.
+      const rows = masked
+        ? all.map((entry) => ({ ...entry, name: entry.name ? maskName(entry.name) : entry.name, oldName: entry.oldName ? maskName(entry.oldName) : entry.oldName, nameMasked: true }))
+        : all
+      const item = param('item')
+      const agent = param('agent')
+      const eventFilter = param('event')
+      const query = param('q').toLowerCase()
+      const fromMs = parseAuditBound(param('from'), false)
+      const toMs = parseAuditBound(param('to'), true)
+      const kinds = eventFilter ? (AUDIT_EVENT_GROUPS[eventFilter] ?? [eventFilter]) : null
+      const filtered = rows.filter((entry) => {
+        if (item && entry.name !== item) return false
+        if (agent && entry.agent !== agent) return false
+        if (kinds && !auditEventMatches(kinds, entry.event)) return false
+        if (query && !['event', 'agent', 'name', 'reason'].some((key) => String(entry[key] ?? '').toLowerCase().includes(query))) return false
+        const at = Date.parse(String(entry.time ?? ''))
+        if (fromMs != null && Number.isFinite(at) && at < fromMs) return false
+        if (toMs != null && Number.isFinite(at) && at > toMs) return false
+        return true
+      })
+      const format = param('format')
+      if (format === 'csv') {
+        // Audit is still an export: the same second factor as any other export
+        // is required, not waived because the content is "only logs".
+        if (request.method !== 'POST') return json({ error: 'confirmation_required', message: '审计导出需要二次验证，请从控制台导出' }, 428)
+        const refused = await confirmSensitive(request, env, body, 'audit.export', true)
+        if (refused) return refused
         const fields = ['time', 'event', 'agent', 'name', 'action', 'source', 'ok', 'account', 'targetOrigin', 'reason']
         const cell = (value) => {
           const text = value === undefined || value === null ? '' : (typeof value === 'object' ? JSON.stringify(value) : String(value))
           return /[",\n]/.test(text) ? '"' + text.split('"').join('""') + '"' : text
         }
-        const csv = [fields.join(',')].concat(entries.map((entry) => fields.map((field) => cell(entry[field])).join(','))).join('\n')
-        return new Response('\ufeff' + csv, {
+        const lines = [fields.join(',')].concat(filtered.map((entry) => fields.map((field) => cell(entry[field])).join(',')))
+        if (masked) lines.unshift('# 因未解锁，条目名称已脱敏（本文件由锁定态控制台导出）')
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+        const range = fromMs != null && toMs != null ? 'range' : fromMs != null ? 'since' : toMs != null ? 'until' : 'all'
+        await addAudit(env, { event: 'audit.export', scope: 'audit', count: filtered.length, masked, range })
+        // A BOM first, or Excel reads the Chinese fields as mojibake.
+        return new Response('\ufeff' + lines.join('\n'), {
           headers: {
             'content-type': 'text/csv; charset=utf-8',
-            'content-disposition': 'attachment; filename="secrets-broker-audit.csv"',
+            'content-disposition': `attachment; filename="secrets-broker-audit-${range}-${stamp}.csv"`,
             'cache-control': 'no-store',
           },
         })
       }
-      return json({ entries })
+      // Server-side paging: the browser asks for a window and never receives the
+      // whole log just to filter it locally.
+      const limit = Math.min(500, Math.max(1, Number(param('limit')) || 200))
+      const offset = Math.max(0, Number(param('offset')) || 0)
+      return json({ entries: filtered.slice(offset, offset + limit), total: filtered.length, offset, limit, hasMore: offset + limit < filtered.length, masked })
     }
     if (url.pathname === '/api/audit/clear' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)

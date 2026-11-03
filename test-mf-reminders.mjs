@@ -117,13 +117,25 @@ const state = async () => mf.dispatchFetch('https://broker.test/api/state', { he
 
 // R10: the trail can be taken out as a file. Same session, one request, and the
 // header has to name the columns an operator will read in a spreadsheet.
+// Changed from GET to POST with a fresh password because audit export now
+// requires the same second factor as any other export; a GET that skipped it
+// would be the hole the task asked to close.
 {
-  const response = await mf.dispatchFetch('https://broker.test/api/audit?format=csv', { headers: { cookie } })
+  const response = await mf.dispatchFetch('https://broker.test/api/audit', { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ format: 'csv', confirmPassword: PASS }) })
   const body = await response.text()
   const type = String(response.headers.get('content-type') || '')
   const ok = response.status === 200 && type.includes('text/csv') && /^time,/.test(body) && body.includes('secret.read') && /(^|\n)\d{4}-\d\d-\d\dT/.test(body)
-  if (ok) pass('R10 /api/audit?format=csv returns the trail as a file')
+  if (ok) pass('R10 /api/audit POST format=csv returns the trail as a file')
   else fail('R10', JSON.stringify({ status: response.status, type, head: body.slice(0, 80) }))
+}
+// R11 (additive): a csv request without the second factor is refused, not
+// silently downgraded, and the filter is applied on the server.
+{
+  const refused = await mf.dispatchFetch('https://broker.test/api/audit?format=csv', { headers: { cookie } })
+  const filtered = await mf.dispatchFetch('https://broker.test/api/audit?agent=d1&limit=10', { headers: { cookie } }).then((r) => r.json())
+  const ok = refused.status === 428 && filtered.total === 1 && filtered.entries.length === 1 && filtered.entries[0].agent === 'd1'
+  if (ok) pass('R11 csv needs confirmation and the agent filter runs server-side')
+  else fail('R11', JSON.stringify({ status: refused.status, total: filtered.total }))
 }
 
 await mf.dispose()
