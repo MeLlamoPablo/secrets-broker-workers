@@ -742,10 +742,14 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
 .status.ok{color:var(--ok-text)}
 /* The edit-mode status strip. Empty means "nothing to say", so it collapses
    instead of holding a blank band above the form. */
-.page-state{display:flex;align-items:center;gap:8px;min-height:0;padding:0 var(--sp-3);font-size:13px;line-height:1.45;color:var(--label-2)}
+.page-state{display:flex;align-items:center;gap:8px;min-height:0;padding:6px var(--sp-3);font-size:13px;line-height:1.45;color:var(--label-2)}
 .page-state:empty{display:none}
 .page-state[data-tone="dirty"]{padding:8px var(--sp-3);color:var(--warn-text);background:color-mix(in srgb,var(--orange) 12%,transparent);border-bottom:1px solid var(--separator)}
 .page-state[data-tone="dirty"]::before{content:"";flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--orange)}
+/* 200% zoom leaves 600px for the nav, and the title then squeezed 返回 down to
+   one character per line. The two ends keep their intrinsic width, the title
+   takes what is left and ellipsises. */
+.page-back,.page-action{flex:0 0 auto;white-space:nowrap}
 /* Density is a per-list preference: keep the name and metadata, drop the
    secondary line and tighten the row. */
 #items-box[data-density="compact"] .ios-row{min-height:42px}
