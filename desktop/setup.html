@@ -17,8 +17,13 @@
   input:focus { outline: 2px solid #2f7cf6; border-color: transparent; }
   button { margin-top: 16px; width: 100%; padding: 13px 16px; border: 0; border-radius: 10px; background: #1f6feb; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
   button:disabled { opacity: .6; cursor: wait; }
+  button:focus-visible, summary:focus-visible { outline: 2px solid #2f7cf6; outline-offset: 2px; }
   .hint { font-size: 13px; color: #778394; }
-  #msg { min-height: 24px; margin: 12px 0 0; color: #b42318; }
+  /* One status line carries three different facts — progress, failure and
+     success — so each gets its own colour instead of all reading as an error. */
+  #msg { min-height: 24px; margin: 12px 0 0; color: #5b6878; }
+  #msg[data-tone="error"] { color: #b42318; }
+  #msg[data-tone="ok"] { color: #0f7a50; }
   .diag { margin-top: 22px; padding-top: 18px; border-top: 1px solid #dde3ea; }
   .diag button { margin-top: 8px; background: #eef2f7; color: #1b2430; }
   .diag pre { max-height: 220px; overflow: auto; padding: 12px; border-radius: 10px; background: #f6f8fb; font-size: 12px; white-space: pre-wrap; }
@@ -28,6 +33,13 @@
     .card { background: #1a212b; border-color: #2c3644; box-shadow: none; }
     p, .hint { color: #9aa8ba; }
     input { background: #111821; border-color: #344154; }
+    #msg { color: #9aa8ba; }
+    #msg[data-tone="error"] { color: #ff8a80; }
+    #msg[data-tone="ok"] { color: #4fdcb0; }
+    .diag { border-top-color: #2c3644; }
+    .diag button { background: #232d3a; color: #e8edf4; }
+    .diag pre { background: #111821; }
+    details { color: #9aa8ba; }
   }
 </style>
 </head>
@@ -46,7 +58,7 @@
     <summary>第一次使用</summary>
     <p>连接后先在网页登录；桌面端会常驻托盘并启动本地 sidecar。需要接入本地 agent 时，在网页的「本地 Agent」里一键连接；解锁密码默认记住 12 小时。</p>
   </details>
-  <p id="msg"></p>
+  <p id="msg" role="status" aria-live="polite" aria-atomic="true"></p>
   <div class="diag">
     <button id="diag" type="button">查看诊断信息</button>
     <pre id="diagOut" hidden></pre>
@@ -62,8 +74,18 @@
   const diag = document.getElementById('diag')
   const diagOut = document.getElementById('diagOut')
 
+  // One place decides both the text and its tone, so a failure never shows as
+  // neutral grey and a success never shows in the error red.
+  const setMsg = (text, tone = 'info') => {
+    msg.textContent = text
+    msg.dataset.tone = tone
+    // Failures interrupt, progress and success do not.
+    msg.setAttribute('role', tone === 'error' ? 'alert' : 'status')
+    msg.setAttribute('aria-live', tone === 'error' ? 'assertive' : 'polite')
+  }
+
   if (!invoke) {
-    msg.textContent = '桌面接口没有加载，请重新安装或从托盘重新打开。'
+    setMsg('桌面接口没有加载，请重新安装或从托盘重新打开。', 'error')
     button.disabled = true
   } else {
     invoke('get_server').then((saved) => { if (saved) input.value = saved }).catch(() => {})
@@ -83,12 +105,21 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault()
       button.disabled = true
-      msg.textContent = '正在连接…'
+      button.setAttribute('aria-busy', 'true')
+      setMsg('正在连接…')
       try {
         await invoke('connect_server', { url: input.value })
+        // The window is about to be replaced by the console; say so rather
+        // than leaving a dead button and a spinner-looking label.
+        setMsg('已连接，正在打开控制台…', 'ok')
+        button.textContent = '已连接'
       } catch (error) {
-        msg.textContent = String(error)
+        setMsg(String(error), 'error')
         button.disabled = false
+        button.textContent = '连接并打开控制台'
+        input.focus()
+      } finally {
+        button.removeAttribute('aria-busy')
       }
     })
   }
