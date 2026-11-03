@@ -67,3 +67,5 @@ npm run test:cli
 ```
 
 恢复演练使用临时目录，不会碰真实状态。
+
+- 这些用例只覆盖不依赖 workerd 的部分。本机的 Miniflare/workerd 可能直接崩溃（进程退出码非 0），那是本地运行时问题，不是代码回归；DO/D1 相关用例一律看 CI 的 `security-tests` / `ui-suites`。

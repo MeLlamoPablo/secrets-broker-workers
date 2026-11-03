@@ -126,6 +126,26 @@ const ancestors = {}
   else fail('T6', JSON.stringify({ view, list, missing }))
 }
 
+// T7: the reminder/backup/denied additions are wired to real ids and the real
+// endpoint. These live inside JS strings, so an id-based smoke test cannot see
+// them; a missing quotes pair would otherwise only show up at click time.
+{
+  const daysId = ancestors['bs-rotate-days'] || []
+  const needs = [
+    ['rotate threshold field lives in settings', daysId.includes('view-profile') || daysId.includes('view-settings')],
+    ['old-value purge button', uiHtml.includes("id=\"mi-purge\"")],
+    ['purge calls the purge route', uiHtml.includes('/api/items/rotate/purge')],
+    ['purge warns it is irreversible', uiHtml.includes('清除后不可恢复')],
+    ['denied group is labelled', uiHtml.includes('被拒尝试')],
+    ['denied group names the two events', uiHtml.includes("'access.denied', 'secret.read-deny'")],
+    ['rotation badge exists', uiHtml.includes('天未轮换')],
+    ['grant dialog discloses the API default', uiHtml.includes('未指定时长的 API 调用按「永久」处理')],
+  ]
+  const missing = needs.filter(([, ok]) => !ok).map(([name]) => name)
+  if (missing.length === 0) pass('T7 rotation/backup/denied UI is wired')
+  else fail('T7', missing.join(' | '))
+}
+
 const passed = results.filter((r) => r.ok).length
 console.log('\n==== html structure ' + passed + '/' + results.length + ' passed ====')
 if (passed !== results.length) process.exit(1)

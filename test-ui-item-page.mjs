@@ -193,7 +193,9 @@ try {
     if (shot.rows > 0 && shot.noApproval === '0') seen.staleZero = true
   }
   const settledRows = await evaluate("document.querySelectorAll('#ov-actions .health-row').length")
-  seen.waited && !seen.staleZero && settledRows === 5
+  // 6 since the rotation reminder joined the health card: the count still has to
+  // settle after /api/items, it is just one row longer by design.
+  seen.waited && !seen.staleZero && settledRows === 6
     ? pass('A15 the health card waits for the vault instead of reporting an empty all-clear')
     : fail('A15', JSON.stringify({ settledRows, waited: seen.waited, staleZero: seen.staleZero, firstRows: seen.rows }))
 
@@ -245,8 +247,10 @@ try {
   // 未分类 1 rather than leaving the card blank.
   const healthCard = await evaluate("document.getElementById('ov-actions').textContent")
   const healthRows = await evaluate("document.querySelectorAll('#ov-actions .health-row').length")
-  const health = /密钥健康/.test(String(healthCard)) && /免审批/.test(String(healthCard)) && /可直接读取明文/.test(String(healthCard)) && healthRows === 5
-  health ? pass('A7 the health card lists five counts') : fail('A7', 'ov-actions=' + JSON.stringify({ healthRows, text: String(healthCard).slice(0, 120) }))
+  // 6 = the original five counts plus "超过 N 天未轮换". Rotation is a reminder,
+  // so it is added as a row rather than folded into an existing count.
+  const health = /密钥健康/.test(String(healthCard)) && /免审批/.test(String(healthCard)) && /可直接读取明文/.test(String(healthCard)) && healthRows === 6
+  health ? pass('A7 the health card lists six counts') : fail('A7', 'ov-actions=' + JSON.stringify({ healthRows, text: String(healthCard).slice(0, 120) }))
 
   // A17 - sorting by grant count puts the credential the Agents can actually
   // reach first, and the row says how many of them there are.

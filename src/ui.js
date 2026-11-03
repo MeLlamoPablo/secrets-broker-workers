@@ -407,6 +407,7 @@ ul.items .type{font-size:var(--text-caption);color:var(--label-2)}
 .ios-pill.web{background:color-mix(in srgb,var(--purple) var(--mix-badge),transparent);color:var(--purple)}
 .ios-sub .ios-expired{color:var(--red);font-weight:500}
 .ios-sub .ios-soon{color:var(--orange);font-weight:500}
+.ios-sub .ios-rotate{color:var(--muted);opacity:.85}
 /* A share target list has to be tappable one row at a time; a native
    multiple select on a phone is a tiny scroll box where a tap replaces the
    selection instead of adding to it. */
@@ -1171,6 +1172,7 @@ body.auth-mode header{display:none}
       <div class="ios-field"><label>允许读取未分类条目的明文<div class="hint">关闭时，没有分类的凭据即使被授权也只返回拒绝。</div></label><input type="checkbox" class="ios-switch" id="bs-unclassified"></div>
       <div class="ios-field"><label>允许 Agent 代调任意主机<div class="hint">关闭时只能调条目里登记过的站点；开启后仍要逐次批准。</div></label><input type="checkbox" class="ios-switch" id="bs-target"></div>
       <div class="ios-field"><label>到期后禁止 Agent 读取<div class="hint">默认关闭：到期只做提醒。开启后 secret.read 会被拒绝，但填充/代调仍按各自策略，且这是显式的授权收紧，旧 Agent 也会立即受影响。</div></label><input type="checkbox" class="ios-switch" id="bs-expiry"></div>
+      <div class="ios-field"><label>多久未轮换就在健康卡提醒<div class="hint">只是提醒，不改变任何授权。默认 180 天；从未轮换过的条目按创建时间算。</div></label><input id="bs-rotate-days" type="number" min="30" max="3650" step="30" inputmode="numeric" placeholder="180"></div>
       <div class="row" style="margin-top:10px"><button class="primary" id="bs-save">保存行为设置</button></div>
       <div class="status" id="bs-status"></div>
     </div>
@@ -1602,7 +1604,7 @@ $('mat-save').onclick = async () => {
 $('bs-save').onclick = async () => {
   try {
     status('bs-status', '保存中…')
-    await api('/api/settings', { method: 'POST', body: JSON.stringify({ webPlaintext: $('bs-web').checked, unclassifiedPlaintext: $('bs-unclassified').checked, useAnyTarget: $('bs-target').checked, expiryBlocksReads: $('bs-expiry').checked }) })
+    await api('/api/settings', { method: 'POST', body: JSON.stringify({ webPlaintext: $('bs-web').checked, unclassifiedPlaintext: $('bs-unclassified').checked, useAnyTarget: $('bs-target').checked, expiryBlocksReads: $('bs-expiry').checked, rotateReminderDays: Number($('bs-rotate-days').value) || 0 }) })
     status('bs-status', '已保存', 'ok')
   } catch (error) { status('bs-status', error.message, 'error') }
 }
@@ -2947,7 +2949,10 @@ function healthRowsHtml() {
   for (const entry of ((data.fillPolicies && data.fillPolicies.items) || [])) {
     if (entry && entry.itemId && entry.plaintextRead) readableIds.add(entry.itemId)
   }
-  let web = 0, api = 0, none = 0, noApproval = 0, soon = 0, past = 0
+  let web = 0, api = 0, none = 0, noApproval = 0, soon = 0, past = 0, staleRotate = 0
+  // Reminder only: nothing in the authorize path reads this number.
+  const rotateDays = Math.max(30, Math.min(3650, Number(data.rotateReminderDays) || 180))
+  const rotateCutoff = now - rotateDays * 86400e3
   for (const item of items) {
     const kind = kinds[item.id] || ''
     if (kind === 'web') web += 1
@@ -2957,9 +2962,13 @@ function healthRowsHtml() {
     // expiresAt is a number, 0 means "no expiry"; Date.parse on a number is NaN.
     if (item.expiresAt > now) { if (item.expiresAt - now < 7 * 86400e3) soon += 1 }
     else if (item.expiresAt > 0) past += 1
+    // Never-rotated items are judged by creation time; an item with neither
+    // date is left out rather than reported as overdue by default.
+    const lastRotate = Date.parse(String(item.lastRotatedAt || '')) || Date.parse(String(item.createdAt || ''))
+    if (Number.isFinite(lastRotate) && lastRotate > 0 && lastRotate < rotateCutoff) staleRotate += 1
   }
   const total = items.length || 1
-  const bucketsOf = { readable: [], web: [], none: [], noApproval: [], expiry: [] }
+  const bucketsOf = { readable: [], web: [], none: [], noApproval: [], expiry: [], rotate: [] }
   for (const item of items) {
     const kind = kinds[item.id] || ''
     if (readableIds.has(item.id)) bucketsOf.readable.push(item)
@@ -2969,6 +2978,8 @@ function healthRowsHtml() {
     else if (kind !== 'api') bucketsOf.none.push(item)
     if ((policies[item.name] && policies[item.name].noApproval) || item.noApproval) bucketsOf.noApproval.push(item)
     if (item.expiresAt > now && item.expiresAt - now < 7 * 86400e3) bucketsOf.expiry.push(item)
+    const lastRotate = Date.parse(String(item.lastRotatedAt || '')) || Date.parse(String(item.createdAt || ''))
+    if (Number.isFinite(lastRotate) && lastRotate > 0 && lastRotate < rotateCutoff) bucketsOf.rotate.push(item)
   }
   // A row is a summary you can open: the credentials behind the number are one
   // tap away, in place, so checking "which ones are unclassified" does not throw
@@ -2992,6 +3003,7 @@ function healthRowsHtml() {
     + row('none', '未分类', none, none ? '默认拒绝读取' : '都分类了', none ? 'orange' : 'green')
     + row('noApproval', '免审批', noApproval, noApproval ? 'Agent 读它不用问' : '全部需要批准', 'green')
     + row('expiry', '7 天内到期', soon + past, past ? past + ' 条已过期' : soon ? soon + ' 条将在 7 天内到期，去处理' : '近期没有到期', soon || past ? 'orange' : 'green')
+    + row('rotate', '超过 ' + rotateDays + ' 天未轮换', staleRotate, staleRotate ? staleRotate + ' 条该换密钥了，点条目去处理' : '都在 ' + rotateDays + ' 天提醒周期内', staleRotate ? 'orange' : 'green')
     + '</div>'
 }
 // Week × hour, for the same reason the trend exists but at a scale a single
@@ -3288,6 +3300,12 @@ function renderItems() {
     const soonDays = typeof item.expiresAt === 'number' && item.expiresAt > Date.now() && item.expiresAt <= Date.now() + 7 * 86400000
       ? Math.ceil((item.expiresAt - Date.now()) / 86400000)
       : 0
+    // Deliberately weaker than the expiry badge: rotation is a nudge, and a
+    // secret that has not been rotated is not "broken" the way an expired one is.
+    const rotateDaysLimit = Math.max(30, Math.min(3650, Number((app.data || {}).rotateReminderDays) || 180))
+    const lastRotate = Date.parse(String(item.lastRotatedAt || '')) || Date.parse(String(item.createdAt || ''))
+    const rotateDays = Number.isFinite(lastRotate) && lastRotate > 0 ? Math.floor((Date.now() - lastRotate) / 86400000) : 0
+    const rotateStale = rotateDays > rotateDaysLimit
     // The pill is the approval state and nothing else: it used to read 已过期
     // whenever the credential expired, which hid the state the click changes and
     // made a successful toggle look like it did nothing. Expiry is a separate fact,
@@ -3302,7 +3320,7 @@ function renderItems() {
         // The ellipsis cut long names with no way to read the rest; the title
         // attribute carries the full text on hover and in the a11y tree.
         '<div class="ios-title"><b title="' + esc(item.name) + '">' + esc(item.name) + '</b>' + (kind === 'api' || kind === 'web' ? kindTag(kind) : '') + '</div>' +
-        '<div class="ios-sub">' + meta + (expired ? ' · <span class="ios-expired">已过期</span>' : '') + (soonDays ? ' · <span class="ios-soon">' + soonDays + ' 天后到期</span>' : '') + '</div>' +
+        '<div class="ios-sub">' + meta + (expired ? ' · <span class="ios-expired">已过期</span>' : '') + (soonDays ? ' · <span class="ios-soon">' + soonDays + ' 天后到期</span>' : '') + (rotateStale ? ' · <span class="ios-rotate" title="距上次轮换/创建已 ' + rotateDays + ' 天，建议更换">' + rotateDays + ' 天未轮换</span>' : '') + '</div>' +
       '</div>' +
       '<div class="ios-trail">' + trail + '</div>' +
     '</div>'
@@ -4115,6 +4133,7 @@ function openAllowDenied(agent, name, action) {
       + '<label class="field">端口</label><input id="ad-ports" value="443" placeholder="443">'
     : '<div class="hint">让「' + esc(agent) + '」可以读取「' + esc(name) + '」的明文值。</div>'
       + '<label class="field">明文有效期</label><select id="ad-hours"><option value="1">1 小时</option><option value="24" selected>24 小时</option><option value="168">7 天</option><option value="720">30 天</option><option value="0">永久</option></select>'
+      + '<div class="hint">未指定时长的 API 调用按「永久」处理；这个对话框默认 24 小时，选「永久」才会给无限期。</div>'
       + '<div class="hint" style="margin-top:4px;color:var(--danger)">允许后该 Agent 能拿到这条凭据的真实值。确认这是你信任的 Agent。</div>'
   openModal('授权「' + agent + ' → ' + name + '」', body + '<div class="row" style="margin-top:12px"><button class="primary" id="ad-go">授权</button></div><div class="status" id="ad-status"></div>')
   $('ad-go').onclick = async () => {
@@ -4363,7 +4382,7 @@ const LOG_EVENT_GROUPS = [
   { key: 'grant', label: '授权变更', match: ['grant.share', 'grant.revoke', 'grant.extend', 'request.approve', 'request.deny', 'request.auto-approve', 'request.create'] },
   { key: 'ai', label: 'AI 与 Telegram', match: ['ai.ask', 'telegram.*'] },
   { key: 'login', label: '登录与解锁', match: ['admin.login', 'admin.login-fail', 'admin.oidc-login', 'admin.origin-mismatch', 'vault.unlock', 'vault.lock', 'vault.oidc-unlock'] },
-  { key: 'item', label: '条目与分类', match: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update', 'audit.export'] },
+  { key: 'item', label: '条目与分类', match: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.rotate.purge', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update', 'audit.export'] },
   { key: 'oauth', label: 'OAuth 与填充', match: ['oauth.*', 'fill.*'] },
   { key: 'risk', label: '仅风险事件', red: true, match: [] },
 ]
@@ -4645,6 +4664,8 @@ function describeEvent(entry) {
     'transfer.complete': '跨账户复制完成', 'item.create': '创建条目', 'item.update': '修改条目',
     'vault.unlock': '解锁', 'secret.use': '代持请求', 'secret.fill': '网页填充',
     'use-policy.update': '修改使用策略', 'fill-policy.update': '修改分类',
+    'item.rotate': '轮换密钥', 'item.rotate.restore': '恢复旧值', 'item.rotate.purge': '清除旧值备份',
+    'item.expiry.update': '修改到期时间', 'audit.export': '导出审计日志',
   }
   return map[entry.event] || entry.event || ''
 }
@@ -4657,13 +4678,19 @@ function itemInfoHtml(item) {
   const holders = new Map()
   for (const grant of legacy) holders.set(grant.agent, { agent: grant.agent, mode: grant.mode || '授权', reads: grant.reads || 0, max: grant.maxReads, expiresAt: grant.expiresAt, legacy: true })
   for (const cap of caps) if (!holders.has(cap.agent)) holders.set(cap.agent, { agent: cap.agent, mode: '能力', reads: cap.usedCount ?? 0, max: cap.maxUses, expiresAt: cap.expiresAt, legacy: false })
-  const usage = (app.data.audit || []).filter((entry) => entry.name === item.name && ['secret.read', 'grant.share', 'grant.approve', 'transfer.complete', 'item.create', 'item.update'].includes(entry.event)).slice(0, 10)
+  const usage = (app.data.audit || []).filter((entry) => entry.name === item.name && ['secret.read', 'secret.read-noapproval', 'grant.share', 'grant.approve', 'transfer.complete', 'item.create', 'item.update'].includes(entry.event)).slice(0, 10)
+  // Denied attempts were only visible in the log page, which is the one place
+  // an operator does not look when asking "why did this agent stop working".
+  // They are a separate list: a refusal is not usage, and showing them mixed in
+  // would make a working credential look broken.
+  const denied = (app.data.audit || []).filter((entry) => entry.name === item.name && ['access.denied', 'secret.read-deny'].includes(entry.event)).slice(0, 6)
   const durationLabel = (grant) => { if (!grant.expiresAt) return '永久'; const ms = grant.expiresAt - Date.now(); if (ms <= 0) return '已过期'; const days = Math.ceil(ms / 86400000); return days <= 1 ? Math.max(1, Math.ceil(ms / 3600000)) + ' 小时' : days + ' 天' }
   const grantRows = holders.size ? [...holders.values()].map((grant) => '<div class="ios-field"><label>' + esc(agentLabel(grant.agent)) + '<small>' + esc(grant.mode) + ' · 已读 ' + grant.reads + '/' + (grant.max || '∞') + '</small></label>' + (grant.legacy
     ? '<button class="ios-pill plain" data-item-grant data-agent="' + esc(grant.agent) + '" data-name="' + esc(item.name) + '" title="点击修改时长和读取次数">' + esc(durationLabel(grant)) + '</button>'
     : '<span class="ios-pill plain">' + esc(durationLabel(grant)) + '</span>') + '</div>').join('') : '<div class="ios-field"><label>当前没有分享给 Agent</label></div>'
   const usageRows = usage.length ? usage.map((entry) => '<div class="ios-row ios-row--log"><div class="ios-main"><div class="ios-log-text">' + esc(describeEvent(entry)) + '</div><div class="ios-sub">' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + ' · ' + esc(agentLabel(entry.agent)) + (entry.mode || entry.source ? ' · ' + esc(entry.mode || entry.source) : '') + '</div></div></div>').join('') : '<div class="ios-field"><label>暂无使用记录</label></div>'
-  return '<div class="card read-card"><div class="ios-head"><h2 style="margin:0">分享情况</h2><button class="ios-pill plain" id="mi-share-sync">分享 / 同步</button></div><div class="hint">创建：' + esc(item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + ' · 创建人：' + esc(item.creator || '-') + '</div>' + grantRows + '<h2 style="margin-top:var(--sp-4)">最近使用</h2>' + usageRows + '</div>'
+  const deniedRows = denied.length ? denied.map((entry) => '<div class="ios-row ios-row--log"><div class="ios-main"><div class="ios-log-text">' + esc(describeEvent(entry)) + '</div><div class="ios-sub">' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + ' · ' + esc(agentLabel(entry.agent)) + '</div></div></div>').join('') : '<div class="ios-field"><label>没有被拒记录</label></div>'
+  return '<div class="card read-card"><div class="ios-head"><h2 style="margin:0">分享情况</h2><button class="ios-pill plain" id="mi-share-sync">分享 / 同步</button></div><div class="hint">创建：' + esc(item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + ' · 创建人：' + esc(item.creator || '-') + '</div>' + grantRows + '<h2 style="margin-top:var(--sp-4)">最近使用</h2>' + usageRows + '<h2 style="margin-top:var(--sp-4)">被拒尝试</h2><div class="hint">只记录时间与 Agent，不保存请求内容。</div>' + deniedRows + '</div>'
 }
 // The expiry field of the edit dialog. A secret without an expiry shows an
 // empty date, and an empty date on save means no expiry.
@@ -4882,9 +4909,18 @@ function openItemMenu(name) {
     '<div class="kv"><span>分组</span><b>' + esc(item.group || '未分组') + '</b></div>' +
     '<div class="kv"><span>有效期</span><b>' + expiryLabel(item.expiresAt) + '</b></div>' +
     '<div class="kv"><span>上次轮换</span><b>' + (item.lastRotatedAt ? relativeTime(Date.parse(item.lastRotatedAt)) + (item.rotatedBy ? ' · ' + esc(item.rotatedBy) : '') : '无记录') + '</b></div>' +
-    (item.backupUntil ? '<div class="kv"><span>旧值备份</span><b>保留至 ' + new Date(item.backupUntil).toLocaleString('zh-CN', { hour12: false }) + ' <button class="small" id="mi-restore" type="button">恢复旧值</button></b></div>' : '') +
+    (item.backupUntil ? '<div class="kv"><span>旧值备份</span><b>保留至 ' + new Date(item.backupUntil).toLocaleString('zh-CN', { hour12: false }) + ' <button class="small" id="mi-restore" type="button">恢复旧值</button> <button class="small danger" id="mi-purge" type="button" title="立即清除旧值备份，不可恢复">清除备份</button></b></div>' : '') +
     '</div>' +
     fillEditorHtml(item) + '<div class="card edit-only"><label class="field">名称</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">用户名（留空不改）</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret（留空不改）</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">分组</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="例如 blog/prod"><label class="field">网址</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">备注（留空不改）</label><input id="mi-notes" placeholder="新的备注"><label class="field">新密钥值（留空不改；填写即轮换并记录 item.rotate）</label><input id="mi-value" type="password" placeholder="留空保留原值"><label class="field">轮换时保留旧值</label><select id="mi-keepold"><option value="0" selected>不保留（默认，最安全）</option><option value="7">7 天（可回滚）</option><option value="14">14 天（可回滚）</option><option value="30">30 天（可回滚）</option></select><div class="hint">开启后服务端只保存旧的<strong>密文行</strong>，不存明文；窗口内可一键恢复，窗口结束自动丢弃。保留越久，被撤销/泄露旧密钥仍可被取回的风险越久。</div><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> 免审批（自动读取，仍记录）</label><div class="row editor-zone" style="margin-top:14px"><button class="primary" id="mi-save" aria-label="保存修改（无改动）">保存修改</button><button id="mi-discard" aria-label="放弃修改，恢复进入编辑时的值">放弃</button><button id="mi-share">分享 / 跨账户复制</button></div></div><div class="card edit-only danger-zone" role="group" aria-label="删除条目"><div class="danger-zone__text"><b>删除这个条目</b><span class="hint">删除后无法恢复，正在使用它的 Agent 会立刻失去访问。</span></div><button class="danger" id="mi-delete">删除</button></div><div class="card edit-only share-zone"><div class="hint">分享给 Agent（同账户直接授权；跨账户会先复制到目标账户文件夹，切回目标账户解锁后自动完成）</div><label class="field">分享给（可多选）</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">跨账户目标文件夹（同账户可留空）</label><input id="mi-share-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="mi-share-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
+  // Purging is the one irreversible action on a backup, so it asks for the
+  // second factor rather than a click-through confirm; the warning is in the
+  // prompt itself because the button alone cannot carry it.
+  if ($('mi-purge')) $('mi-purge').onclick = async () => {
+    if (!await askConfirm('清除旧值备份（清除后不可恢复，也不会保留恢复窗口）')) return
+    await api('/api/items/rotate/purge', { method: 'POST', body: JSON.stringify({ itemId: item.id }) })
+    toast('旧值备份已清除')
+    openItem(decodeURIComponent(name))
+  }
   $('item-reveal').onclick = () => revealItemSecret(item)
   // 分享 / 同步 leaves the detail for another screen, so it is an exit too.
   $('mi-share-sync').onclick = async () => { if (!(await confirmDiscard())) return; closeItemPage(); selectedItems.clear(); selectedItems.add(item.name); openBulkShare() }
@@ -5163,6 +5199,10 @@ async function loadSecurity() {
     $('bs-unclassified').checked = settings.unclassifiedPlaintext === true
     $('bs-target').checked = settings.useAnyTarget === true
     $('bs-expiry').checked = settings.expiryBlocksReads === true
+    // The health card is rendered before this panel is opened, so the threshold
+    // has to live somewhere both of them read.
+    app.rotateReminderDays = Math.max(30, Math.min(3650, Number(settings.rotateReminderDays) || 180))
+    $('bs-rotate-days').value = String(app.rotateReminderDays)
   } catch (error) { status('profile-status', error.message, 'error') }
 }
 async function changePassword() { try { await api('/api/security/password', { method: 'POST', body: JSON.stringify({ currentPassword: $('current-password').value, newPassword: $('new-password').value }) }); $('current-password').value = ''; $('new-password').value = ''; status('password-status', '密码已修改', 'ok'); await loadSecurity() } catch (error) { status('password-status', error.message, 'error') } }
