@@ -820,7 +820,7 @@ html[data-theme="dark"] .notice-bar[data-level="notice"]{background:color-mix(in
     </div>
   </section>
 
-  <section id="view-items" class="view hidden"><div class="card"><h2>密钥条目</h2><div class="hint">这里显示同步到本服务器的密钥条目。点开可查看明文、调整免审批或分享给 Agent；勾选多条可批量处理。</div><div class="row" style="margin-top:10px"><input id="item-filter" aria-label="搜索条目" placeholder="搜索名称、分组或网址…"><select id="item-sort" aria-label="排序方式" title="排序方式" style="flex:0 0 auto"><option value="name">按名称</option><option value="activity">按最近活动</option><option value="access">按授权数</option><option value="expiry">按到期时间</option></select><button id="item-density" class="small" aria-pressed="false" title="在紧凑与舒适之间切换列表密度">紧凑</button><button id="items-refresh">刷新</button><button id="items-select">选择</button><button id="item-create">新增</button><button id="item-import">导入</button><button id="item-export">导出</button><input id="import-file" type="file" accept="application/json,.json" class="hidden"></div><div id="bulk-bar" class="row hidden" style="margin-top:8px;background:var(--btn);padding:8px;border-radius:10px"><span id="bulk-count" class="hint" style="flex:0 0 auto"></span><button id="bulk-share" class="primary">批量分享</button><button id="bulk-kind" title="把选中的凭据标记为 API Key 或网站登录">批量分类</button><button class="danger" id="bulk-delete">批量删除</button><button id="bulk-clear">清除选择</button></div><div id="items-box" class="table-wrap" style="margin-top:10px"></div><div id="item-status" class="status"></div></div>
+  <section id="view-items" class="view hidden"><div class="card"><h2>密钥条目</h2><div class="hint">这里显示同步到本服务器的密钥条目。点开可查看明文、调整免审批或分享给 Agent；勾选多条可批量处理。</div><div class="row" style="margin-top:10px"><input id="item-filter" aria-label="搜索条目" placeholder="搜索名称、分组或网址…"><select id="item-sort" aria-label="排序方式" title="排序方式" style="flex:0 0 auto"><option value="name">按名称</option><option value="activity">按最近活动</option><option value="access">按授权数</option><option value="expiry">按到期时间</option></select><button id="item-density" class="small" aria-pressed="false" title="在紧凑与舒适之间切换列表密度">紧凑</button><button id="items-refresh">刷新</button><button id="items-select">选择</button><button id="item-create">新增</button><button id="item-import">导入</button><button id="item-export">导出</button><input id="import-file" type="file" accept="application/json,.json" class="hidden"></div><div id="bulk-bar" class="row hidden" style="margin-top:8px;background:var(--btn);padding:8px;border-radius:10px"><span id="bulk-count" class="hint" style="flex:0 0 auto"></span><span id="bulk-progress" class="hint" role="status" aria-live="polite" style="flex:0 0 auto"></span><button id="bulk-share" class="primary">批量分享</button><button id="bulk-kind" title="把选中的凭据标记为 API Key 或网站登录">批量分类</button><button class="danger" id="bulk-delete">批量删除</button><button id="bulk-clear">清除选择</button></div><div id="items-box" class="table-wrap" style="margin-top:10px"></div><div id="item-status" class="status"></div></div>
     <div class="card" id="card-vault2"><div class="row" style="justify-content:space-between;align-items:center"><div><h2 style="margin:0">Vault 2.0</h2><div class="hint" style="margin-top:4px">零知识库放在独立数据库里，和上面这一列密文库互不影响。解锁后这里能读出条目名称，锁上就只剩状态。</div></div><span id="v2-badge" class="kind-tag kind-none" style="flex:0 0 auto">读取中…</span></div><div id="v2-status" class="hint" style="margin-top:10px"></div><div class="row" id="v2-unlock-row" style="margin-top:10px"><input id="v2-password" type="password" placeholder="Vault 2.0 主密码（至少 12 位）"><button id="v2-unlock" class="primary">解锁</button><button id="v2-lock">锁定</button><input id="v2-legacy-password" type="password" placeholder="旧主密码（仅导入用）" autocomplete="off"><button id="v2-import">从旧库导入</button><button id="v2-refresh">刷新</button></div><div class="hint" style="margin-top:8px">已配对的电脑、在线状态和撤销按钮都在「电脑」标签页。</div><div id="v2-box" class="table-wrap scroll-list hidden" style="margin-top:10px"></div><div id="v2-msg" class="status"></div></div>
 <div class="card hidden" id="card-fill-policies" aria-hidden="true"><h2>已分类的凭据</h2><div class="hint">点列表里的 ⋮ 打开条目即可逐个设置，或勾选多个后点「批量分类」。标为 <b>api</b>（API Key）可按需允许 Agent 读取明文；标为 <b>web</b>（网站登录）只能被填充到指定网站，Agent 永远拿不到明文。未分类的凭据默认为拒绝读取。</div><div class="hint" id="fp-exec-note" style="margin-top:6px"></div><div id="fp-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
     <div class="card" id="card-denied"><h2>被拦下的请求</h2><div class="hint">Agent 试图读取但没通过权限检查的条目。这里只是记录，没有放行任何东西；点「授权」才会真正放开。</div><div id="denied-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
@@ -2561,7 +2561,9 @@ function renderItems() {
       '<input type="checkbox" class="item-select ios-check" data-name="' + esc(item.name) + '" ' + (selectedItems.has(item.name) ? 'checked' : '') + ' title="选择" aria-label="选择 ' + esc(item.name) + '">' +
       ico(kind) +
       '<div class="ios-main" data-item-menu="' + esc(item.name) + '" role="button" tabindex="0">' +
-        '<div class="ios-title"><b>' + esc(item.name) + '</b>' + (kind === 'api' || kind === 'web' ? kindTag(kind) : '') + '</div>' +
+        // The ellipsis cut long names with no way to read the rest; the title
+        // attribute carries the full text on hover and in the a11y tree.
+        '<div class="ios-title"><b title="' + esc(item.name) + '">' + esc(item.name) + '</b>' + (kind === 'api' || kind === 'web' ? kindTag(kind) : '') + '</div>' +
         '<div class="ios-sub">' + meta + (expired ? ' · <span class="ios-expired">已过期</span>' : '') + '</div>' +
       '</div>' +
       '<div class="ios-trail">' + trail + '</div>' +
@@ -2589,7 +2591,7 @@ function renderItems() {
   $('items-box').querySelectorAll('.ios-main').forEach((main) => { main.onkeydown = async (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!(await confirmDiscard())) return; openItemMenu(main.dataset.itemMenu) } } })
   updateBulkBar()
 }
-function updateBulkBar() { const bar = $('bulk-bar'); if (!bar) return; bar.classList.toggle('hidden', selectedItems.size === 0); $('bulk-count').textContent = '已选择 ' + selectedItems.size + ' 个条目' }
+function updateBulkBar() { const bar = $('bulk-bar'); if (!bar) return; bar.classList.toggle('hidden', selectedItems.size === 0); $('bulk-count').textContent = '已选择 ' + selectedItems.size + ' 个条目'; if (!selectedItems.size) { const progress = $('bulk-progress'); if (progress) progress.textContent = '' } }
 // null/undefined = permanent; past = expired; soon (<24h) flagged.
 function expiryLabel(expiresAt) {
   if (typeof expiresAt !== 'number' || expiresAt <= 0) return '永久'
@@ -3778,12 +3780,25 @@ async function bulkDelete() {
   // render only because the reload overwrote them. Report what actually stuck.
   let deleted = 0
   const failed = []
-  for (const name of names) {
+  // One request per row took long enough on a big selection that the click
+  // looked stuck. The bar now counts out loud, and every failure is named at
+  // the end instead of disappearing into a silent continue.
+  const progress = $('bulk-progress')
+  const report = (index) => { if (progress) progress.textContent = '已处理 ' + index + '/' + names.length + (failed.length ? ' · 失败 ' + failed.length : '') }
+  if (progress) progress.textContent = '已处理 0/' + names.length
+  for (let index = 0; index < names.length; index++) {
+    const name = names[index]
     try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name }) }); deleted++ } catch { failed.push(name) }
+    report(index + 1)
   }
+  if (failed.length && progress) progress.textContent = '已处理 ' + names.length + '/' + names.length + ' · 失败：' + failed.join('、')
   selectedItems.clear(); await Promise.all([loadItems(), loadState()])
-  if (failed.length) toast('已删除 ' + deleted + ' 个，' + failed.length + ' 个没删掉：' + failed.slice(0, 3).join('、') + (failed.length > 3 ? ' 等' : ''), true)
-  else toast('已删除 ' + deleted + ' 个条目')
+  // The bar hides as soon as the selection clears, so the last "已处理 N/N"
+  // frame would never paint. The count rides along with the final message,
+  // which stays readable in the item status line.
+  const done = names.length + '/' + names.length
+  if (failed.length) toast('已处理 ' + done + '，删除 ' + deleted + ' 个，' + failed.length + ' 个没删掉：' + failed.slice(0, 3).join('、') + (failed.length > 3 ? ' 等' : ''), true)
+  else toast('已处理 ' + done + '，删除 ' + deleted + ' 个条目')
 }
 async function exportItems() {
   // The file holds every password in the vault, so the server asks for a code.
@@ -3924,6 +3939,9 @@ async function toggleEditMode() {
 // to and come back from, not a thing that floats over the list.
 function openItemPage(title, html) {
   $('item-page-title').textContent = title
+  // The page title ellipsises on a phone; hover/long names still need the
+  // readable value.
+  $('item-page-title').title = title
   $('item-page-body').innerHTML = html
   $('item-page-body').scrollTop = 0
   const page = $('item-page')
