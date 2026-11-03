@@ -1031,8 +1031,9 @@ body.auth-mode header{display:none}
   <section id="unlock-card" class="auth__card card hidden" aria-labelledby="unlock-title">
     <h2 id="unlock-title">解锁 Vault</h2><div class="hint">Vault 主密码是初始化 Vault 时设置的密码，不是管理登录密码。它只在本机做 PBKDF2/HKDF，服务器只收到派生出的会话密钥。</div>
     <label class="field" for="master-password">Vault 主密码</label><input id="master-password" type="password" autocomplete="current-password" enterkeyhint="go">
-    <label class="field" for="ttl">解锁有效期</label><select id="ttl"><option value="permanent">12 小时（最长）</option><option value="3600">1 小时</option></select>
-    <div class="row"><button class="primary" id="unlock">解锁</button><button id="lock2">锁定</button></div><div class="status" id="unlock-status" role="status" aria-live="polite"></div>
+    <label class="field" for="ttl">解锁有效期</label><select id="ttl"><option value="12h" selected>12 小时（默认）</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="device">长期（绑定本设备）</option></select>
+    <div class="hint" id="ttl-risk">时间越长，别处拿到这个会话就能读得越久。选「长期」时密钥会封存在本设备的浏览器存储里，不再长期留在服务端；只有撤销设备才会让它失效。</div>
+    <div class="row"><button class="primary" id="unlock">解锁</button><button id="lock2">锁定</button><button id="unlock-browse">先以锁定状态进入（审批可用）</button></div><div class="status" id="unlock-status" role="status" aria-live="polite"></div>
     <div class="row auth__secondary"><button id="init-v2">初始化 Vault 2.0（至少 12 位）</button></div>
   </section>
   <p class="auth__trust"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 5.5 6v5.2c0 4 2.7 7 6.5 8.3 3.8-1.3 6.5-4.3 6.5-8.3V6z" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 11.8l2 2 4-4.2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>密钥保存在你自己的 Cloudflare Worker 中，不经过第三方托管；登录会话只存在这个浏览器里。</span></p>
@@ -1041,6 +1042,7 @@ body.auth-mode header{display:none}
 </div>
 
 <section id="dashboard" class="hidden">
+  <div id="locked-bar" class="notice-bar hidden" data-level="notice" role="status" aria-live="polite"><span class="notice-dot"></span><span class="notice-text" id="locked-text">未解锁 · 条目名称已脱敏，审批仍可进行</span><button class="notice-more" id="locked-unlock" type="button">解锁</button></div>
   <section id="view-overview" class="view">
     <div class="ov-head"><div class="ov-titles"><h2 class="ov-title">概览</h2><div class="ov-sub" id="ov-sub"></div><span class="hint" id="updated"></span></div><div class="ov-controls"><div class="seg" id="range-row"><button data-range="24h" class="on">24 小时</button><button data-range="7d">7 天</button><button data-range="30d">30 天</button></div><input id="global-search" class="gs-input ov-search" placeholder="搜索 Agent、密钥、授权、日志…" autocomplete="off" aria-label="全局搜索"></div></div>
     <div id="global-search-results" class="gs-box hidden"></div>
@@ -1077,7 +1079,7 @@ body.auth-mode header{display:none}
   </section>
 
   <section id="view-items" class="view hidden"><div class="card"><h2>密钥条目</h2><div class="hint">这里显示同步到本服务器的密钥条目。点开可查看明文、调整免审批或分享给 Agent；勾选多条可批量处理。</div><div class="row" style="margin-top:10px"><input id="item-filter" aria-label="搜索条目" placeholder="搜索名称、分组或网址…"><select id="item-sort" aria-label="排序方式" title="排序方式" style="flex:0 0 auto"><option value="name">按名称</option><option value="activity">按最近活动</option><option value="access">按授权数</option><option value="expiry">按到期时间</option></select><button id="item-density" class="small" aria-pressed="false" title="在紧凑与舒适之间切换列表密度">紧凑</button><button id="items-refresh">刷新</button><button id="items-select">选择</button><button id="item-create">新增</button><button id="item-import">导入</button><button id="item-export">导出</button><input id="import-file" type="file" accept="application/json,.json" class="hidden"></div><div id="bulk-bar" class="row hidden" style="margin-top:8px;background:var(--btn);padding:8px;border-radius:10px"><span id="bulk-count" class="hint" style="flex:0 0 auto"></span><span id="bulk-progress" class="hint" role="status" aria-live="polite" style="flex:0 0 auto"></span><button id="bulk-share" class="primary">批量分享</button><button id="bulk-kind" title="把选中的凭据标记为 API Key 或网站登录">批量分类</button><button class="danger" id="bulk-delete">批量删除</button><button id="bulk-clear">清除选择</button></div><div id="items-box" class="table-wrap" style="margin-top:10px"></div><div id="item-status" class="status"></div></div>
-    <div class="card" id="card-vault2"><div class="row" style="justify-content:space-between;align-items:center"><div><h2 style="margin:0">Vault 2.0</h2><div class="hint" style="margin-top:4px">零知识库放在独立数据库里，和上面这一列密文库互不影响。解锁后这里能读出条目名称，锁上就只剩状态。</div></div><span id="v2-badge" class="kind-tag kind-none" style="flex:0 0 auto">读取中…</span></div><div id="v2-status" class="hint" style="margin-top:10px"></div><div class="row" id="v2-unlock-row" style="margin-top:10px"><input id="v2-password" type="password" placeholder="Vault 2.0 主密码（至少 12 位）"><button id="v2-unlock" class="primary">解锁</button><button id="v2-lock">锁定</button><input id="v2-legacy-password" type="password" placeholder="旧主密码（仅导入用）" autocomplete="off"><button id="v2-import">从旧库导入</button><button id="v2-refresh">刷新</button></div><div class="hint" style="margin-top:8px">已配对的电脑、在线状态和撤销按钮都在「电脑」标签页。</div><div id="v2-box" class="table-wrap scroll-list hidden" style="margin-top:10px"></div><div id="v2-msg" class="status"></div></div>
+    <div class="card" id="card-vault2"><div class="row" style="justify-content:space-between;align-items:center"><div><h2 style="margin:0">Vault 2.0</h2><div class="hint" style="margin-top:4px">零知识库放在独立数据库里，和上面这一列密文库互不影响。解锁后这里能读出条目名称，锁上就只剩状态。</div></div><span id="v2-badge" class="kind-tag kind-none" style="flex:0 0 auto">读取中…</span></div><div id="v2-status" class="hint" style="margin-top:10px"></div><div class="row" id="v2-unlock-row" style="margin-top:10px"><input id="v2-password" type="password" placeholder="Vault 2.0 主密码（至少 12 位）"><button id="v2-unlock" class="primary">解锁</button><button id="v2-lock">锁定</button><input id="v2-legacy-password" type="password" placeholder="旧主密码（仅导入用）" autocomplete="off"><button id="v2-import">从旧库导入</button><button id="v2-refresh">刷新</button></div><div class="hint" style="margin-top:8px">已配对的电脑、在线状态和撤销按钮都在「电脑」标签页。</div><div class="hint" style="margin-top:6px">风险：解锁时间越长，被盗会话能读的窗口越长。「长期」不会让服务端长期持有钥匙，但本机浏览器会保存解封材料；只有撤销这台设备才会真正失效。</div><div id="v2-box" class="table-wrap scroll-list hidden" style="margin-top:10px"></div><div id="v2-msg" class="status"></div></div>
 <div class="card hidden" id="card-fill-policies" aria-hidden="true"><h2>已分类的凭据</h2><div class="hint">点列表里的 ⋮ 打开条目即可逐个设置，或勾选多个后点「批量分类」。标为 <b>api</b>（API Key）可按需允许 Agent 读取明文；标为 <b>web</b>（网站登录）只能被填充到指定网站，Agent 永远拿不到明文。未分类的凭据默认为拒绝读取。</div><div class="hint" id="fp-exec-note" style="margin-top:6px"></div><div id="fp-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
     <div class="card" id="card-denied"><h2>被拦下的请求</h2><div class="hint">Agent 试图读取但没通过权限检查的条目。这里只是记录，没有放行任何东西；点「授权」才会真正放开。</div><div id="denied-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
     
@@ -1382,6 +1384,27 @@ function askCode(message, { type = 'text', inputmode = 'numeric', placeholder = 
   })
 }
 
+// Sensitive actions ask once, here, regardless of the unlock tier. The server
+// independently demands the same proof for the long tiers, so this prompt is
+// not the only line of defence.
+async function askConfirm(reason) {
+  let totp = false
+  try { totp = (await api('/api/security')).totpEnabled === true } catch {}
+  const value = totp
+    ? await askCode(reason + '：请输入 6 位动态验证码', { label: '动态验证码' })
+    : await askCode(reason + '：请输入管理密码', { type: 'password', inputmode: 'text', placeholder: '管理密码', maxlength: 128, label: '管理密码', trim: false })
+  if (!value) return null
+  return totp ? { confirmCode: value } : { confirmPassword: value }
+}
+async function sensitiveRequest(url, method, payload, reason) {
+  const confirm = await askConfirm(reason)
+  if (!confirm) throw new Error('已取消')
+  return api(url, { method, body: JSON.stringify({ ...payload, ...confirm }) })
+}
+async function sensitivePost(url, payload, reason) {
+  return sensitiveRequest(url, 'POST', payload, reason)
+}
+
 function toast(text, error = false) {
   const el = $('toast')
   if (el) {
@@ -1404,7 +1427,109 @@ function renderAvatar(name, avatarUrl) { const el = $('avatar'); if (!el) return
   const url = avatarUrl; if (!url) return; const img = document.createElement('img'); img.alt = ''; img.decoding = 'async'; // Only swap the initials for a picture once one actually decoded: a URL that
   // answers 200 with an empty body would otherwise cover them with nothing.
   img.onload = () => { if (img.naturalWidth > 0) { el.textContent = ''; el.appendChild(img) } }; img.onerror = () => img.remove(); img.src = url }
-async function boot() { try { app.me = await api('/api/me'); show('login-card', false); $('who').textContent = app.me.name || String(app.me.email || '').split('@')[0] || ''; $('site-title').textContent = app.me.siteName || 'Secrets Broker'; renderAvatar(app.me.name || app.me.email, app.me.avatarUrl); show('lock', true); if (app.me.unlocked) { show('dashboard', true); show('unlock-card', false); await loadAll(); if (new URLSearchParams(location.search).get('view') === 'profile') { document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-profile')); document.querySelectorAll('#nav button').forEach((button) => button.classList.remove('active')); await loadProfile(); history.replaceState({}, '', '/') } } else { show('dashboard', false); show('unlock-card', true) } } catch { show('login-card', true); show('dashboard', false); show('unlock-card', false); loadOidcLogin() } }
+// ---- Device-bound long-term unlock -----------------------------------------
+// The DEK never stays on the server for weeks: this browser keeps the device
+// private key plus its one-time token, unwraps locally, and fills the server
+// cache for an hour at a time. Losing the browser storage is harmless; revoking
+// the device is the real kill switch.
+const DEVICE_DB = 'secrets-broker-device'
+function deviceDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DEVICE_DB, 1)
+    request.onupgradeneeded = () => request.result.createObjectStore('keys')
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+async function deviceGet() {
+  try {
+    const db = await deviceDb()
+    return await new Promise((resolve, reject) => {
+      const request = db.transaction('keys', 'readonly').objectStore('keys').get('self')
+      request.onsuccess = () => resolve(request.result || null)
+      request.onerror = () => reject(request.error)
+    })
+  } catch { return null }
+}
+async function deviceSet(record) {
+  const db = await deviceDb()
+  await new Promise((resolve, reject) => {
+    const request = db.transaction('keys', 'readwrite').objectStore('keys').put(record, 'self')
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+async function deviceClear() {
+  try {
+    const db = await deviceDb()
+    await new Promise((resolve) => {
+      const request = db.transaction('keys', 'readwrite').objectStore('keys').delete('self')
+      request.onsuccess = () => resolve(); request.onerror = () => resolve()
+    })
+  } catch {}
+}
+function b64ToBytes(text) {
+  const raw = atob(String(text))
+  const bytes = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
+  return bytes
+}
+async function unwrapDeviceEnvelope(envelope, privateJwk) {
+  const box = typeof envelope === 'string' ? JSON.parse(envelope) : envelope
+  if (!box || box.kind !== 'device') throw new Error('not a device envelope')
+  const priv = await crypto.subtle.importKey('jwk', privateJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits'])
+  const pub = await crypto.subtle.importKey('jwk', box.ephemeralJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, [])
+  const shared = await crypto.subtle.deriveBits({ name: 'ECDH', public: pub }, priv, 256)
+  const base = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveBits'])
+  const salt = new TextEncoder().encode(JSON.stringify(box.ephemeralJwk))
+  const bits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info: new TextEncoder().encode('sb-v2-dek') }, base, 256)
+  const kek = await crypto.subtle.importKey('raw', bits, { name: 'AES-GCM' }, false, ['decrypt'])
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBytes(box.iv) }, kek, b64ToBytes(box.ct))
+  return new Uint8Array(plain)
+}
+async function bindThisDevice() {
+  const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
+  const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey)
+  const privateJwk = await crypto.subtle.exportKey('jwk', pair.privateKey)
+  const paired = await api('/api/v2/device/self-pair', { method: 'POST', body: JSON.stringify({ name: '本机浏览器', publicJwk }) })
+  await deviceSet({ deviceId: paired.deviceId, token: paired.token, privateJwk, createdAt: Date.now() })
+  return paired
+}
+async function tryDeviceOpen() {
+  const credential = await deviceGet()
+  if (!credential) return false
+  try {
+    const response = await fetch('/api/v2/device/self', { headers: { authorization: 'Bearer ' + credential.token }, credentials: 'include' })
+    if (response.status === 401 || response.status === 404) { await deviceClear(); return false }
+    if (!response.ok) return false
+    const self = await response.json()
+    const dek = await unwrapDeviceEnvelope(self.envelope, credential.privateJwk)
+    await api('/api/v2/device/open', { method: 'POST', headers: { authorization: 'Bearer ' + credential.token }, body: JSON.stringify({ dek: Array.from(dek) }) })
+    app.me.unlocked = true
+    app.me.viaDevice = true
+    return true
+  } catch { return false }
+}
+function renderLockedSurface() {
+  const bar = $('locked-bar')
+  if (!bar) return
+  const locked = app.locked === true
+  const plainGate = !locked && app.me?.unlocked === true && app.v2?.initialized === true && app.plainOk === false
+  bar.classList.toggle('hidden', !locked && !plainGate)
+  if (locked) {
+    $('locked-text').textContent = '未解锁 · 条目名称已脱敏，审批和查看仍可进行；读明文前再解锁'
+    $('locked-unlock').textContent = '就地解锁'
+    $('locked-unlock').dataset.mode = 'unlock'
+  } else if (plainGate) {
+    $('locked-text').textContent = '已解锁 · 这组零知识条目的名称还需要一次两步验证，不是未解锁'
+    $('locked-unlock').textContent = '验证并显示'
+    $('locked-unlock').dataset.mode = 'plain'
+  }
+}
+async function boot() { try { app.me = await api('/api/me'); show('login-card', false); $('who').textContent = app.me.name || String(app.me.email || '').split('@')[0] || ''; $('site-title').textContent = app.me.siteName || 'Secrets Broker'; renderAvatar(app.me.name || app.me.email, app.me.avatarUrl); show('lock', true); const vault = await api('/api/v2/status').catch(() => null); app.v2 = vault; app.plainOk = vault?.initialized === true ? vault.plainOk !== false : true; if (!app.me.unlocked && sessionStorage.getItem('broker-lock-intent') !== '1') await tryDeviceOpen().catch(() => false); app.locked = app.me.unlocked !== true; // A vault that exists but is locked opens straight into the console: approvals
+  // and masking work without the key. Only an uninitialized vault needs the
+  // entry screen, because it has nothing to browse.
+  const canBrowse = app.me.unlocked === true || vault?.initialized === true; show('dashboard', canBrowse); show('unlock-card', !canBrowse); if (canBrowse) { await loadAll(); renderLockedSurface(); if (new URLSearchParams(location.search).get('view') === 'profile') { document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-profile')); document.querySelectorAll('#nav button').forEach((button) => button.classList.remove('active')); await loadProfile(); history.replaceState({}, '', '/') } } } catch { show('login-card', true); show('dashboard', false); show('unlock-card', false); loadOidcLogin() } }
 $('page-refresh').onclick = refreshCurrent
 $('site-title').onclick = () => { location.href = '/' }
 $('site-logo').onclick = () => { location.href = '/' }
@@ -1524,21 +1649,75 @@ function syncAuthSurface() {
 new MutationObserver(syncAuthSurface).observe($('login-card'), { attributes: true, attributeFilter: ['class'] })
 new MutationObserver(syncAuthSurface).observe($('unlock-card'), { attributes: true, attributeFilter: ['class'] })
 syncAuthSurface()
-async function unlockV2(password) {
-  const ttlMs = $('ttl')?.value === '3600' ? 60 * 60 * 1000 : 12 * 60 * 60 * 1000
-  await api('/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password, ttlMs }) })
-  if (app.me) app.me.unlocked = true
-  $('master-password').value = ''
-  status('unlock-status', '已解锁', 'ok')
-  show('unlock-card', false); show('dashboard', true); await loadAll()
+function legacyTtlSeconds(tier) {
+  if (tier === '12h') return 12 * 60 * 60
+  if (tier === '7d') return 7 * 24 * 60 * 60
+  if (tier === '30d') return 30 * 24 * 60 * 60
+  if (tier === 'device') return 60 * 60
+  return 0
 }
-async function unlockLegacy(password, ttl = 'permanent') {
+async function finishUnlock(options = {}) {
+  try { sessionStorage.removeItem('broker-lock-intent') } catch {}
+  app.locked = false
+  app.plainOk = app.v2?.initialized === true ? app.plainOk !== false : true
+  if (app.me) app.me.unlocked = true
+  show('unlock-card', false); show('dashboard', true)
+  if (options.inline) show('modal', false)
+  renderLockedSurface()
+  await loadAll()
+  if (!options.inline) status('unlock-status', '已解锁', 'ok')
+}
+async function unlockV2(password, options = {}) {
+  const tier = options.tier || $('ttl')?.value || '12h'
+  // "长期" is not a longer server cache: it pairs this browser, then asks the
+  // server cache for one hour at a time. The other tiers are real expiry values.
+  const ttlMs = tier === '7d' ? 7 * 24 * 60 * 60 * 1000
+    : tier === '30d' ? 30 * 24 * 60 * 60 * 1000
+    : tier === 'device' ? 60 * 60 * 1000
+    : 12 * 60 * 60 * 1000
+  await api('/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password, ttlMs, duration: tier, confirm: tier !== '12h' }) })
+  if (tier === 'device') {
+    try { await bindThisDevice() } catch (error) { toast('设备绑定失败：' + error.message, true) }
+  }
+  $('master-password').value = ''
+  await finishUnlock(options)
+}
+async function unlockLegacy(password, ttl = '12h', options = {}) {
   const info = await api('/api/bootstrap')
   if (info.kdfType !== 0) throw new Error('这个账户使用 Argon2 KDF（常见于从 NodeWarden/Bitwarden 导入），当前控制台只支持 PBKDF2。')
   const masterKey = await pbkdf2(password, String(info.email).toLowerCase(), info.kdfIterations)
   const encKey = await hkdf(masterKey, 'enc', 32), macKey = await hkdf(masterKey, 'mac', 32)
   const userKey = await decryptBw(info.profileKey, encKey, macKey)
-  await api('/api/unlock', { method: 'POST', body: JSON.stringify({ symEncKey: b64(userKey.slice(0, 32)), symMacKey: b64(userKey.slice(32, 64)), ttl }) })
+  await api('/api/unlock', { method: 'POST', body: JSON.stringify({ symEncKey: b64(userKey.slice(0, 32)), symMacKey: b64(userKey.slice(32, 64)), ttl: legacyTtlSeconds(ttl), duration: ttl, confirm: ttl !== '12h' }) })
+  await finishUnlock(options)
+}
+// The unlock prompt that appears where the user is working. One field, the same
+// tier list, and no page swap: approval work continues underneath it.
+function inlineUnlockSheet() {
+  openModal('就地解锁', '<p class="hint">解锁只影响名称与明文的可见性，当前页面不会跳转。审批可以继续。</p>'
+    + '<label class="field" for="inline-password">Vault 主密码</label><input id="inline-password" type="password" autocomplete="current-password" enterkeyhint="go">'
+    + '<label class="field" for="inline-ttl">解锁有效期</label><select id="inline-ttl"><option value="12h" selected>12 小时（默认）</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="device">长期（绑定本设备）</option></select>'
+    + '<div class="hint">时间越长，别处拿到这个会话就能读得越久；「长期」把密钥封存在本设备，撤销设备才会失效。</div>'
+    + '<div class="row"><button class="primary" id="inline-unlock-submit">解锁</button></div><div class="status" id="inline-unlock-status" role="status" aria-live="polite"></div>')
+  $('inline-password').focus()
+  $('inline-password').onkeydown = (event) => { if (event.key === 'Enter') $('inline-unlock-submit').click() }
+  $('inline-unlock-submit').onclick = async () => {
+    const button = $('inline-unlock-submit')
+    const password = $('inline-password').value
+    if (!password) { status('inline-unlock-status', '先输入 Vault 主密码', 'error'); $('inline-password').focus(); return }
+    button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '解锁中…'
+    status('inline-unlock-status', '正在本地派生密钥…')
+    try {
+      const v2 = app.v2 || await api('/api/v2/status').catch(() => null)
+      if (v2?.initialized) await unlockV2(password, { inline: true, tier: $('inline-ttl').value })
+      else await unlockLegacy(password, $('inline-ttl').value, { inline: true })
+    } catch (error) {
+      status('inline-unlock-status', error.message, 'error')
+      $('inline-password').focus()
+    } finally {
+      button.disabled = false; button.removeAttribute('aria-busy'); button.textContent = '解锁'
+    }
+  }
 }
 $('unlock').onclick = async () => {
   const password = $('master-password').value
@@ -1554,9 +1733,10 @@ $('unlock').onclick = async () => {
     // Vault 2.0 has its own password envelope. If it is active, unlock it
     // directly instead of requiring the legacy NodeWarden KDF metadata.
     const v2 = await api('/api/v2/status').catch(() => null)
+    app.v2 = v2
     if (v2?.initialized) return await unlockV2(password)
     await unlockLegacy(password, $('ttl').value)
-    $('master-password').value = ''; status('unlock-status', '已解锁', 'ok'); show('unlock-card', false); show('dashboard', true); await loadAll()
+    $('master-password').value = ''
   } catch (error) {
     status('unlock-status', error.message, 'error')
     $('master-password').focus()
@@ -1586,10 +1766,36 @@ async function lock() {
   if (!password) return
   try {
     await api('/api/lock', { method: 'POST', body: JSON.stringify({ password }) })
-    show('dashboard', false); show('unlock-card', true); status('unlock-status', '已锁定，需要重新解锁才能读取', 'ok')
+    // Locking ends the key session, not the console session. Stay on the page so
+    // pending approvals can still be decided; names fall back to masks.
+    // An explicit lock must survive a reload in this tab; otherwise the device
+    // credential would silently reopen it and the button would mean nothing.
+    try { sessionStorage.setItem('broker-lock-intent', '1') } catch {}
+    app.locked = true; app.plainOk = app.v2?.initialized === true ? false : true
+    if (app.me) app.me.unlocked = false
+    renderLockedSurface(); toast('已锁定：名称已脱敏，审批仍可进行')
+    await loadAll()
   } catch (error) { toast(error.message, true) }
 }
 $('lock').onclick = lock; $('lock2').onclick = lock
+// Browsing while locked is a first-class path now: approvals need no key, and
+// this button is the single place that offers to change that.
+$('unlock-browse').onclick = async () => {
+  show('unlock-card', false); show('dashboard', true)
+  app.locked = true
+  renderLockedSurface()
+  await loadAll()
+}
+$('locked-unlock').onclick = () => {
+  if ($('locked-unlock').dataset.mode === 'plain') loadVault2(true).catch((error) => toast(error.message, true))
+  else inlineUnlockSheet()
+}
+document.addEventListener('click', (event) => {
+  const trigger = event.target.closest('[data-inline-unlock]')
+  if (!trigger) return
+  event.preventDefault()
+  inlineUnlockSheet()
+})
 document.querySelectorAll('#nav button').forEach((button) => { button.onclick = async () => { const view = button.dataset.view
   // Switching tabs replaces what the open detail page was describing, so the
   // same unsaved edits must not vanish just because the exit is a tab.
@@ -1709,7 +1915,11 @@ $('v2-devices').addEventListener('click', async (event) => {
   if (!(await askYes('撤销设备「' + name + '」？\n\n撤销后它不能再拉取条目；它已经拿到的钥匙，只有跑一次重加密才会失效。', { yes: '撤销', no: '取消' }))) return
   button.disabled = true
   try {
-    await api('/api/v2/devices/' + encodeURIComponent(button.dataset.v2Revoke), { method: 'DELETE' })
+    await sensitiveRequest('/api/v2/devices/' + encodeURIComponent(button.dataset.v2Revoke), 'DELETE', {}, '撤销设备')
+    // Revoking this browser's own credential must also drop the local copy,
+    // otherwise the console would keep trying a token the server already killed.
+    const local = await deviceGet()
+    if (local && local.deviceId === button.dataset.v2Revoke) await deviceClear()
     await loadVault2(false)
     $('devices-msg').textContent = '已撤销「' + name + '」'
   } catch (error) { $('devices-msg').textContent = error.message; button.disabled = false }
@@ -1719,8 +1929,11 @@ $('v2-unlock').onclick = async () => {
   const initialising = $('v2-unlock').textContent === '初始化'
   if (!password) { $('v2-msg').textContent = '先输入主密码'; return }
   try {
-    await api(initialising ? '/api/v2/init' : '/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password }) })
+    await api(initialising ? '/api/v2/init' : '/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password, ttlMs: 12 * 60 * 60 * 1000, duration: '12h' }) })
     $('v2-password').value = ''
+    app.locked = false
+    if (app.me) app.me.unlocked = true
+    renderLockedSurface()
     await Promise.all([loadVault2(), loadItems()])
     $('v2-msg').textContent = initialising ? '已初始化并解锁' : '已解锁'
   } catch (error) { $('v2-msg').textContent = error.message }
@@ -1806,7 +2019,7 @@ $('denied-list').addEventListener('click', async (event) => {
   }
 })
 $('items-box').addEventListener('click', async (event) => {
-  const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); return } const menu = event.target.closest('[data-item-menu]'); if (menu) { if (!(await confirmDiscard())) return; openItemMenu(menu.dataset.itemMenu); return } const toggle = event.target.closest('[data-policy]'); if (toggle) { const item = app.items.find((entry) => entry.name === toggle.dataset.policy); if (!item) return; try { await api('/api/policies', { method: 'POST', body: JSON.stringify({ name: item.name, noApproval: !item.noApproval }) }); await loadItems(); toast('已更新免审批策略') } catch (error) { toast(error.message, true) } return } const read = event.target.closest('[data-read]'); if (read) reveal(read.dataset.read) })
+  const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); return } const menu = event.target.closest('[data-item-menu]'); if (menu) { if (!(await confirmDiscard())) return; openItemMenu(menu.dataset.itemMenu); return } const toggle = event.target.closest('[data-policy]'); if (toggle) { const item = app.items.find((entry) => entry.name === toggle.dataset.policy); if (!item) return; try { await sensitivePost('/api/policies', { name: item.name, noApproval: !item.noApproval }, '修改免审批策略'); await loadItems(); toast('已更新免审批策略') } catch (error) { toast(error.message, true) } return } const read = event.target.closest('[data-read]'); if (read) reveal(read.dataset.read) })
 // The row body is a div with role="button". A click opens it, so Enter and
 // Space have to do the same or the row is visible but unreachable by keyboard.
 $('items-box').addEventListener('keydown', async (event) => {
@@ -1894,7 +2107,12 @@ async function openAgentCreate() {
       status('ac-status', '创建中…')
       const allow = pickListValues('ac-allow')
       const groups = pickListValues('ac-groups')
-      const result = await api('/api/agents/create', { method: 'POST', body: JSON.stringify({ name, alias: $('ac-alias').value.trim(), note: $('ac-note').value.trim(), allow, groups, allowAll: $('ac-allowall').checked, write: $('ac-write').checked }) })
+      const payload = { name, alias: $('ac-alias').value.trim(), note: $('ac-note').value.trim(), allow, groups, allowAll: $('ac-allowall').checked, write: $('ac-write').checked }
+      // Write is an elevated capability, so it is the one checkbox that asks for
+      // a fresh proof before the token is minted.
+      const result = payload.write
+        ? await sensitivePost('/api/agents/create', payload, '给 Agent 新增写权限')
+        : await api('/api/agents/create', { method: 'POST', body: JSON.stringify(payload) })
       $('ac-token').classList.remove('hidden')
       $('ac-token').textContent = result.token
       try { await navigator.clipboard.writeText(result.token); status('ac-status', '已创建，token 已复制到剪贴板', 'ok') } catch { status('ac-status', '已创建，请手动复制 token', 'ok') }
@@ -2101,6 +2319,7 @@ let globeBooted = false
 function renderGlobeCap() {
   const el = $('globe-cap')
   if (!el) return
+  if (app.locked === true) { el.textContent = '已锁定 · 名称已脱敏，审批仍可用'; return }
   if (!app.itemsLoaded) { el.textContent = '正在读取条目…'; return }
   const agents = new Set()
   ;((app.data && app.data.grants) || []).forEach((grant) => { if (grant && grant.agent) agents.add(grant.agent) })
@@ -2117,13 +2336,16 @@ function applyGlobeAvailability(geoOn) {
   if (!geoOn) note.textContent = '实时访问未启用 · 设置 GEO_ENABLED=1 后显示实时连接'
   else if (note.textContent.indexOf('实时访问未启用') === 0) note.textContent = ''
 }
-async function loadState() { try { app.data = await api('/api/state'); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderNoticeBar(); renderAgents(); renderPending(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } } }
-async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); renderGlobeCap(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { show('dashboard', false); show('unlock-card', true) } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
+async function loadState() { try { app.data = await api('/api/state'); app.locked = app.data.masked === true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
+async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; app.locked = false; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { app.locked = true; app.items = []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '已锁定：条目名称已脱敏，审批仍可进行') } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
 async function loadStats() { try { app.stats = await api('/api/stats?range=' + app.range); renderStats() } catch {} }
 // One operator action changes the logs, the counts and the item rows at once.
 // Reloading them together is cheaper than making the operator press 刷新 to
 // believe the action worked.
-async function refreshAll() { await Promise.all([loadState(), loadItems(), loadStats(), loadVault2()]) }
+// The zero-knowledge listing used to load (and prompt for TOTP) on every boot,
+// even when the operator never opened that card. Status-only now; the explicit
+// refresh/device actions still ask for the second factor.
+async function refreshAll() { await Promise.all([loadState(), loadItems(), loadStats(), loadVault2(false)]) }
 // The OIDC providers. Each one is edited on its own; the client secret is
 // never sent back, so the field starts empty and an empty value keeps the
 // stored one.
@@ -2746,6 +2968,10 @@ async function loadVault2(withItems = true) {
   if (devicesMsg) devicesMsg.textContent = ''
   try {
     const status = await api('/api/v2/status')
+    app.v2 = status
+    // "Unlocked but the plaintext listing has not passed TOTP" is its own state.
+    app.plainOk = status.initialized === true ? status.plainOk === true : true
+    renderLockedSurface()
     const list = await api('/api/v2/devices').catch(() => ({ devices: [] }))
     const devices = (list.devices || [])
     const ready = status.initialized === true
@@ -2759,7 +2985,11 @@ async function loadVault2(withItems = true) {
       const online = devices.filter((device) => !device.revokedAt && vault2DeviceState(device).label === '在线').length
       devicesLine.textContent = devices.length ? (devices.length + ' 台已配对 · ' + online + ' 台在线') : '还没有配对设备。'
     }
-    $('v2-unlock').textContent = ready ? '解锁' : '初始化'
+    // One unlock entry per state: an already-unlocked card must not keep asking.
+    $('v2-unlock').textContent = ready ? (status.unlocked ? '已解锁' : '解锁') : '初始化'
+    $('v2-unlock').classList.toggle('hidden', ready && status.unlocked)
+    const v2Password = $('v2-password')
+    if (v2Password) v2Password.classList.toggle('hidden', ready && status.unlocked)
     renderVault2Devices(devices)
     if (!status.unlocked) { box.classList.add('hidden'); box.innerHTML = ''; return }
     if (!withItems) return
@@ -2774,6 +3004,8 @@ async function loadVault2(withItems = true) {
       if (!/^\d{6}$/.test(code)) throw new Error('需要 6 位验证码才能显示条目')
       plain = await api('/api/v2/items?plain=1', { headers: { 'x-totp-code': code } })
     }
+    app.plainOk = true
+    renderLockedSurface()
     const rows = (plain.items || []).filter((row) => !row.deletedAt)
     box.innerHTML = rows.length
       ? '<div class="ios-group">' + rows.slice(0, 200).map((row) => {
@@ -2808,6 +3040,19 @@ function setItemDensity(dense) {
   }
 }
 function renderItems() {
+  // Locked: no rows exist client-side, so say why instead of showing "还没有条目",
+  // which would read as "the vault is empty". The action unlocks in place.
+  if (app.locked === true) {
+    const host = $('items-box')
+    if (host) {
+      host.innerHTML = '<div class="state" data-tone="locked"><div class="state__title">已锁定 · 名称已脱敏</div><div class="state__body">审批、日志和设备管理仍然可用；读取条目名称或明文前，在这里就地解锁，页面不会跳转。</div><div class="state__actions"><button class="primary" data-state-act="unlock">就地解锁</button></div></div>'
+      const button = host.querySelector('[data-state-act="unlock"]')
+      if (button) button.onclick = inlineUnlockSheet
+    }
+    const chip = $('item-status')
+    if (chip) chip.textContent = '已锁定：名称已脱敏'
+    return
+  }
   const query = ($('item-filter')?.value || '').trim().toLowerCase(); const items = (app.items || []).filter((item) => !query || item.name.toLowerCase().includes(query) || String(item.url || '').toLowerCase().includes(query) || String(item.group || '').toLowerCase().includes(query))
   // Which items are already classified, by name, and with which kind. The
   // classified list is keyed by id, so map it back through the item rows.
@@ -3468,8 +3713,12 @@ function pendingDetailHtml(entry) {
     ? (origin ? '<div><span class="hint">目标 origin</span><br><code>' + esc(origin) + '</code></div>'
       : '<div><b style="color:var(--danger)">目标无效（缺少 origin），无法批准</b></div>')
     : ''
+  // Names arrive already masked from the Worker while the vault is locked. The
+  // decision itself is keyed by id, so approval never needs the key.
   return '<div><b>' + esc(pendingAgentLabel(entry)) + '</b> 请求' + esc(pendingActionLabel(entry))
-    + ' <code>' + esc(entry.name) + '</code></div>' + target
+    + ' <code>' + esc(entry.name) + '</code>'
+    + (entry.nameMasked ? ' <button class="small" data-inline-unlock type="button">查看完整内容需要解锁</button>' : '')
+    + '</div>' + target
     + '<div class="hint">' + esc(entry.createdAt ? new Date(entry.createdAt).toLocaleString('zh-CN', { hour12: false }) : '') + '</div>'
 }
 
@@ -4002,7 +4251,10 @@ async function createItemMenu() {
     const origins = kind === 'web' ? $('new-item-origins').value.split('\n').map((line) => line.trim()).filter(Boolean) : []
     if (kind === 'web' && !origins.length) return status('new-item-status', 'web 类型至少填一个 origin', 'error')
     try {
-      await api('/api/items/create', { method: 'POST', body: JSON.stringify({ name, username: $('new-item-username').value, value: $('new-item-value').value, totp: $('new-item-totp').value, url: $('new-item-url').value.trim(), group: $('new-item-group').value.trim(), notes: $('new-item-notes').value, noApproval: $('new-item-noapproval').checked }) })
+      const newItem = { name, username: $('new-item-username').value, value: $('new-item-value').value, totp: $('new-item-totp').value, url: $('new-item-url').value.trim(), group: $('new-item-group').value.trim(), notes: $('new-item-notes').value, noApproval: $('new-item-noapproval').checked }
+      // Creating an auto-approved credential is an authorization decision.
+      if (newItem.noApproval) await sensitivePost('/api/items/create', newItem, '开启免审批策略')
+      else await api('/api/items/create', { method: 'POST', body: JSON.stringify(newItem) })
       // Classify in the same step: the item was just created with a kind, so
       // making the operator reopen it to classify is a pointless round trip.
       if (kind) {
@@ -4379,7 +4631,17 @@ function openItemMenu(name) {
   // 放弃 restores the snapshot and closes the form without a second question:
   // answering it was the point of the button.
   $('mi-discard').onclick = () => { restoreSnapshot(); exitEditMode(); $('item-page-edit').focus() }
-  $('mi-save').onclick = async () => { try { await api('/api/items/update', { method: 'POST', body: JSON.stringify({ name: item.name, newName: $('mi-name').value.trim(), username: $('mi-username').value, totp: $('mi-totp').value, group: $('mi-group').value.trim(), url: $('mi-url').value.trim(), notes: $('mi-notes').value.trim() ? $('mi-notes').value : undefined, value: $('mi-value').value, noApproval: $('mi-noapproval').checked, expiresAt: $('mi-expires').value }) }); closeItemPage(); await Promise.all([loadItems(), loadState()]); toast('已保存') } catch (error) { toast(error.message, true) } }
+  // Only a changed policy needs the extra proof; ordinary edits do not.
+  $('mi-save').onclick = async () => {
+    try {
+      const payload = { name: item.name, newName: $('mi-name').value.trim(), username: $('mi-username').value, totp: $('mi-totp').value, group: $('mi-group').value.trim(), url: $('mi-url').value.trim(), notes: $('mi-notes').value.trim() ? $('mi-notes').value : undefined, value: $('mi-value').value, noApproval: $('mi-noapproval').checked, expiresAt: $('mi-expires').value }
+      if (payload.noApproval !== (item.noApproval === true)) await sensitivePost('/api/items/update', payload, '修改免审批策略')
+      else await api('/api/items/update', { method: 'POST', body: JSON.stringify(payload) })
+      closeItemPage()
+      await Promise.all([loadItems(), loadState()])
+      toast('已保存')
+    } catch (error) { toast(error.message, true) }
+  }
   $('mi-delete').onclick = async () => { if (!(await askYes('删除条目「' + item.name + '」？'))) return; try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name: item.name }) }); closeItemPage(); await Promise.all([loadItems(), loadState()]); toast('已删除') } catch (error) { toast(error.message, true) } }
   wireFillEditor(item)
   $('mi-share').onclick = async () => { const agents = [...document.querySelectorAll('[data-share-agent]')].filter((box) => box.checked).map((box) => box.value); if (!agents.length) return toast('至少选择一个 Agent', true); try { const result = await api('/api/grants/share', { method: 'POST', body: JSON.stringify({ name: $('mi-name').value.trim() || item.name, agents, seconds: Number($('mi-share-seconds').value), maxReads: $('mi-share-reads').value || null, targetFolder: $('mi-share-folder').value.trim() }) }); closeItemPage(); await refreshAll(); if (result.queued?.length) toast('已加入跨账户复制队列，切回目标账户并解锁后自动复制'); else toast('已分享') } catch (error) { toast(error.message, true) } }
@@ -4392,7 +4654,11 @@ async function saveAgentFromModal(originalName) {
       const renamed = await api('/api/agents/rename', { method: 'POST', body: JSON.stringify({ name: originalName, newName: requested }) })
       currentName = renamed.name
     }
-    await api('/api/agents/update', { method: 'POST', body: JSON.stringify({ name: currentName, alias: $('ma-alias').value.trim(), note: $('ma-note').value.trim(), allow: $('ma-allowall').checked ? [] : pickListValues('ma-allow'), groups: pickListValues('ma-groups'), allowAll: $('ma-allowall').checked, write: $('ma-write').checked, muted: $('ma-muted').checked, tools: [...document.querySelectorAll('[data-mcp-tool]')].filter((box) => box.checked).map((box) => box.value) }) })
+    const payload = { name: currentName, alias: $('ma-alias').value.trim(), note: $('ma-note').value.trim(), allow: $('ma-allowall').checked ? [] : pickListValues('ma-allow'), groups: pickListValues('ma-groups'), allowAll: $('ma-allowall').checked, write: $('ma-write').checked, muted: $('ma-muted').checked, tools: [...document.querySelectorAll('[data-mcp-tool]')].filter((box) => box.checked).map((box) => box.value) }
+    const previous = app.data.agents.find((entry) => entry.name === originalName)
+    // Re-confirm only when write is being turned on; disabling it is a reduction.
+    if (payload.write && previous?.write !== true) await sensitivePost('/api/agents/update', payload, '给 Agent 新增写权限')
+    else await api('/api/agents/update', { method: 'POST', body: JSON.stringify(payload) })
     show('modal', false); await refreshAll(); toast('已保存 Agent')
   } catch (error) { toast(error.message, true) }
 }
