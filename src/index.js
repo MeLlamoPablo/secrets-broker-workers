@@ -857,7 +857,7 @@ async function makeCookie(env) {
 }
 
 function cookieSessionId(request) {
-  const value = readCookie(request, SESSION_COOKIE)
+  const value = readSessionCookie(request)
   if (!value.startsWith('v2.')) return ''
   return value.split('.')[1] ?? ''
 }
@@ -889,28 +889,65 @@ async function createAdminCookie(env, request) {
 //
 // The panel cookie is Lax: normal navigation, the desktop WebView and same-site
 // form posts all send it, while a cross-site POST does not.
-const SESSION_COOKIE = 'broker_admin'
+//
+// It carries the `__Host-` prefix so a sibling deployment on the same
+// registrable domain (or a subdomain) cannot set or shadow the admin session:
+// the prefix forces Secure, Path=/ and no Domain, and a browser discards a
+// prefixed cookie that breaks any of those. The prefix also means the cookie is
+// only stored over https, while `wrangler dev` serves http://localhost, so the
+// name follows the request scheme: https gets the prefixed name, plain http
+// falls back to the old unprefixed one so local development still logs in.
+// The unprefixed name stays readable and clearable either way, so a session
+// issued before this rename is not silently unusable and is cleaned up on the
+// next login/logout.
+const SESSION_COOKIE = '__Host-broker_admin'
+const SESSION_COOKIE_FALLBACK = 'broker_admin'
+const SESSION_COOKIE_NAMES = [SESSION_COOKIE, SESSION_COOKIE_FALLBACK]
 const SESSION_COOKIE_ATTRS = 'Path=/; HttpOnly; Secure; SameSite=Lax'
-// An MCP client may render the consent page inside its own page, where the
-// browser treats this as a third-party context and withholds a Lax cookie on
-// POST. This second cookie is None but scoped to /oauth, so the panel never
-// relies on it and a cross-site form still cannot authenticate /api/*.
+// The consent cookie keeps its unprefixed name. `__Host-` requires Path=/, but
+// this one has to stay scoped to /oauth so the panel never relies on it; a
+// prefixed name would have to widen the path and hand the panel a second
+// authenticator it does not need.
 const CONSENT_COOKIE = 'broker_consent'
 const CONSENT_COOKIE_ATTRS = 'Path=/oauth; HttpOnly; Secure; SameSite=None'
 
-function sessionCookiePairs(value, maxAge) {
+function sessionCookieName(request) {
+  try {
+    return new URL(request.url).protocol === 'https:' ? SESSION_COOKIE : SESSION_COOKIE_FALLBACK
+  } catch {
+    return SESSION_COOKIE_FALLBACK
+  }
+}
+
+// Prefer the prefixed name; fall back to the legacy one for sessions issued
+// before the rename, so an upgrade does not log everybody out mid-request.
+function readSessionCookie(request) {
+  return readCookie(request, SESSION_COOKIE) || readCookie(request, SESSION_COOKIE_FALLBACK)
+}
+
+function sessionCookiePairs(value, maxAge, name = SESSION_COOKIE) {
   return [
-    ['set-cookie', `${SESSION_COOKIE}=${value}; ${SESSION_COOKIE_ATTRS}; Max-Age=${maxAge}`],
+    ['set-cookie', `${name}=${value}; ${SESSION_COOKIE_ATTRS}; Max-Age=${maxAge}`],
     ['set-cookie', `${CONSENT_COOKIE}=${value}; ${CONSENT_COOKIE_ATTRS}; Max-Age=${maxAge}`],
   ]
 }
 
-function appendSessionCookies(headers, value, maxAge) {
-  for (const [name, cookie] of sessionCookiePairs(value, maxAge)) headers.append(name, cookie)
+// Clear both names. A browser that already holds the legacy cookie would keep
+// presenting it alongside the new one, and a stale cookie has to die for
+// re-login to stick.
+function clearSessionCookiePairs() {
+  return [
+    ...SESSION_COOKIE_NAMES.map((name) => ['set-cookie', `${name}=; ${SESSION_COOKIE_ATTRS}; Max-Age=0`]),
+    ['set-cookie', `${CONSENT_COOKIE}=; ${CONSENT_COOKIE_ATTRS}; Max-Age=0`],
+  ]
+}
+
+function appendSessionCookies(headers, value, maxAge, name = SESSION_COOKIE) {
+  for (const [header, cookie] of sessionCookiePairs(value, maxAge, name)) headers.append(header, cookie)
 }
 
 async function validCookieDetailed(request, env, acceptConsent = false) {
-  const value = readCookie(request, SESSION_COOKIE) || (acceptConsent ? readCookie(request, CONSENT_COOKIE) : '')
+  const value = readSessionCookie(request) || (acceptConsent ? readCookie(request, CONSENT_COOKIE) : '')
   if (!value) return { ok: false, clearable: false }
   if (value.startsWith('v2.')) {
     const [version, id, expiresText, signature] = value.split('.')
@@ -5000,7 +5037,7 @@ export default {
         headers: [
           ['content-type', 'application/json'],
           ['cache-control', 'no-store'],
-          ...sessionCookiePairs(cookie, 604800),
+          ...sessionCookiePairs(cookie, 604800, sessionCookieName(request)),
         ],
       })
     }
@@ -5012,7 +5049,7 @@ export default {
         headers: [
           ['content-type', 'application/json'],
           ['cache-control', 'no-store'],
-          ...sessionCookiePairs('', 0),
+          ...clearSessionCookiePairs(),
         ],
       })
     }
@@ -5419,7 +5456,7 @@ export default {
           } catch { /* a stale binding must not block the sign-in */ }
         }
         const headers = new Headers({ location: stateData.next === 'profile' ? '/?view=profile' : '/' })
-        appendSessionCookies(headers, cookie, 604800)
+        appendSessionCookies(headers, cookie, 604800, sessionCookieName(request))
         headers.append('set-cookie', clearOidcCookie)
         return new Response(null, { status: 302, headers })
       } catch (error) { return failOidc(String(error.message ?? error), 502) }
@@ -7602,7 +7639,7 @@ export default {
       if (!cookieCheck.ok) {
         // Clear a stale/legacy cookie before bouncing, otherwise the same bad
         // value is presented on every retry and the loop never ends.
-        const clearPairs = cookieCheck.clearable ? sessionCookiePairs('', 0) : []
+        const clearPairs = cookieCheck.clearable ? clearSessionCookiePairs() : []
         // Bounce through the login page and come back to this exact authorize
         // request. For POST the form parameters live in the BODY, so rebuilding
         // the return target from url.search alone yields a bare

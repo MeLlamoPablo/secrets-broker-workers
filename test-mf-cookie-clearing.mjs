@@ -16,19 +16,24 @@ const reg = await mf.dispatchFetch('https://broker.test/oauth/register', { metho
 const id = (await reg.json()).client_id
 const q = '?response_type=code&client_id=' + id + '&redirect_uri=' + encodeURIComponent(RED) + '&scope=secrets.read&state=st&code_challenge_method=S256&code_challenge=F3siqvmfNJl2t82cMVUfoylc43Lw0Z5MLFbImNsqt38'
 
-// L1: a v1 legacy cookie is rejected AND cleared
+// A clear has to cover both names: the prefixed one this deploy issues and the
+// legacy one an older session still presents.
+const setCookies = (response) => String(response.headers.get('set-cookie') || '').split(/,(?=\s*(?:__Host-)?[A-Za-z_]+=)/).map((part) => part.trim())
+const cleared = (cookies, name) => cookies.some((cookie) => cookie.split(';')[0] === name + '=' && cookie.includes('Max-Age=0'))
+
+// L1: a v1 legacy cookie is rejected AND cleared, under both possible names
 {
   const r = await mf.dispatchFetch('https://broker.test/oauth/authorize' + q, { headers: { cookie: 'broker_admin=v1.99999999999999.abc' }, redirect: 'manual' })
-  const sc = r.headers.get('set-cookie') || ''
-  if (r.status === 302 && sc.includes('broker_admin=') && sc.includes('Max-Age=0')) pass('L1 v1 cookie rejected and cleared')
-  else fail('L1', JSON.stringify({ status: r.status, sc: sc.slice(0, 80) }))
+  const sc = setCookies(r)
+  if (r.status === 302 && cleared(sc, '__Host-broker_admin') && cleared(sc, 'broker_admin')) pass('L1 v1 cookie rejected and cleared under both names')
+  else fail('L1', JSON.stringify({ status: r.status, sc: sc.join(' | ').slice(0, 140) }))
 }
 // L2: a malformed v2 cookie is cleared too
 {
   const r = await mf.dispatchFetch('https://broker.test/oauth/authorize' + q, { headers: { cookie: 'broker_admin=v2.garbage' }, redirect: 'manual' })
-  const sc = r.headers.get('set-cookie') || ''
-  if (r.status === 302 && sc.includes('Max-Age=0')) pass('L2 malformed v2 cookie cleared')
-  else fail('L2', JSON.stringify({ status: r.status, sc: sc.slice(0, 80) }))
+  const sc = setCookies(r)
+  if (r.status === 302 && cleared(sc, '__Host-broker_admin') && cleared(sc, 'broker_admin')) pass('L2 malformed v2 cookie cleared')
+  else fail('L2', JSON.stringify({ status: r.status, sc: sc.join(' | ').slice(0, 140) }))
 }
 // L3: no cookie -> redirect to login (no clear header needed)
 {
@@ -44,23 +49,34 @@ const q = '?response_type=code&client_id=' + id + '&redirect_uri=' + encodeURICo
   if (r.status === 200 && html.includes('decision')) pass('L4 valid session renders consent')
   else fail('L4', JSON.stringify({ status: r.status }))
 }
-// L5: the panel cookie is Lax; a /oauth-scoped companion is None for embedded
-// consent forms.
+// L5: over https the panel cookie is the __Host- form, Lax, Path=/ and without
+// Domain; the /oauth-scoped companion stays None and keeps its plain name.
 {
   const r = await mf.dispatchFetch('https://broker.test/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: PASS }) })
-  const sc = r.headers.get('set-cookie') || ''
-  const panel = (/broker_admin=[^;,]*;([^,]*)/.exec(sc) || [])[1] || ''
-  const consent = (/broker_consent=[^;,]*;([^,]*)/.exec(sc) || [])[1] || ''
-  if (panel.includes('SameSite=Lax') && consent.includes('SameSite=None') && consent.includes('Path=/oauth')) pass('L5 panel cookie is Lax, consent cookie is None and /oauth-scoped')
-  else fail('L5', sc.slice(0, 140))
+  const cookies = setCookies(r)
+  const panel = cookies.find((cookie) => cookie.startsWith('__Host-broker_admin=')) || ''
+  const consent = cookies.find((cookie) => cookie.startsWith('broker_consent=')) || ''
+  const hostOk = panel.includes('Secure') && panel.includes('Path=/') && panel.includes('SameSite=Lax') && !panel.includes('Domain')
+  const consentOk = consent.includes('SameSite=None') && consent.includes('Path=/oauth') && !consent.startsWith('__Host-')
+  if (hostOk && consentOk) pass('L5 https login sets __Host-broker_admin (Secure, Path=/, no Domain) and leaves consent unprefixed')
+  else fail('L5', cookies.join(' | ').slice(0, 160))
 }
-// L6: after clearing, a fresh login works end to end (approve yields a code)
+// L6: plain http (wrangler dev) falls back to the unprefixed name, because a
+// browser will not store a __Host- cookie it cannot prove came over https.
+{
+  const r = await mf.dispatchFetch('http://localhost/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: PASS }) })
+  const cookies = setCookies(r)
+  const panel = cookies.find((cookie) => cookie.startsWith('broker_admin=')) || ''
+  if (panel && !cookies.some((cookie) => cookie.startsWith('__Host-broker_admin='))) pass('L6 plain http login falls back to the unprefixed cookie')
+  else fail('L6', cookies.join(' | ').slice(0, 160))
+}
+// L7: after clearing, a fresh login works end to end (approve yields a code)
 {
   const cookie = String((await mf.dispatchFetch('https://broker.test/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: PASS }) })).headers.get('set-cookie') || '').split(';')[0]
   const r = await mf.dispatchFetch('https://broker.test/oauth/authorize', { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded', cookie }, body: q.slice(1) + '&decision=allow' })
   const loc = r.headers.get('location') || ''
-  if (r.status === 302 && loc.startsWith(RED) && loc.includes('code=')) pass('L6 approve issues a code to the client callback')
-  else fail('L6', JSON.stringify({ status: r.status, loc: loc.slice(0, 70) }))
+  if (r.status === 302 && loc.startsWith(RED) && loc.includes('code=')) pass('L7 approve issues a code to the client callback')
+  else fail('L7', JSON.stringify({ status: r.status, loc: loc.slice(0, 70) }))
 }
 
 await mf.dispose()
