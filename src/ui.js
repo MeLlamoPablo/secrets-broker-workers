@@ -887,7 +887,19 @@ nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .dash .rank-card{grid-column:span 5;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
 .dash #ov-actions{grid-column:span 4;height:240px;min-height:240px;overflow:hidden}
 .dash .donut-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
-.dash #globe-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
+/* The third working panel used to hold the globe. It now answers "when is this
+   broker used" from audit timestamps, so it keeps the same slot and height. */
+.dash #activity-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
+#activity-card .card-head,#activity-card .seg{flex:0 0 auto}
+.activity-chart{flex:1 1 auto;min-height:0;position:relative;display:flex;padding-top:4px}
+.activity-chart svg{display:block;width:100%;height:100%}
+.activity-bar{fill:var(--brand)}
+.activity-bar[data-zero="1"]{opacity:.18}
+.activity-axis{fill:currentColor;opacity:.55;font-size:9px}
+.activity-empty{display:flex;flex-direction:column;justify-content:center;gap:3px;height:100%;color:var(--ink-2);font-size:13px;line-height:18px}
+.activity-empty b{color:var(--ink-1);font-weight:600}
+.activity-empty button{align-self:flex-start;margin-top:4px}
+.activity-note{flex:0 0 auto;margin-top:2px;font-variant-numeric:tabular-nums}
 .dash .recent-card{grid-column:span 12}
 .dash .rank-box{max-height:none;flex:1 1 auto;min-height:0}
 .dash #ov-actions .health{max-height:170px;overflow-y:auto;scrollbar-width:none;mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent)}
@@ -897,14 +909,14 @@ nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 @media(max-width:1100px){
   .dash{grid-template-columns:repeat(6,minmax(0,1fr))}
   .dash>.span2,.dash .rank-card{grid-column:span 6}
-  .dash #ov-actions,.dash .donut-card,.dash #globe-card{grid-column:span 2}
+  .dash #ov-actions,.dash .donut-card,.dash #activity-card{grid-column:span 2}
   .dash .recent-card{grid-column:span 6}
 }
 @media(max-width:900px){
   .dash{grid-template-columns:1fr}
-  .dash>.span2,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #globe-card,.dash .recent-card{grid-column:auto;height:auto;min-height:0}
+  .dash>.span2,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #activity-card,.dash .recent-card{grid-column:auto;height:auto;min-height:0}
   .dash>.span2,.dash .rank-card{min-height:260px}
-  .dash #ov-actions,.dash .donut-card,.dash #globe-card{min-height:220px}
+  .dash #ov-actions,.dash .donut-card,.dash #activity-card{min-height:220px}
 }
 /* Credential list: a dense, scannable group. Name leads, metadata follows,
    the approval state stays right-aligned; hover and the open row are different
@@ -1073,25 +1085,17 @@ body.auth-mode header{display:none}
       <div class="card rank-card"><h2>条目读取排行</h2><div class="hint" style="margin-bottom:6px">按被读取次数排序</div><div id="top-box" class="rank-box"></div></div>
       <div id="ov-actions" class="card ov-actions"></div>
       <div class="card donut-card"><h2>Agent 读取占比</h2><div class="hint" style="margin-bottom:6px">按 agent 聚合 · 点击扇区查看</div><div id="donut-box" class="donut-wrap"></div></div>
-      <div class="card globe-off" id="globe-card" role="region" aria-label="Agent 访问地球与访问概览">
-        <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
-          <h2 style="margin:0">Agent Live Globe</h2>
-          <span class="hint globe-note" title="IP 估算位置，不代表实际物理位置">IP 估算</span>
-          <button class="small" id="globe-open">打开地图</button>
-        </div>
-        <div class="globe-split">
-          <div id="globe-box" class="globe-box">
-            <div class="globe-still" id="globe-still" aria-hidden="true"><img src="/earth.jpg" alt="" loading="lazy" decoding="async"></div>
-            <button class="small globe-expand" id="globe-full" title="放大地球" aria-label="放大地球">⤢</button>
-            <div class="globe-empty" id="globe-empty"></div>
-          </div>
-          <div class="globe-side">
-            <div class="seg seg--vert" id="globe-range"><button data-grange="1h">1h</button><button data-grange="24h" class="on">24h</button><button data-grange="7d">7d</button></div>
-            <button class="globe-pause" id="globe-pause" title="暂停动画" aria-label="暂停地球动画" aria-pressed="false">⏸</button>
+      <div class="card" id="activity-card" role="region" aria-labelledby="activity-title">
+        <div class="card-head">
+          <h2 id="activity-title">访问活跃度</h2>
+          <div class="seg" id="activity-range" role="tablist" aria-label="访问活跃度区间">
+            <button type="button" role="tab" data-arange="24h" class="on" aria-selected="true">24 小时</button>
+            <button type="button" role="tab" data-arange="7d" aria-selected="false">7 天</button>
           </div>
         </div>
-        <div class="hint" id="globe-status"></div>
-        <div class="globe-cap" id="globe-cap" role="status" aria-live="polite" aria-label="访问概览"></div>
+        <div class="hint" id="activity-hint">按小时统计的读取次数</div>
+        <div id="activity-chart" class="activity-chart"></div>
+        <div class="hint activity-note" id="activity-note"></div>
       </div>
       <div class="card span3 recent-card"><h2>最近活动</h2><div id="recent-box" class="recent"></div></div>
     <div id="chart-tip" class="chart-tip"></div>
@@ -2527,7 +2531,7 @@ async function loadStats() { try { app.stats = await api('/api/stats?range=' + a
 // The zero-knowledge listing used to load (and prompt for TOTP) on every boot,
 // even when the operator never opened that card. Status-only now; the explicit
 // refresh/device actions still ask for the second factor.
-async function refreshAll() { await Promise.all([loadState(), loadItems(), loadStats(), loadVault2(false)]) }
+async function refreshAll() { await Promise.all([loadState(), loadItems(), loadStats(), loadActivity(), loadVault2(false)]) }
 // The OIDC providers. Each one is edited on its own; the client secret is
 // never sent back, so the field starts empty and an empty value keeps the
 // stored one.
@@ -3057,8 +3061,9 @@ function renderStats() {
   // expiring grants.
   const noticeCount = ((app.data && app.data.pending) || []).length + ((app.data && app.data.reminders) || []).length
   const cards = [{ l: '读取次数', v: stats.totalReads, sub: '当前区间 · 点开查看', view: 'reads' }, { l: '活跃 Agent', v: stats.activeAgents, sub: '有读取记录', view: 'agents' }, { l: '待审批 / 通知', v: noticeCount, sub: '点开处理', warn: noticeCount > 0, view: 'pending' }, { l: '有效授权', v: stats.activeGrants, sub: '含免审批', view: 'grants' }]
-  const spark = (() => { const b = (stats.buckets || []).slice(-12); const mx = Math.max(1, ...b.map((x) => x.count)); return b.length ? '<div class="kpi-spark">' + b.map((x) => '<i style="height:' + Math.max(2, Math.round(x.count / mx * 20)) + 'px"></i>').join('') + '</div>' : '' })()
-  $('kpis').innerHTML = cards.map((card) => '<div class="kpi' + (card.warn ? ' warn' : '') + '" data-kpi="' + card.view + '"' + (card.event ? ' data-kpi-event="' + card.event + '"' : '') + '><div class="label">' + card.l + '</div><div class="value">' + card.v + '</div>' + (card.view === 'reads' ? spark : '') + '<div class="sub">' + card.sub + '</div></div>').join('')
+  // No sparkline in the KPI: its series is the same one the trend card draws
+  // two rows below, so it only restated the chart at 20px tall.
+  $('kpis').innerHTML = cards.map((card) => '<div class="kpi' + (card.warn ? ' warn' : '') + '" data-kpi="' + card.view + '"' + (card.event ? ' data-kpi-event="' + card.event + '"' : '') + '><div class="label">' + card.l + '</div><div class="value">' + card.v + '</div><div class="sub">' + card.sub + '</div></div>').join('')
   renderOverviewActions()
   const buckets = stats.buckets || []; const max = Math.max(1, ...buckets.map((b) => b.count)); const W = 600, H = 180, px = 38, py = 18, iw = W - 2 * px, ih = H - 2 * py; const slot = buckets.length ? iw / buckets.length : 0; const barW = Math.max(2, Math.min(26, slot * 0.58))
   let grid = ''; for (let g = 0; g <= 4; g++) { const y = py + ih * g / 4; grid += '<line x1="' + px + '" y1="' + y + '" x2="' + (W - px) + '" y2="' + y + '" stroke="currentColor" stroke-opacity=".06"/><text x="4" y="' + (y + 3) + '" fill="currentColor" font-size="9" opacity=".5">' + Math.round(max * (4 - g) / 4) + '</text>' }
@@ -3097,6 +3102,105 @@ function renderStats() {
   $('top-box').innerHTML = top.length ? '<div class="rank">' + top.map((item, index) => { const pct = Math.max(4, Math.round(item.count / maxTop * 100)); return '<div class="rank__row"><div class="rank__head"><span class="rank__name">' + (index + 1) + '. ' + esc(item.name) + '</span><span class="rank__count">' + item.count + ' 次</span></div><div class="rank__track"><div class="rank__fill" style="width:' + pct + '%"></div></div></div>' }).join('') + '</div>' : '<div class="hint">这个区间还没有读取记录。</div>'
   renderTrendFace()
   $('updated').textContent = '最后更新 ' + new Date().toLocaleTimeString('zh-CN', { hour12: false })
+}
+// ── Access activity ────────────────────────────────────────────────────────
+// The slot the globe used to hold now answers "when is this broker used".
+// It buckets audit timestamps already returned by /api/audit: no new endpoint,
+// no chart library and no extra polling. Names in those rows are masked when
+// the console is locked, which does not matter because only the time is read.
+let activityState = { range: '24h', entries: null, truncated: false, loading: false, error: '' }
+function activityBuckets(range, entries, now = Date.now()) {
+  const reads = (entries || [])
+    .filter((entry) => entry && entry.event === 'secret.read')
+    .map((entry) => Date.parse(entry.time))
+    .filter((time) => Number.isFinite(time))
+  const bucket = (from, to, label) => ({ label, count: reads.filter((time) => time >= from && time < to).length })
+  const out = []
+  if (range === '7d') {
+    const start = new Date(now); start.setHours(0, 0, 0, 0)
+    for (let index = 6; index >= 0; index -= 1) {
+      const from = start.getTime() - index * 86400e3
+      const date = new Date(from)
+      out.push(bucket(from, from + 86400e3, (date.getMonth() + 1) + '/' + date.getDate()))
+    }
+    return out
+  }
+  const start = new Date(now); start.setMinutes(0, 0, 0)
+  for (let index = 23; index >= 0; index -= 1) {
+    const from = start.getTime() - index * 3600e3
+    const date = new Date(from)
+    out.push(bucket(from, from + 3600e3, String(date.getHours()).padStart(2, '0') + ':00'))
+  }
+  return out
+}
+function renderActivity() {
+  const box = $('activity-chart')
+  if (!box) return
+  const hint = $('activity-hint')
+  const note = $('activity-note')
+  if (hint) hint.textContent = activityState.range === '7d' ? '按天统计的读取次数' : '按小时统计的读取次数'
+  if (note) note.textContent = activityState.truncated ? '统计基于最近 500 条审计记录，更早的记录未计入' : ''
+  const empty = (title, text, retry) => {
+    box.removeAttribute('role')
+    box.removeAttribute('aria-label')
+    box.innerHTML = '<div class="activity-empty"><b>' + title + '</b><span>' + text + '</span>' + (retry ? '<button class="small" id="activity-retry">重试</button>' : '') + '</div>'
+    const button = $('activity-retry')
+    if (button) button.onclick = () => loadActivity()
+  }
+  if (activityState.error) { empty('读取失败', esc(activityState.error), true); return }
+  if (activityState.loading && !activityState.entries) { empty('正在读取审计记录…', '只统计读取事件的时间，不读取条目内容。'); return }
+  const buckets = activityBuckets(activityState.range, activityState.entries || [])
+  const total = buckets.reduce((sum, entry) => sum + entry.count, 0)
+  if (!total) { empty('还没有读取记录', 'Agent 读取密钥后会出现在这里；先签发一条授权就能产生记录。'); return }
+  const W = 300, H = 128, padX = 4, padY = 14, innerW = W - padX * 2, innerH = H - padY * 2
+  const max = Math.max(1, ...buckets.map((entry) => entry.count))
+  const slot = innerW / buckets.length
+  const barW = Math.max(3, Math.min(20, slot * 0.62))
+  const bars = buckets.map((entry, index) => {
+    const height = Math.max((entry.count / max) * innerH, 0.8)
+    const x = padX + index * slot + (slot - barW) / 2
+    const y = H - padY - height
+    return '<rect class="activity-bar" data-zero="' + (entry.count ? 0 : 1) + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + height.toFixed(1) + '" rx="2">'
+      + '<title>' + esc(entry.label) + ' · ' + entry.count + ' 次</title></rect>'
+  }).join('')
+  const every = buckets.length > 10 ? 6 : 1
+  const labels = buckets.map((entry, index) => index % every === 0
+    ? '<text class="activity-axis" x="' + (padX + index * slot + slot / 2).toFixed(1) + '" y="' + (H - 3) + '" text-anchor="middle">' + esc(entry.label) + '</text>'
+    : '').join('')
+  const peak = buckets.reduce((best, entry) => (entry.count > best.count ? entry : best), buckets[0])
+  // Totals belong in the note line, not as a floating label over the bars.
+  if (note) {
+    const summary = total + ' 次读取 · 峰值 ' + peak.label + '（' + peak.count + ' 次）'
+    note.textContent = activityState.truncated ? summary + ' · 基于最近 500 条审计记录' : summary
+  }
+  const aria = (activityState.range === '7d' ? '7 天' : '24 小时') + '读取次数柱状图，共 ' + total + ' 次读取，峰值 ' + peak.label + ' 的 ' + peak.count + ' 次'
+  box.setAttribute('role', 'img')
+  box.setAttribute('aria-label', aria)
+  box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true" focusable="false">'
+    + '<line x1="' + padX + '" y1="' + (H - padY) + '" x2="' + (W - padX) + '" y2="' + (H - padY) + '" stroke="currentColor" stroke-opacity=".12"/>'
+    + bars + labels + '</svg>'
+}
+async function loadActivity() {
+  if (!$('activity-chart')) return
+  activityState.loading = true
+  renderActivity()
+  try {
+    const from = new Date(Date.now() - 7 * 86400e3).toISOString()
+    const data = await api('/api/audit?from=' + encodeURIComponent(from) + '&limit=500')
+    activityState.entries = data.entries || []
+    activityState.truncated = data.hasMore === true
+    activityState.error = ''
+  } catch (error) { activityState.error = (error && error.message) || '读取审计失败' }
+  activityState.loading = false
+  renderActivity()
+}
+const activityRange = $('activity-range')
+if (activityRange) activityRange.onclick = (event) => {
+  const button = event.target.closest('[data-arange]')
+  if (!button) return
+  activityState.range = button.dataset.arange === '7d' ? '7d' : '24h'
+  activityRange.querySelectorAll('button').forEach((entry) => { const on = entry === button; entry.classList.toggle('on', on); entry.setAttribute('aria-selected', String(on)) })
+  renderActivity()
 }
 // "How many Agents can use this" and "how many credentials can this Agent
 // read" are the same fact seen from two sides: a live grant. Grants arrive in
