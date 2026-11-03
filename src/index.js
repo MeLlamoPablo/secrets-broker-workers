@@ -4288,7 +4288,7 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
     const inScope = Boolean(itemId) && agentInScope(agent, state.itemGroups, name)
     if (!decision.grantEligible && !decision.legacy && !autoRuleLive && !createRequest) {
       const why = !itemId ? '当前账户里没有名为「' + name + '」的条目（名字必须与面板完全一致，空格也算）'
-        : !inScope ? '该条目不在 Agent 的可申请范围内'
+        : !inScope ? '该条目不在 Agent 的可申请范围内；请管理员在「Agent 权限矩阵」里把它加入该 Agent 的可申请范围（先勾选范围，再批准一次）'
         : '在可申请范围内，但缺少这条授权'
       // The prose is for the agent; the code is for whoever greps the audit.
       // "not-in-scope" (未授权) and "no-grant" (缺少该条授权) are different
@@ -6500,6 +6500,70 @@ export default {
       }
       return json({ ok: true, report })
     }
+    // Read-only cross-tab of "what can this agent actually do". Everything is
+    // computed from state, so it works while the console is locked; item names
+    // are masked server-side in that case, exactly like /api/state.
+    if (url.pathname === '/api/permission-matrix' && request.method === 'GET') {
+      if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      const state = await loadState(env)
+      const masked = await shouldMaskConsole(env)
+      const session = await getSession(env)
+      const account = String(session?.email ?? state.settings?.vaultEmail ?? '').trim().toLowerCase()
+      const view = publicState(state, { masked })
+      const agents = (view.agents ?? [])
+        .filter((agent) => !account || !agent.account || String(agent.account).toLowerCase() === account)
+        .map((agent) => ({
+          ...agent,
+          legacy: state.agents?.[agent.name]?.legacy === true,
+          muted: state.agents?.[agent.name]?.muted === true,
+          editable: !agent.oauth && !masked,
+          scopeEmpty: agent.allowAll !== true && !(agent.allow ?? []).length && !(agent.groups ?? []).length,
+        }))
+      // Ownership comes from the v2 table, which is metadata: reading it does
+      // not need the data key, so locked and unlocked see the same set.
+      const owners = new Map()
+      const kinds = { ...(state.credentialKinds ?? {}) }
+      if (env.VAULT_DB) {
+        try {
+          const rows = await env.VAULT_DB.prepare('SELECT id, kind, account_id FROM vault_items WHERE deleted_at IS NULL').all()
+          for (const row of rows.results ?? []) {
+            owners.set(row.id, String(row.account_id ?? '').toLowerCase())
+            kinds[row.id] = row.kind
+          }
+        } catch { /* legacy-only deployments have no v2 table */ }
+      }
+      const byId = new Map()
+      for (const [name, id] of Object.entries(state.itemIds ?? {})) if (id && !byId.has(id)) byId.set(id, name)
+      const items = []
+      for (const [id, name] of byId) {
+        const owner = owners.get(id)
+        if (owner && account && owner !== account) continue
+        items.push({
+          id,
+          name: masked ? maskName(name) : name,
+          nameMasked: masked,
+          group: masked ? '' : (state.itemGroups?.[name] ?? ''),
+          kind: kinds[id] ?? 'api',
+          noApproval: state.policies?.[name]?.noApproval === true,
+          expiresAt: Number(state.secretExpiry?.[name]?.expiresAt ?? 0),
+        })
+      }
+      items.sort((a, b) => (a.group || '\uffff').localeCompare(b.group || '\uffff') || a.name.localeCompare(b.name))
+      const cells = {}
+      for (const agent of agents) {
+        const raw = state.agents?.[agent.name] ?? agent
+        cells[agent.name] = {}
+        for (const item of items) {
+          const itemName = byId.get(item.id)
+          cells[agent.name][item.id] = {
+            read: matrixCell(state, raw, agent.name, item.id, itemName, 'secret.read'),
+            use: matrixCell(state, raw, agent.name, item.id, itemName, 'secret.use'),
+            fill: matrixCell(state, raw, agent.name, item.id, itemName, 'secret.fill'),
+          }
+        }
+      }
+      return json({ ok: true, masked, actions: ['read', 'use', 'fill'], agents, items, cells, expiryBlocksReads: state.settings?.expiryBlocksReads === true })
+    }
     if (url.pathname === '/api/agents/create' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
@@ -6514,18 +6578,26 @@ export default {
       const session = await getSession(env)
       const account = session?.email || await vaultEmail(env, env.NODEWARDEN_DB, await loadState(env))
       let error = ''
+      // Least privilege is the default: a create with no explicit scope starts
+      // with an empty requestable set, and the console offers "choose scope"
+      // as the next step. Deployments that script agent creation and relied on
+      // the old implicit all-scope can set AGENT_DEFAULT_SCOPE=all. Old agents
+      // are never re-scoped: loadState only defaults the flag when it is absent.
+      const scopeDefaultAll = String(env.AGENT_DEFAULT_SCOPE ?? '').trim().toLowerCase() === 'all'
+      const hasExplicitScope = Array.isArray(body.allow) || Array.isArray(body.groups) || typeof body.allowAll === 'boolean'
+      const allowAll = body.allowAll === true || (scopeDefaultAll && !hasExplicitScope)
       await updateState(env, (state) => {
         if (state.agents[name]) { error = 'agent already exists'; return state }
         // New agents are never legacy: only pre-existing records without an
         // explicit flag are treated as legacy by the loadState default.
-        state.agents[name] = { hash: '', tokenWrapped: '', alias: String(body.alias ?? '').trim(), note: String(body.note ?? '').trim(), allow: Array.isArray(body.allow) ? body.allow : [], groups: Array.isArray(body.groups) ? body.groups : [], allowAll: body.allowAll === true, write: body.write === true, legacy: false, account, createdAt: nowIso() }
+        state.agents[name] = { hash: '', tokenWrapped: '', alias: String(body.alias ?? '').trim(), note: String(body.note ?? '').trim(), allow: Array.isArray(body.allow) ? body.allow : [], groups: Array.isArray(body.groups) ? body.groups : [], allowAll, write: body.write === true, legacy: false, account, createdAt: nowIso() }
         return state
       })
       if (error) return fail(error, 409)
       const hash = await sha256Base64(token)
       const tokenWrapped = await wrapWithKek(encoder.encode(token), await kekBytes(env))
       await updateState(env, (state) => { state.agents[name].hash = hash; state.agents[name].tokenWrapped = tokenWrapped; return state })
-      await addAudit(env, { event: 'agent.create', agent: name })
+      await addAudit(env, { event: 'agent.create', agent: name, scopeDefault: allowAll ? 'all' : 'empty' })
       return json({ ok: true, name, token })
     }
     if (url.pathname === '/api/agents/rotate' && request.method === 'POST') {

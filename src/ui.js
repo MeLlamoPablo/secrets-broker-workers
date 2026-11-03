@@ -419,6 +419,24 @@ ul.items .type{font-size:var(--text-caption);color:var(--label-2)}
 .ios-pill.bad{background:color-mix(in srgb,var(--red) var(--mix-badge),transparent);color:var(--red)}
 button.ios-pill{border:0;cursor:pointer;min-width:0}
 .ios-pill.plain{color:var(--blue)}
+.pm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* The matrix needs room for one column per group; the default card is ~480px
+   and would scroll sideways on a desktop that has plenty of width. */
+#modal > .card.pm-wide{width:min(1180px,calc(100vw - 24px));max-width:none}
+.pm-table{min-width:680px;border-collapse:collapse;font-size:var(--text-caption)}
+.pm-table th,.pm-table td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.pm-table th{position:sticky;top:0;background:var(--card);z-index:1;font-weight:600}
+.pm-table tbody tr:last-child td{border-bottom:0}
+.pm-cell{cursor:pointer;min-width:96px}
+.pm-cell:hover{background:var(--btn)}
+.pm-cell[aria-disabled="true"]{cursor:default}
+.pm-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:var(--text-caption);color:var(--label-2);margin-top:10px}
+.pm-detail-row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.pm-detail-row:first-child{border-top:0}
+.pm-detail-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0}
+.pm-sub{color:var(--label-2);font-size:var(--text-caption)}
+.pm-agent{display:flex;flex-direction:column;gap:2px}
+.pm-agent b{font-weight:600}
 .ios-title .ios-name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ios-flag{font-size:var(--text-caption);padding:2px 8px;border-radius:999px}
 .ios-flag.bad{background:color-mix(in srgb,var(--red) var(--mix-badge),transparent);color:var(--red)}
@@ -1090,7 +1108,7 @@ body.auth-mode header{display:none}
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <div><h2 style="margin:0">Agents 管理中心</h2><div class="hint" style="margin-top:4px">最近活动依据审计记录计算，不等同于实时在线状态。</div></div>
-        <button class="primary" id="agent-new" style="flex:0 0 auto">新建 Agent</button>
+        <div class="row" style="gap:8px;flex:0 0 auto"><button id="agent-matrix">权限矩阵</button><button class="primary" id="agent-new">新建 Agent</button></div>
       </div>
       <div class="agent-stats" id="agent-stats"></div>
       <div class="row" style="margin-top:12px;gap:8px">
@@ -2113,7 +2131,7 @@ async function openAgentCreate() {
     '<label class="field">名称</label><input id="ac-name" placeholder="如 dsh">' +
     '<label class="field">显示名（可选）</label><input id="ac-alias" placeholder="便于识别的名字">' +
     '<label class="field">备注（可选）</label><input id="ac-note" placeholder="用途说明">' +
-    '<label class="field">可申请条目（勾选，不勾=无权限）</label>' + pickListHtml('ac-allow', knownItemNames(), [], '密钥库里还没有条目，先去「密钥」页新建。') +
+    '<label class="field">可申请条目（勾选，不勾=连申请都会被拒绝）</label>' + pickListHtml('ac-allow', knownItemNames(), [], '密钥库里还没有条目，先去「密钥」页新建。') +
     '<label class="field">可申请分组（勾选，不勾=不限）</label>' + pickListHtml('ac-groups', knownGroups(), [], '还没有任何分组。分组在新增条目时填写，或在条目菜单里改。') +
     '<label class="chk" style="margin-top:8px"><input type="checkbox" id="ac-allowall"> 允许全部条目</label>' +
     '<label class="chk" style="margin-top:8px"><input type="checkbox" id="ac-write"> 允许写入（可调 /agent/items/save）</label>' +
@@ -2134,10 +2152,144 @@ async function openAgentCreate() {
         : await api('/api/agents/create', { method: 'POST', body: JSON.stringify(payload) })
       $('ac-token').classList.remove('hidden')
       $('ac-token').textContent = result.token
-      try { await navigator.clipboard.writeText(result.token); status('ac-status', '已创建，token 已复制到剪贴板', 'ok') } catch { status('ac-status', '已创建，请手动复制 token', 'ok') }
+      // Least privilege means the create can legitimately end with an empty
+      // requestable set. Say what that implies and where the next step is, so
+      // the agent is not stranded on its first request.
+      const scopeEmpty = !payload.allowAll && !allow.length && !groups.length
+      const nextStep = scopeEmpty ? '。可申请范围为空：请在 Agent 列表点「权限矩阵」给它加入可申请条目，否则它连申请都会被拒绝' : ''
+      try { await navigator.clipboard.writeText(result.token); status('ac-status', '已创建，token 已复制到剪贴板' + nextStep, 'ok') } catch { status('ac-status', '已创建，请手动复制 token' + nextStep, 'ok') }
       await refreshAll()
     } catch (error) { status('ac-status', error.message, 'error') }
   }
+}
+// The four answers a cell can give, and why they must not collapse into one
+// another: a live authority, the legacy direct-read path, "ask and a human
+// decides", and "cannot even ask". The fifth is an authority that exists but
+// no longer works, which would otherwise look like a grant.
+const PM_STATES = {
+  granted: { label: '完全授权', tone: 'on' },
+  noapproval: { label: '免审批直读', tone: 'plain' },
+  requestable: { label: '可申请', tone: 'warn' },
+  none: { label: '无权限', tone: '' },
+  blocked: { label: '已失效', tone: 'bad' },
+  mixed: { label: '混合', tone: '' },
+}
+const PM_SOURCES = { capability: 'capability', 'action-grant': 'grant', 'legacy-scope': 'legacy scope', scope: '可申请范围', none: '不在范围' }
+const PM_ACTION_LABEL = { read: '读取明文', use: '代持调用', fill: '网页填充' }
+const PM_ACTION_KEY = { read: 'secret.read', use: 'secret.use', fill: 'secret.fill' }
+function pmCellHtml(agent, items, data, action) {
+  const states = items.map((item) => ((data.cells?.[agent.name] || {})[item.id] || {})[action]).filter(Boolean)
+  const counts = {}
+  for (const entry of states) counts[entry.state] = (counts[entry.state] || 0) + 1
+  const keys = Object.keys(counts)
+  const state = keys.length === 1 ? keys[0] : (keys.length ? 'mixed' : 'none')
+  const meta = PM_STATES[state] || PM_STATES.none
+  const detail = keys.map((key) => (PM_STATES[key] || PM_STATES.none).label + ' ' + counts[key]).join(' / ')
+  return { state, label: meta.label, tone: meta.tone, detail }
+}
+async function openPermissionMatrix() {
+  let data
+  try { data = await api('/api/permission-matrix') } catch (error) { return toast(error.message, true) }
+  let action = 'read'
+  let detail = null
+  const groups = []
+  const byGroup = new Map()
+  for (const item of data.items || []) {
+    const key = item.group || '未分组'
+    if (!byGroup.has(key)) { byGroup.set(key, []); groups.push(key) }
+    byGroup.get(key).push(item)
+  }
+  openModal('Agent 权限矩阵', '<div id="pm-body"></div>')
+  const modalCard = document.querySelector('#modal > .card'); if (modalCard) modalCard.classList.add('pm-wide')
+  const box = $('pm-body')
+  const findAgent = (name) => (data.agents || []).find((agent) => agent.name === name)
+  const renderDetail = () => {
+    if (!detail) return renderMatrix()
+    const agent = findAgent(detail.agentName)
+    const items = byGroup.get(groups[detail.index]) || []
+    const locked = data.masked === true
+    // A readonly cell is a fact, not a button: the exact reason and source are
+    // what an operator needs before deciding whether to unlock and change it.
+    const rowOf = (item) => {
+      const cell = ((data.cells?.[agent.name] || {})[item.id] || {})[action] || { state: 'none' }
+      const meta = PM_STATES[cell.state] || PM_STATES.none
+      const source = PM_SOURCES[cell.source] || cell.source || '—'
+      const expiry = typeof cell.expiresAt === 'number' ? ' · ' + new Date(cell.expiresAt).toLocaleString('zh-CN', { hour12: false }) + ' 到期' : ''
+      const note = cell.state === 'blocked' ? ' · 授权已撤销/用尽/过期，需要重新授权' : ''
+      let button = ''
+      if (locked) button = '<button class="small" data-inline-unlock>解锁后修改</button>'
+      else if (cell.state === 'granted' || cell.state === 'noapproval') button = '<button class="small danger" data-pm-do="revoke" data-agent="' + esc(agent.name) + '" data-item-id="' + esc(item.id) + '" data-action="' + esc(action) + '">撤销</button>'
+      else if (cell.state === 'requestable') button = '<button class="small primary" data-pm-do="grant" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '" data-action="' + esc(action) + '">直接授权 7 天</button>'
+      else if (cell.state === 'blocked') button = '<button class="small primary" data-pm-do="grant" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '" data-action="' + esc(action) + '">重新授权 7 天</button>'
+      else button = '<button class="small" data-pm-do="scope" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '">先加入可申请范围</button>'
+      return '<div class="pm-detail-row"><div class="pm-detail-meta">'
+        + '<b>' + esc(item.name) + '</b><span class="ios-pill ' + meta.tone + '">' + esc(meta.label) + '</span>'
+        + '<span class="pm-sub">来源 ' + esc(source) + expiry + note + '</span></div>' + button + '</div>'
+    }
+    box.innerHTML = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<div><b>' + esc(agentDisplayName(agent)) + '</b><div class="pm-sub">' + esc(groups[detail.index]) + ' · ' + PM_ACTION_LABEL[action] + '</div></div>'
+      + '<button data-pm-back>返回矩阵</button></div>'
+      + (locked ? '<div class="notice-bar" data-level="notice" style="margin-top:10px"><span class="notice-dot"></span><span class="notice-text">当前是锁定态，矩阵只读；解锁后才能修改。</span></div>' : '')
+      + '<div style="margin-top:10px">' + (items.length ? items.map(rowOf).join('') : '<div class="hint">这个分组里没有条目</div>') + '</div>'
+  }
+  const renderMatrix = () => {
+    const agents = data.agents || []
+    const head = '<tr><th>Agent</th>' + groups.map((group) => '<th>' + esc(group) + '<div class="pm-sub">' + byGroup.get(group).length + ' 条</div></th>').join('') + '</tr>'
+    const rows = agents.map((agent) => {
+      const cells = groups.map((group, index) => {
+        const cell = pmCellHtml(agent, byGroup.get(group), data, action)
+        return '<td class="pm-cell" data-pm-cell="' + esc(agent.name) + '" data-pm-index="' + index + '" title="' + esc(cell.detail) + '">'
+          + '<span class="ios-pill ' + cell.tone + '">' + cell.label + '</span></td>'
+      }).join('')
+      const rowSub = [agent.oauth ? 'OAuth' : agent.legacy ? 'legacy' : 'token', agent.scopeEmpty ? '可申请范围为空' : ''].filter(Boolean).join(' · ')
+      return '<tr><td><div class="pm-agent"><b>' + esc(agentDisplayName(agent)) + '</b><div class="pm-sub">'
+        + esc(rowSub) + '</div></div></td>' + cells + '</tr>'
+    }).join('')
+    const legend = '<div class="pm-legend">' + Object.entries(PM_STATES).filter(([key]) => key !== 'mixed').map(([, meta]) => '<span class="ios-pill ' + meta.tone + '">' + meta.label + '</span>').join('')
+      + '<span>来源：' + Object.entries(PM_SOURCES).map(([key, label]) => key + '=' + label).join(' · ') + '</span></div>'
+    box.innerHTML = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<div class="row" style="gap:6px">' + Object.entries(PM_ACTION_LABEL).map(([key, label]) => '<button class="small' + (key === action ? ' primary' : '') + '" data-pm-action="' + key + '">' + label + '</button>').join('') + '</div>'
+      + '<span class="pm-sub">' + (data.masked ? '锁定态 · 只读' : '已解锁 · 点格子修改') + (data.expiryBlocksReads ? ' · 到期后禁止读取已开启' : '') + '</span></div>'
+      + (data.masked ? '<div class="hint" style="margin-top:8px">名称已脱敏；解锁后显示完整名称并可修改。</div>' : '')
+      + '<div class="pm-scroll scroll-list" style="max-height:60vh;margin-top:10px"><table class="pm-table"><thead>' + head + '</thead><tbody>' + (rows || '<tr><td colspan="' + (groups.length + 1) + '" class="hint">还没有 Agent 或条目</td></tr>') + '</tbody></table></div>'
+      + legend
+  }
+  box.addEventListener('click', async (event) => {
+    const actionTab = event.target.closest('[data-pm-action]')
+    if (actionTab) { action = actionTab.dataset.pmAction; detail = null; renderMatrix(); return }
+    const back = event.target.closest('[data-pm-back]')
+    if (back) { detail = null; renderMatrix(); return }
+    const cell = event.target.closest('[data-pm-cell]')
+    if (cell) { detail = { agentName: cell.dataset.pmCell, index: Number(cell.dataset.pmIndex) }; renderDetail(); return }
+    const doIt = event.target.closest('[data-pm-do]')
+    if (!doIt) return
+    const agentName = doIt.dataset.agent
+    const agent = findAgent(agentName)
+    if (!agent) return
+    doIt.disabled = true
+    try {
+      if (doIt.dataset.pmDo === 'revoke') {
+        await api('/api/action-grants/revoke', { method: 'POST', body: JSON.stringify({ agent: agentName, itemId: doIt.dataset.itemId, action: PM_ACTION_KEY[doIt.dataset.action] }) })
+        toast('已撤销')
+      } else if (doIt.dataset.pmDo === 'scope') {
+        // Scope is the separate question "may this agent even ask"; granting
+        // before that would fail, so this button is the missing first step.
+        const allow = Array.from(new Set([...(agent.allow || []), doIt.dataset.item]))
+        await api('/api/agents/update', { method: 'POST', body: JSON.stringify({ name: agentName, allow }) })
+        toast('已加入可申请范围，下一步直接授权')
+      } else {
+        await api('/api/action-grants', { method: 'POST', body: JSON.stringify({ agent: agentName, item: doIt.dataset.item, actions: [PM_ACTION_KEY[doIt.dataset.action]], terms: { [PM_ACTION_KEY[doIt.dataset.action]]: { duration: '7d' } } }) })
+        toast('已授权 7 天')
+      }
+      const next = await api('/api/permission-matrix')
+      data = next
+      if (detail) renderDetail(); else renderMatrix()
+    } catch (error) {
+      doIt.disabled = false
+      toast(error.message, true)
+    }
+  })
+  renderMatrix()
 }
 // Detail view: 概况 / 权限 / 授权 / 活动. Read-only display plus the existing actions.
 function openAgentDetail(name) {
@@ -4391,7 +4543,7 @@ async function exportItems() {
     const data = await api('/api/items/export', { method: 'POST', body: JSON.stringify({ code }) }); const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'secrets-export-' + new Date().toISOString().slice(0, 10) + '.json'; link.click(); URL.revokeObjectURL(link.href); toast('已导出（包含明文，请妥善保存）')
   } catch (error) { toast(error.status === 428 ? '先在「设置 → 安全」启用两步验证，导出才可用' : error.message, true) }
 }
-function openModal(title, body) { $('modal-title').textContent = title; $('modal-body').innerHTML = body; show('modal', true) }
+function openModal(title, body) { const card = document.querySelector('#modal > .card'); if (card) card.classList.remove('pm-wide'); $('modal-title').textContent = title; $('modal-body').innerHTML = body; show('modal', true) }
 function uaLabel(ua) {
   const text = String(ua || '')
   const browser = /Edg\/([\d.]+)/.test(text) ? 'Edge ' + text.match(/Edg\/([\d.]+)/)[1] : /Chrome\/([\d.]+)/.test(text) ? 'Chrome ' + text.match(/Chrome\/([\d.]+)/)[1] : /Firefox\/([\d.]+)/.test(text) ? 'Firefox ' + text.match(/Firefox\/([\d.]+)/)[1] : /Version\/([\d.]+).*Safari/.test(text) ? 'Safari ' + text.match(/Version\/([\d.]+)/)[1] : 'Unknown'
