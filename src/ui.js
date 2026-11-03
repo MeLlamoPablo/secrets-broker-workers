@@ -863,7 +863,7 @@ nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
    panels under it are equal thirds. Heights come from the grid, not content. */
 .dash{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:stretch;margin-bottom:16px}
 .dash>.card,.dash>.ov-actions{margin:0;min-width:0}
-.dash .trend-card{grid-column:span 7;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
+.dash>.span2{grid-column:span 7;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
 .dash .rank-card{grid-column:span 5;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
 .dash #ov-actions{grid-column:span 4;height:240px;min-height:240px;overflow:hidden}
 .dash .donut-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
@@ -876,14 +876,14 @@ nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .dash .trend-box{flex:1 1 auto;min-height:0}
 @media(max-width:1100px){
   .dash{grid-template-columns:repeat(6,minmax(0,1fr))}
-  .dash .trend-card,.dash .rank-card{grid-column:span 6}
+  .dash>.span2,.dash .rank-card{grid-column:span 6}
   .dash #ov-actions,.dash .donut-card,.dash #globe-card{grid-column:span 2}
   .dash .recent-card{grid-column:span 6}
 }
 @media(max-width:900px){
   .dash{grid-template-columns:1fr}
-  .dash .trend-card,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #globe-card,.dash .recent-card{grid-column:auto;height:auto;min-height:0}
-  .dash .trend-card,.dash .rank-card{min-height:260px}
+  .dash>.span2,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #globe-card,.dash .recent-card{grid-column:auto;height:auto;min-height:0}
+  .dash>.span2,.dash .rank-card{min-height:260px}
   .dash #ov-actions,.dash .donut-card,.dash #globe-card{min-height:220px}
 }
 /* Credential list: a dense, scannable group. Name leads, metadata follows,
@@ -1047,7 +1047,7 @@ body.auth-mode header{display:none}
     <div id="notice-bar" class="notice-bar hidden" role="button" tabindex="0" title="点击查看全部通知"></div>
     <div id="kpis" class="kpis"></div>
     <div class="dash">
-      <div class="card span2 trend-card"><div class="card-head"><h2 id="trend-title">读取趋势</h2><div class="trend-nav"><button class="trend-arrow" id="trend-prev" title="上一张" aria-label="上一张">‹</button><span class="trend-count" id="trend-count">1/2</span><button class="trend-arrow" id="trend-next" title="下一张" aria-label="下一张">›</button></div></div><div class="hint" id="trend-hint" style="margin-bottom:6px">按时间聚合 · 悬停查看数值</div><div id="chart-box" class="trend-box"></div><div id="heat-box" class="hidden"></div></div>
+      <div class="card span2"><div class="card-head"><h2 id="trend-title">读取趋势</h2><div class="trend-nav"><button class="trend-arrow" id="trend-prev" title="上一张" aria-label="上一张">‹</button><span class="trend-count" id="trend-count">1/2</span><button class="trend-arrow" id="trend-next" title="下一张" aria-label="下一张">›</button></div></div><div class="hint" id="trend-hint" style="margin-bottom:6px">按时间聚合 · 悬停查看数值</div><div id="chart-box" class="trend-box"></div><div id="heat-box" class="hidden"></div></div>
       <div class="card rank-card"><h2>条目读取排行</h2><div class="hint" style="margin-bottom:6px">按被读取次数排序</div><div id="top-box" class="rank-box"></div></div>
       <div id="ov-actions" class="card ov-actions"></div>
       <div class="card donut-card"><h2>Agent 读取占比</h2><div class="hint" style="margin-bottom:6px">按 agent 聚合 · 点击扇区查看</div><div id="donut-box" class="donut-wrap"></div></div>
