@@ -137,9 +137,10 @@ jobs:
           fi
           # GitHub does not annotate cargo output, and downloading a job log
           # needs repository admin, so the errors are repeated here where the
-          # public run page can show them. Three lines after each error carry the
-          # proc-macro help message, which is where tauri puts the real reason.
-          tail -n 200 "$log" | tr -d '\r' | tr -d '%' | awk '/error|panicked/ {print; n=3; next} n>0 {print; n--}' | head -n 12 | while IFS= read -r line; do
+          # public run page can show them. A proc-macro panic carries its reason
+          # in the `help: message` line, not in the `error` line above it, and
+          # cargo's colour codes have to go or they end up in the annotation.
+          sed -e 's/\x1b\[[0-9;]*m//g' "$log" | grep -E '^error|help: message' | head -n 10 | while IFS= read -r line; do
             printf '::error::%s\n' "$line"
           done
           {
