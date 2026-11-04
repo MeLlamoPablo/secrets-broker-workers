@@ -1735,6 +1735,9 @@ function telegramItemId(state, item) {
 function activeGrant(state, agent, name) {
   const grant = state.grants[grantKey(agent, name)]
   if (!grant || grant.revokedAt || grant.migratedToCapability) return null
+  // Grants minted before action binding carry no action and were read grants by
+  // definition; a grant that names another action must never satisfy a read.
+  if (grant.action && grant.action !== 'secret.read') return null
   if (grant.expiresAt && grant.expiresAt < Date.now()) return null
   if (grant.maxReads != null && (grant.reads ?? 0) >= grant.maxReads) return null
   return grant
@@ -2831,7 +2834,6 @@ async function decidePending(env, id, decision, source = 'web') {
     }
     const mode = ['once', '1h', '24h', '7d', 'always'].includes(decision) ? decision : 'once'
     const expiresAt = mode === '1h' ? Date.now() + 3600e3 : mode === '24h' ? Date.now() + 86400e3 : mode === '7d' ? Date.now() + 7 * 86400e3 : 0
-    state.grants[grantKey(entry.agent, entry.name)] = { agent: entry.agent, name: entry.name, mode, createdAt: nowIso(), expiresAt, reads: 0, maxReads: mode === 'once' ? 1 : null, revokedAt: null, account: entry.account ?? '' }
     // Temporary capability bound to the pending entry's action. Approving
     // secret.use never mints secret.read and vice versa.
     // Approving a fill must never mint a plaintext-read capability. Each
@@ -2881,6 +2883,16 @@ async function decidePending(env, id, decision, source = 'web') {
       }
     }
     if (itemId) {
+      // The legacy name-keyed grant is a READ allowance only. Writing it after
+      // the action/account/target checks is what keeps a denied approval from
+      // leaving a grant behind, and keeping it scoped to secret.read is what
+      // stops a fill or use approval from doubling as a plaintext read.
+      if (entryAction === 'secret.read') {
+        state.grants[grantKey(entry.agent, entry.name)] = {
+          agent: entry.agent, name: entry.name, action: 'secret.read', mode, createdAt: nowIso(),
+          expiresAt, reads: 0, maxReads: mode === 'once' ? 1 : null, revokedAt: null, account: entry.account ?? '',
+        }
+      }
       const key = capabilityKey(entry.agent, itemId, entryAction)
       const ttl = APPROVAL_DURATIONS[mode]
       state.capabilities ??= {}
