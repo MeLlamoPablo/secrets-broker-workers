@@ -9,9 +9,9 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
 // G1: the replacement card ships an explicit empty state in the markup, so an
 // empty dashboard never renders a blank panel that looks broken.
 {
-  const markup = /<div class="queue-list" id="queue-list">[\s\S]{0,160}<div class="queue-empty">/.test(ui)
-  const copy = ui.includes('没有待审批请求')
-  if (markup && copy) pass('G1 approval queue ships an explicit empty state')
+  const markup = /<tbody id="aging-rows">[\s\S]{0,160}<td colspan="5" class="aging-msg">/.test(ui)
+  const copy = ui.includes('没有可排期的条目') && ui.includes('正在读取条目')
+  if (markup && copy) pass('G1 aging table ships an explicit loading/empty state')
   else fail('G1', JSON.stringify({ markup, copy }))
 }
 // G2: the empty overlay is never shown for the no-traffic case

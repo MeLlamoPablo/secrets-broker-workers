@@ -29,13 +29,13 @@ const isrc = fs.readFileSync('src/index.js', 'utf8')
   if (cols && !earlyCollapse) pass('F2 agent stats stay in 3 columns')
   else fail('F2', JSON.stringify({ cols, earlyCollapse }))
 }
-// F3: the approval queue keeps a compact card below the ranking pair
+// F3: the expiry table keeps a compact card below the ranking pair
 {
-  const before = html.indexOf('id="queue-card"')
+  const before = html.indexOf('id="aging-card"')
   const after = html.indexOf('id="recent-box"')
   const ranked = html.indexOf('id="top-box"')
   const inFlow = before > ranked && before < after
-  if (inFlow) pass('F3 approval queue sits under the ranking pair')
+  if (inFlow) pass('F3 aging table sits under the ranking pair')
   else fail('F3', JSON.stringify({ before, ranked, after }))
 }
 // F4: globe canvas is compact, matching the donut card
@@ -45,13 +45,14 @@ const isrc = fs.readFileSync('src/index.js', 'utf8')
   if (px > 0 && px <= 280) pass('F4 globe box is compact (' + px + 'px)')
   else fail('F4', 'height=' + px)
 }
-// F5: the card explains waiting time with a ring, not a second bar chart
+// F5: the right-bottom card is a real table (caption + sortable headers), not
+// a second bar chart. The old ring assertion moved with the card it measured.
 {
-  const ring = html.includes('function queueRingHtml') && html.includes('viewBox="0 0 32 32"')
+  const table = html.includes('class="aging-table"') && html.includes('<caption>') && html.includes('aria-sort')
   const noBars = !html.includes('activity-bar')
   const noOverlay = !html.includes('id="globe-full"')
-  if (ring && noBars && noOverlay) pass('F5 approval queue uses a ring, not bars')
-  else fail('F5', JSON.stringify({ ring, noBars, noOverlay }))
+  if (table && noBars && noOverlay) pass('F5 aging card is a sortable table, not bars')
+  else fail('F5', JSON.stringify({ table, noBars, noOverlay }))
 }
 // F6: failed token exchanges are audited with a reason
 {

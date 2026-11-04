@@ -75,15 +75,15 @@ const src = fs.readFileSync('src/globe/index.js', 'utf8')
   if (ok) pass('T7 globe container background follows theme')
   else fail('T7', 'background not themed')
 }
-// T8: the approval queue is announced as an image with a data summary, and the
+// T8: the right-bottom card is a sortable table with a caption, and the
 // fullscreen globe overlay it replaced is no longer reachable from the page.
 {
-  const hasRole = html.includes("ring.setAttribute('role', 'img')") && html.includes("ring.setAttribute('aria-label', '待审批队列：'")
-  const hasSummary = html.includes("最久等待 ' + queueWaitLabel(oldest) + '（")
+  const hasTable = html.includes('class="aging-table"') && html.includes('aria-sort') && html.includes('data-sort="days"')
+  const hasCaption = html.includes('<caption>上次轮换、到期与剩余天数') && html.includes('健康卡只给聚合计数')
   const noBars = !html.includes('activity-bar')
   const noFullBtn = !html.includes('id="globe-full"')
-  if (hasRole && hasSummary && noBars && noFullBtn) pass('T8 approval queue exposes an accessible summary without bars')
-  else fail('T8', JSON.stringify({ hasRole, hasSummary, noBars, noFullBtn }))
+  if (hasTable && hasCaption && noBars && noFullBtn) pass('T8 aging table is sortable with a caption, without bars')
+  else fail('T8', JSON.stringify({ hasTable, hasCaption, noBars, noFullBtn }))
 }
 // T9: bundle keeps drag usable on touch (touch-action none)
 {

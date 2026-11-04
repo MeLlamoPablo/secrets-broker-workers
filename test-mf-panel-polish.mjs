@@ -21,12 +21,12 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
   if (hidden && webkit) pass('Z1 ranking scrolls with no visible scrollbar')
   else fail('Z1', JSON.stringify({ hidden, webkit }))
 }
-// Z2: the pending count sits in the card head, right of the title
+// Z2: the aging row count sits in the card head, right of the title
 {
-  const head = html.indexOf('id="queue-title"')
-  const count = html.indexOf('id="queue-count"')
-  const rows = html.includes('id="queue-list"') && html.includes('id="queue-ring"')
-  if (count > head && count < head + 600 && rows) pass('Z2 pending count lives in the card head')
+  const head = html.indexOf('id="aging-title"')
+  const count = html.indexOf('id="aging-count"')
+  const rows = html.includes('id="aging-table"') && html.includes('id="aging-rows"')
+  if (count > head && count < head + 600 && rows) pass('Z2 aging count lives in the card head')
   else fail('Z2', JSON.stringify({ head, count, rows }))
 }
 // Z3: the globe panel is shorter, the donut gets more room

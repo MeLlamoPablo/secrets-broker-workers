@@ -36,6 +36,7 @@ button.small{white-space:nowrap}
 .notice-bar:active{transform:translateY(1px)}
 .notice-bar .notice-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .notice-bar .notice-count{flex:0 0 auto;font-family:inherit;font-size:12px;line-height:18px;padding:2px 8px;border:0;border-radius:999px;background:rgba(0,0,0,.06);color:inherit;cursor:pointer}
+.notice-bar .notice-count[data-kind="pending"]{background:color-mix(in srgb,var(--orange) 16%,transparent);color:var(--warn-text)}
 .notice-bar .notice-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%}
 .notice-bar[data-tone="red"]{background:#fdecec;border-color:#f5c2c2;color:#a12b2b}
 .notice-bar[data-tone="red"] .notice-dot{background:var(--red)}
@@ -622,7 +623,7 @@ button.danger:hover{background:color-mix(in srgb,var(--red,#c0281f) 18%,transpar
 .ios-chip{min-height:44px}
 }
 #view-items .row>#item-filter{width:auto;flex:1 1 220px;min-width:170px}
-button:focus-visible,a:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible,[tabindex]:focus-visible,.ios-main:focus-visible,.kpi:focus-visible,.health-row:focus-visible,.queue-row:focus-visible,.legend div:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+button:focus-visible,a:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible,[tabindex]:focus-visible,.ios-main:focus-visible,.kpi:focus-visible,.health-row:focus-visible,.aging-row-btn:focus-visible,.legend div:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .ask__code{display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);color:var(--label)}
 .state__title{letter-spacing:-.01em}
 .deny__title{margin-top:6px;font-size:14px;font-weight:600;color:var(--label)}
@@ -689,45 +690,50 @@ html[data-theme="dark"] nav button.active{background:transparent;color:var(--ink
 .dash>#ov-actions{display:flex;flex-direction:column;gap:var(--sp-2)}
 #ov-actions:empty{display:none}
 .dash .donut-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
-.dash #queue-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
-#queue-card .card-head{flex:0 0 auto}
-.queue-count{flex:0 0 auto;min-height:24px;padding:2px 9px;border:1px solid var(--hair);border-radius:999px;background:var(--surface-2);color:var(--ink-1);font-size:12px;font-weight:600;line-height:18px;font-variant-numeric:tabular-nums}
-.queue-count[data-warn="1"]{background:color-mix(in srgb,var(--orange) 14%,transparent);border-color:color-mix(in srgb,var(--orange) 32%,transparent);color:var(--warn-text)}
-.queue-list{flex:1 1 auto;min-height:0;margin-top:6px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;scrollbar-width:none}
-.queue-list::-webkit-scrollbar{width:0;height:0;display:none}
-.queue-row{display:grid;grid-template-columns:9px minmax(0,1fr) auto auto;align-items:center;gap:8px;width:100%;min-height:38px;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:var(--ink-1);text-align:left;cursor:pointer}
-.queue-row:hover{background:var(--surface-2)}
-.queue-row:active{background:var(--fill-2)}
-.queue-dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
-.queue-row[data-tone="wait"] .queue-dot{background:var(--orange)}
-.queue-row[data-tone="late"] .queue-dot{background:var(--red)}
-.queue-main{min-width:0;display:flex;align-items:baseline;gap:6px}
-.queue-agent{max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600}
-.queue-action{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink-2)}
-.queue-wait{white-space:nowrap;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
-.queue-tone{white-space:nowrap;padding:1px 6px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:600}
-.queue-row[data-tone="wait"] .queue-tone{background:color-mix(in srgb,var(--orange) 12%,transparent);color:var(--warn-text)}
-.queue-row[data-tone="late"] .queue-tone{background:color-mix(in srgb,var(--red) 10%,transparent);color:var(--danger-text)}
-.queue-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-top:6px;padding-top:6px;border-top:1px solid var(--hair)}
-.queue-ring{flex:0 0 auto;width:26px;height:26px}
-.queue-ring svg{display:block;width:100%;height:100%}
-.queue-sum{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink-2)}
-.queue-sum b{color:var(--ink-1);font-weight:600}
-.queue-empty{height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;color:var(--ink-2);font-size:13px;line-height:18px}
-.queue-empty b{color:var(--ink-1);font-weight:600}
-.queue-empty button{align-self:flex-start;margin-top:2px}
+.dash #aging-card{grid-column:span 4;height:276px;min-height:276px;display:flex;flex-direction:column;overflow:hidden}
+#aging-card .card-head{flex:0 0 auto}
+.aging-count{flex:0 0 auto;min-height:24px;padding:2px 9px;border:1px solid var(--hair);border-radius:999px;background:var(--surface-2);color:var(--ink-1);font-size:12px;font-weight:600;line-height:18px;font-variant-numeric:tabular-nums}
+.aging-count[data-warn="1"]{background:color-mix(in srgb,var(--orange) 14%,transparent);border-color:color-mix(in srgb,var(--orange) 32%,transparent);color:var(--warn-text)}
+.aging-wrap{flex:1 1 auto;min-height:0;margin-top:2px;overflow:auto;scrollbar-width:none;-ms-overflow-style:none}
+.aging-wrap::-webkit-scrollbar{width:0;height:0;display:none}
+.aging-table{width:100%;min-width:300px;table-layout:fixed;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.aging-table caption{text-align:left;font-size:11px;line-height:15px;color:var(--ink-2);padding:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aging-table th{position:sticky;top:0;z-index:1;background:var(--surface);text-align:left;font-size:11px;font-weight:600;color:var(--ink-2);padding:4px 5px;border-bottom:1px solid var(--hair);white-space:nowrap}
+.aging-table th:nth-child(1){width:30%}
+.aging-table th:nth-child(2){width:18%}
+.aging-table th:nth-child(3){width:18%}
+.aging-table th:nth-child(4){width:19%}
+.aging-table th:nth-child(5){width:15%}
+.aging-table th button{border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;padding:0;display:inline-flex;gap:2px;align-items:center}
+.aging-table th button:hover{color:var(--ink-1)}
+.aging-table th[aria-sort="ascending"] button,.aging-table th[aria-sort="descending"] button{color:var(--ink-1)}
+.aging-table td{padding:5px;border-bottom:1px solid var(--hair);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+.aging-table tbody tr:last-child td{border-bottom:0}
+.aging-table tbody tr:hover{background:var(--surface-2)}
+.aging-table tbody tr:active{background:var(--fill-2)}
+.aging-row-btn{border:0;background:transparent;color:var(--ink-1);font:600 12px/1.4 inherit;text-align:left;cursor:pointer;padding:0;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aging-table tbody tr:hover .aging-row-btn{text-decoration:underline}
+.aging-tag{display:inline-block;padding:1px 6px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:600}
+.aging-tag[data-tone="green"]{background:color-mix(in srgb,var(--green) 12%,transparent);color:var(--ok-text)}
+.aging-tag[data-tone="orange"]{background:color-mix(in srgb,var(--orange) 12%,transparent);color:var(--warn-text)}
+.aging-tag[data-tone="red"]{background:color-mix(in srgb,var(--red) 10%,transparent);color:var(--danger-text)}
+.aging-table td.aging-msg{color:var(--ink-2);font-size:12px;line-height:17px;padding:8px 5px;white-space:normal;text-overflow:clip}
+.aging-table td.aging-msg b{color:var(--ink-1);font-weight:600;display:block}
+.aging-table td.aging-msg .row{margin-top:6px}
+.aging-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-top:4px;padding-top:5px;border-top:1px solid var(--hair)}
+.aging-more{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink-2)}
 .dash .recent-card{grid-column:span 12}
-/* Right-bottom placement above 1100px: the queue shares the last row with the
-   feed instead of sitting mid-page under the KPI row. Narrower layouts keep the
-   auto flow, so the phone order stays trend, ranking, health, share, queue,
-   feed — the queue never jumps to the top. */
+/* Right-bottom placement above 1100px: the aging table shares the last row
+   with the feed instead of sitting mid-page under the KPI row. Narrower layouts
+   keep the auto flow, so the phone order stays trend, ranking, health, share,
+   table, feed — the table never jumps to the top. */
 @media(min-width:1101px){
 .dash>.span2{grid-column:span 7;grid-row:1}
 .dash .rank-card{grid-column:span 5;grid-row:1}
 .dash #ov-actions{grid-column:span 6;grid-row:2}
 .dash .donut-card{grid-column:span 6;grid-row:2}
 .dash .recent-card{grid-column:1/span 8;grid-row:3}
-.dash #queue-card{grid-column:9/span 4;grid-row:3}
+.dash #aging-card{grid-column:9/span 4;grid-row:3}
 }
 .dash .rank-box{max-height:none;flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}
 .dash .rank-box::-webkit-scrollbar{width:0;height:0;display:none}
@@ -741,15 +747,15 @@ html[data-theme="dark"] nav button.active{background:transparent;color:var(--ink
 @media(max-width:1100px){
 .dash{grid-template-columns:repeat(6,minmax(0,1fr))}
 .dash>.span2,.dash .rank-card{grid-column:span 6}
-.dash #ov-actions,.dash .donut-card,.dash #queue-card{grid-column:span 2}
+.dash #ov-actions,.dash .donut-card,.dash #aging-card{grid-column:span 2}
 .dash .recent-card{grid-column:span 6}
 }
 @media(max-width:900px){
 .dash{grid-template-columns:1fr}
-.dash>.span2,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #queue-card{grid-column:auto;height:auto}
+.dash>.span2,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #aging-card{grid-column:auto;height:auto}
 .dash .recent-card{grid-column:auto;height:auto;min-height:0}
 .dash>.span2,.dash .rank-card{min-height:260px}
-.dash #ov-actions,.dash .donut-card,.dash #queue-card{min-height:220px}
+.dash #ov-actions,.dash .donut-card,.dash #aging-card{min-height:220px}
 }
 .ios-group{margin-top:24px}
 .ios-group-head{padding:0 4px 8px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ink-2)}
@@ -863,7 +869,7 @@ nav{grid-area:tabs}
 }
 @media(pointer:coarse){
 .seg button{min-height:36px;padding:0 12px}
-.queue-row,.health-row{min-height:44px}
+.aging-table tbody tr,.health-row{min-height:44px}
 }
 </style></head><body><div class="wrap">
 <div id="db-down" class="notice-bar hidden" data-level="critical"><span class="notice-dot"></span><span class="notice-text"></span></div>
@@ -916,16 +922,27 @@ nav{grid-area:tabs}
       <div class="card rank-card"><h2>条目读取排行</h2><div class="hint" style="margin-bottom:6px">按被读取次数排序</div><div id="top-box" class="rank-box"></div></div>
       <div id="ov-actions" class="card ov-actions"></div>
       <div class="card donut-card"><h2>Agent 读取占比</h2><div class="hint" style="margin-bottom:6px">按 agent 聚合 · 点击扇区查看</div><div id="donut-box" class="donut-wrap"></div></div>
-      <div class="card" id="queue-card" role="region" aria-labelledby="queue-title">
+      <div class="card" id="aging-card" role="region" aria-labelledby="aging-title">
         <div class="card-head">
-          <h2 id="queue-title">待审批队列</h2>
-          <span class="queue-count" id="queue-count" aria-live="polite">0 件</span>
+          <h2 id="aging-title">到期与轮换</h2>
+          <span class="aging-count" id="aging-count" aria-live="polite">—</span>
         </div>
-        <div class="queue-list" id="queue-list"><div class="queue-empty"><b>正在读取待审批请求…</b></div></div>
-        <div class="queue-foot hidden" id="queue-foot">
-          <div class="queue-ring" id="queue-ring"></div>
-          <span class="queue-sum" id="queue-sum"></span>
-          <button class="small" id="queue-open" type="button">查看全部</button>
+        <div class="aging-wrap">
+          <table class="aging-table" id="aging-table">
+            <caption>上次轮换、到期与剩余天数；健康卡只给聚合计数。</caption>
+            <thead><tr>
+              <th scope="col" data-sort-key="name" aria-sort="none"><button type="button" data-sort="name">条目<span class="aging-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" data-sort-key="rotated" aria-sort="none"><button type="button" data-sort="rotated">上次轮换<span class="aging-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" data-sort-key="expires" aria-sort="none"><button type="button" data-sort="expires">到期<span class="aging-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" data-sort-key="days" aria-sort="none"><button type="button" data-sort="days">剩余天数<span class="aging-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col">状态</th>
+            </tr></thead>
+            <tbody id="aging-rows"><tr><td colspan="5" class="aging-msg"><b>正在读取条目…</b>清单只从这台服务器读取，不请求任何第三方。</td></tr></tbody>
+          </table>
+        </div>
+        <div class="aging-foot hidden" id="aging-foot">
+          <span class="aging-more" id="aging-more"></span>
+          <button class="small" id="aging-all" type="button">查看全部</button>
         </div>
       </div>
       <div class="card span3 recent-card"><h2>最近活动</h2><div id="recent-box" class="recent"></div></div>
@@ -1919,6 +1936,9 @@ $('agents-box').addEventListener('click', (event) => {
 })
 const noticeBar = $('notice-bar')
 if (noticeBar) {
+  // One banner, two kinds. With approvals waiting it opens the approvals
+  // panel — the same sheet the KPI card opens — so the two counters agree.
+  // With only reminders it opens the reminder sheet.
   noticeBar.onclick = openNotices
   noticeBar.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openNotices() } }
 }
@@ -2187,6 +2207,22 @@ $('kpis').addEventListener('click', (event) => {
   const card = event.target.closest('[data-kpi]'); if (!card) return
   openKpiModal(card.dataset.kpi)
 })
+const agingTable = $('aging-table')
+if (agingTable) {
+  agingTable.addEventListener('click', (event) => {
+    const sort = event.target.closest('[data-sort]')
+    if (sort) {
+      const key = sort.dataset.sort
+      agingSort = { key, dir: agingSort.key === key ? -agingSort.dir : 1 }
+      renderAging()
+      return
+    }
+    const row = event.target.closest('[data-aging-row]')
+    if (row) openItemMenu(row.dataset.agingRow)
+  })
+}
+const agingAll = $('aging-all')
+if (agingAll) agingAll.onclick = openAgingAll
 document.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-kpi-decide]'); if (!button) return
   try { await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id: button.dataset.id, decision: button.dataset.decision }) }); show('modal', false); await loadAll(); toast('已处理') } catch (error) { toast(error.message, true) }
@@ -2326,7 +2362,7 @@ async function checkPendingNotifications() {
       app.stateLoaded = true
       app.stateError = ''
       renderPending()
-      renderQueue()
+      renderAging()
       if (agentsMoved) renderAgents()
       if (logsMoved) { renderRecent(); renderLogs() }
       if (!grantsSelecting) renderGrants()
@@ -2358,8 +2394,8 @@ function applyGlobeAvailability(geoOn) {
   if (!geoOn) note.textContent = '实时访问未启用 · 设置 GEO_ENABLED=1 后显示实时连接'
   else if (note.textContent.indexOf('实时访问未启用') === 0) note.textContent = ''
 }
-async function loadState() { try { app.data = await api('/api/state'); app.stateLoaded = true; app.stateError = ''; app.locked = app.data.masked === true || app.me?.unlocked !== true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderQueue(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { app.stateError = (error && error.message) || '读取状态失败'; renderQueue(); if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
-async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; app.locked = false; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { app.locked = true; app.items = []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', app.data?.masked === true ? '已锁定：条目名称已脱敏，审批仍可进行' : '已锁定：查看条目需要解锁') } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
+async function loadState() { try { app.data = await api('/api/state'); app.stateLoaded = true; app.stateError = ''; app.locked = app.data.masked === true || app.me?.unlocked !== true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderAging(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { app.stateError = (error && error.message) || '读取状态失败'; renderAging(); if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
+async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; app.locked = false; renderItems(); renderAging(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { app.locked = true; app.items = []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderAging(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', app.data?.masked === true ? '已锁定：条目名称已脱敏，审批仍可进行' : '已锁定：查看条目需要解锁') } else { app.itemsError = error.message; renderItems(); renderAging(); status('item-status', error.message, 'error') } } }
 async function loadStats() { try { app.stats = await api('/api/stats?range=' + app.range); renderStats() } catch {} }
 // One operator action changes the logs, the counts and the item rows at once.
 // Reloading them together is cheaper than making the operator press 刷新 to
@@ -2891,6 +2927,9 @@ function renderTrendFace() {
 
 function renderStats() {
   const stats = app.stats || { totalReads: 0, activeAgents: 0, pending: 0, activeGrants: 0, buckets: [], topItems: [], topAgents: [] }
+  // The third card is the approvals count. Whatever else is waiting is printed
+  // as its own labelled number, never added into the value: the old card showed
+  // pending + reminders as one figure, which is how "3 / 4 / 3" happened.
   const pendingCount = ((app.data && app.data.pending) || []).length
   const reminderCount = ((app.data && app.data.reminders) || []).length
   const cards = [{ l: '读取次数', v: stats.totalReads, sub: '当前区间 · 点开查看', view: 'reads' }, { l: '活跃 Agent', v: stats.activeAgents, sub: '有读取记录', view: 'agents' }, { l: '待审批', v: pendingCount, sub: reminderCount ? '提醒 ' + reminderCount + ' 条 · 点开处理' : '点开处理', warn: pendingCount > 0, view: 'pending' }, { l: '有效授权', v: stats.activeGrants, sub: '含免审批', view: 'grants' }]
@@ -2936,92 +2975,129 @@ function renderStats() {
   renderTrendFace()
   $('updated').textContent = '最后更新 ' + new Date().toLocaleTimeString('zh-CN', { hour12: false })
 }
-// ── Approval queue ─────────────────────────────────────────────────────────
-// The slot the globe and then a time-series chart used to hold. Bars restated
-// the trend card, and a second ring would restate the agent donut, so this card
-// answers the question no other card answers: what is waiting for me, and how
-// long has it waited. The data is state.pending, already delivered by
-// /api/state, so there is no new endpoint, polling or collection.
-const QUEUE_WAIT_SOON = 5 * 60e3
-const QUEUE_WAIT_LATE = 30 * 60e3
-const QUEUE_TONE_LABEL = { new: '新', wait: '等待中', late: '较久' }
-function queueWaitMs(entry, now = Date.now()) {
-  const at = Date.parse(entry && entry.createdAt)
-  return Number.isFinite(at) ? Math.max(0, now - at) : -1
+// ── Expiry & rotation table ────────────────────────────────────────────────
+// The bottom-right slot answers "what should I rotate or renew, and when".
+// The health card counts buckets; this table is the per-item dates behind
+// those buckets, so the same number is never printed twice. It reads
+// app.items, already loaded for the health card: no new endpoint, no polling.
+const AGING_LIMIT = 3
+let agingSort = { key: 'days', dir: 1 }
+function agingRotateDays() {
+  const days = Number(app.data && app.data.rotateReminderDays)
+  return Number.isFinite(days) && days > 0 ? Math.max(30, Math.min(3650, days)) : 180
 }
-function queueWaitLabel(ms) {
-  if (!(ms >= 0)) return '时间未知'
-  if (ms < 60e3) return '刚刚'
-  const minutes = Math.floor(ms / 60e3)
-  if (minutes < 60) return minutes + ' 分钟'
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return hours + ' 小时' + (minutes % 60 ? ' ' + (minutes % 60) + ' 分' : '')
-  return Math.floor(hours / 24) + ' 天'
+function agingRows() {
+  const now = Date.now()
+  const cutoff = now - agingRotateDays() * 86400e3
+  return (app.items || []).map((item) => {
+    const rotatedAt = Date.parse(String(item.lastRotatedAt || '')) || Date.parse(String(item.createdAt || ''))
+    const rotated = Number.isFinite(rotatedAt) && rotatedAt > 0 ? rotatedAt : 0
+    const expires = Number(item.expiresAt) > 0 ? Number(item.expiresAt) : 0
+    const days = expires ? Math.round((expires - now) / 86400e3) : null
+    let status = '正常'
+    let tone = 'green'
+    if (expires && expires <= now) { status = '已过期'; tone = 'red' }
+    else if (expires && days <= 7) { status = '临期'; tone = 'orange' }
+    else if (rotated && rotated < cutoff) { status = '该轮换'; tone = 'orange' }
+    return { name: String(item.name || ''), rotated, expires, days, status, tone }
+  })
 }
-function queueTone(ms) {
-  if (!(ms >= 0)) return 'new'
-  if (ms >= QUEUE_WAIT_LATE) return 'late'
-  if (ms >= QUEUE_WAIT_SOON) return 'wait'
-  return 'new'
+function agingSortValue(row, key) {
+  if (key === 'name') return row.name.toLowerCase()
+  if (key === 'rotated') return row.rotated || null
+  if (key === 'expires') return row.expires || null
+  return row.days
 }
-// A single progress ring, filled against the 30-minute "late" threshold. The
-// track is dashed, so the two states differ by texture as well as colour.
-function queueRingHtml(ms) {
-  const fraction = ms >= 0 ? Math.min(1, ms / QUEUE_WAIT_LATE) : 0
-  const length = 2 * Math.PI * 12
-  const dash = Math.max(0.8, fraction * length)
-  const tone = queueTone(ms)
-  const stroke = tone === 'late' ? 'var(--red)' : tone === 'wait' ? 'var(--orange)' : 'var(--green)'
-  return '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">'
-    + '<circle cx="16" cy="16" r="12" fill="none" stroke="var(--hair-strong)" stroke-width="3" stroke-dasharray="3 3"/>'
-    + '<circle cx="16" cy="16" r="12" fill="none" stroke="' + stroke + '" stroke-width="3" stroke-linecap="round" stroke-dasharray="' + dash.toFixed(2) + ' ' + (length - dash).toFixed(2) + '" transform="rotate(-90 16 16)"/>'
-    + '</svg>'
+function agingSorted() {
+  const rows = agingRows()
+  const key = agingSort.key
+  rows.sort((a, b) => {
+    const av = agingSortValue(a, key)
+    const bv = agingSortValue(b, key)
+    // An item without an expiry is not "first": it stays after every dated
+    // row in both directions, so flipping the arrow never claims otherwise.
+    if (av === null && bv === null) return 0
+    if (av === null) return 1
+    if (bv === null) return -1
+    if (av < bv) return -agingSort.dir
+    if (av > bv) return agingSort.dir
+    return a.name.localeCompare(b.name)
+  })
+  return rows
 }
-function renderQueue() {
-  const list = $('queue-list'); if (!list) return
-  const countEl = $('queue-count')
-  const ring = $('queue-ring')
-  const sum = $('queue-sum')
-  const foot = $('queue-foot')
-  const empty = (title, text, retry) => {
+function agingDate(ms) {
+  if (!ms) return '—'
+  return new Date(ms).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+}
+function agingFull(ms) {
+  if (!ms) return '无'
+  return new Date(ms).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour12: false })
+}
+function agingRemaining(row) {
+  if (!row.expires) return '永久'
+  return row.days + ' 天'
+}
+function agingRowHtml(row) {
+  return '<tr data-aging-row="' + esc(row.name) + '">'
+    + '<td><button class="aging-row-btn" type="button" data-aging-open="' + esc(row.name) + '" title="' + esc(row.name) + '">' + esc(row.name) + '</button></td>'
+    + '<td title="' + esc(agingFull(row.rotated)) + '">' + agingDate(row.rotated) + '</td>'
+    + '<td title="' + esc(row.expires ? agingFull(row.expires) : '无到期日') + '">' + agingDate(row.expires) + '</td>'
+    + '<td title="' + esc(agingRemaining(row)) + '">' + agingRemaining(row) + '</td>'
+    + '<td><span class="aging-tag" data-tone="' + row.tone + '">' + row.status + '</span></td>'
+    + '</tr>'
+}
+function renderAging() {
+  const body = $('aging-rows'); if (!body) return
+  const countEl = $('aging-count')
+  const foot = $('aging-foot')
+  const more = $('aging-more')
+  const empty = (title, text, action) => {
     if (countEl) { countEl.textContent = '—'; countEl.removeAttribute('data-warn') }
     if (foot) foot.classList.add('hidden')
-    list.innerHTML = '<div class="queue-empty"><b>' + title + '</b><span>' + text + '</span>'
-      + (retry ? '<button class="small" id="queue-retry" type="button">重试</button>' : '') + '</div>'
-    const button = $('queue-retry')
-    if (button) button.onclick = () => { app.stateError = ''; loadState() }
+    body.innerHTML = '<tr><td colspan="5" class="aging-msg"><b>' + title + '</b><span>' + text + '</span>' + (action || '') + '</td></tr>'
   }
-  if (app.stateError) { empty('读取待审批请求失败', esc(app.stateError), true); return }
-  if (!app.stateLoaded) { empty('正在读取待审批请求…', '来自 /api/state，不需要额外轮询。', false); return }
-  const pending = ((app.data && app.data.pending) || []).slice()
-  if (!pending.length) { empty('没有待审批请求', 'Agent 请求读取密钥时会出现在这里，这是页面上唯一的处理入口。', false); return }
-  const now = Date.now()
-  // Oldest first: the top row is the one that has waited longest.
-  pending.sort((a, b) => queueWaitMs(b, now) - queueWaitMs(a, now))
-  const oldest = queueWaitMs(pending[0], now)
-  const tone = queueTone(oldest)
-  if (countEl) { countEl.textContent = pending.length + ' 件'; countEl.setAttribute('data-warn', '1') }
-  if (foot) foot.classList.remove('hidden')
-  list.innerHTML = pending.map((entry) => {
-    const ms = queueWaitMs(entry, now)
-    const rowTone = queueTone(ms)
-    const action = pendingActionLabel(entry) + ' ' + String(entry.name || '')
-    return '<button class="queue-row" type="button" data-tone="' + rowTone + '" title="' + esc(action) + '">'
-      + '<span class="queue-dot" aria-hidden="true"></span>'
-      + '<span class="queue-main"><span class="queue-agent">' + esc(pendingAgentLabel(entry)) + '</span><span class="queue-action">' + esc(action) + '</span></span>'
-      + '<span class="queue-wait">' + queueWaitLabel(ms) + '</span>'
-      + '<span class="queue-tone">' + QUEUE_TONE_LABEL[rowTone] + '</span>'
-      + '</button>'
-  }).join('')
-  list.querySelectorAll('.queue-row').forEach((row) => { row.onclick = () => openPendingSheet() })
-  if (ring) {
-    ring.setAttribute('role', 'img')
-    ring.setAttribute('aria-label', '待审批队列：' + pending.length + ' 件，最久等待 ' + queueWaitLabel(oldest) + '（' + QUEUE_TONE_LABEL[tone] + '）')
-    ring.innerHTML = queueRingHtml(oldest)
+  if (app.itemsError) {
+    empty('读取条目失败', esc(app.itemsError), '<div class="row"><button class="small" id="aging-retry" type="button">重试</button></div>')
+    const retry = $('aging-retry')
+    if (retry) retry.onclick = () => { app.itemsError = ''; renderAging(); loadAll() }
+    return
   }
-  if (sum) sum.innerHTML = '<b>最久等待 ' + queueWaitLabel(oldest) + '</b>'
-  const open = $('queue-open')
-  if (open) open.onclick = () => openPendingSheet()
+  if (!app.itemsLoaded) { empty('正在读取条目…', '清单只从这台服务器读取，不请求任何第三方。'); return }
+  const rows = agingSorted()
+  if (!rows.length) {
+    empty('没有可排期的条目', '空库里还没有密钥条目，新增一条后这里会列出到期与轮换。', '<div class="row"><button class="small" id="aging-go-items" type="button">去密钥页新增</button></div>')
+    const go = $('aging-go-items')
+    if (go) go.onclick = () => document.querySelector('#nav [data-view="items"]').click()
+    return
+  }
+  const shown = rows.slice(0, AGING_LIMIT)
+  body.innerHTML = shown.map(agingRowHtml).join('')
+  if (countEl) {
+    countEl.textContent = rows.length + ' 条'
+    if (rows.some((row) => row.tone !== 'green')) countEl.setAttribute('data-warn', '1')
+    else countEl.removeAttribute('data-warn')
+  }
+  if (foot) foot.classList.toggle('hidden', rows.length <= AGING_LIMIT)
+  if (more) more.textContent = rows.length > AGING_LIMIT ? '还有 ' + (rows.length - AGING_LIMIT) + ' 条未显示' : ''
+  agingPaintSort()
+}
+function agingPaintSort() {
+  document.querySelectorAll('#aging-table th[data-sort-key]').forEach((th) => {
+    const active = th.dataset.sortKey === agingSort.key
+    th.setAttribute('aria-sort', active ? (agingSort.dir === 1 ? 'ascending' : 'descending') : 'none')
+    const arrow = th.querySelector('.aging-arrow')
+    if (arrow) arrow.textContent = active ? (agingSort.dir === 1 ? '↑' : '↓') : ''
+  })
+}
+function openAgingAll() {
+  const rows = agingSorted()
+  openModal('到期与轮换', '<div class="hint">全部 ' + rows.length + ' 条 · 健康卡给计数，这里给日期</div>'
+    + '<div class="table-wrap"><table><caption>全部 ' + rows.length + ' 条：上次轮换、到期与剩余天数</caption>'
+    + '<thead><tr><th scope="col">条目</th><th scope="col">上次轮换</th><th scope="col">到期</th><th scope="col">剩余天数</th><th scope="col">状态</th></tr></thead>'
+    + '<tbody>' + rows.map(agingRowHtml).join('') + '</tbody></table></div>')
+  document.querySelectorAll('#modal [data-aging-open]').forEach((button) => {
+    button.onclick = () => openItemMenu(button.dataset.agingOpen)
+  })
 }
 // "How many Agents can use this" and "how many credentials can this Agent
 // read" are the same fact seen from two sides: a live grant. Grants arrive in
@@ -3660,15 +3736,13 @@ function renderNoticeBar() {
     noticeTimer = setInterval(() => { noticeIndex += 1; render() }, 4000)
   }
 }
-// The two counters on the banner (and the KPI card) open the matching sheet.
-// With approvals waiting the bar itself opens the approvals sheet; the
-// reminder pill stays separate so the counts cannot mask each other.
+// The sheet behind the approvals counter (KPI card and banner) and behind
+// every 查看全部 row. It is the detail view of the count, not a second listing
+// on the page.
 function openNotices() {
   if (((app.data && app.data.pending) || []).length) openPendingSheet()
   else openNoticeModal()
 }
-// The sheet behind the queue card. Approvals live in one place on the page, so
-// this is that place's detail view, not a second listing.
 function openPendingSheet() {
   const pending = (app.data && app.data.pending) || []
   const body = pending.length ? pending.map((entry) => '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">'

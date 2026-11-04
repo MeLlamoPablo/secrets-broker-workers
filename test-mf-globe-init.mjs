@@ -51,9 +51,9 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
   const noOpen = !ui.includes('id="globe-open"')
   const noStill = !ui.includes('id="globe-still"')
   const noAutoStart = !/if \(!globeBooted\) \{ globeBooted = true; try \{ initGlobe\(\) \}/.test(ui)
-  const hasQueue = ui.includes('id="queue-card"') && ui.includes('function renderQueue')
-  if (noOpen && noStill && noAutoStart && hasQueue) pass('G5 dashboard mounts the approval queue, not the globe')
-  else fail('G5', JSON.stringify({ noOpen, noStill, noAutoStart, hasQueue }))
+  const hasTable = ui.includes('id="aging-card"') && ui.includes('function renderAging')
+  if (noOpen && noStill && noAutoStart && hasTable) pass('G5 dashboard mounts the aging table, not the globe')
+  else fail('G5', JSON.stringify({ noOpen, noStill, noAutoStart, hasTable }))
 }
 await mf.dispose()
 const passed = results.filter((r) => r.ok).length

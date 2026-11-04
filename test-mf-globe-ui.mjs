@@ -17,22 +17,22 @@ const html = await mf.dispatchFetch('https://broker.test/', { headers: { cookie 
 
 // U1: the third dashboard column is the approval queue; the globe is gone
 {
-  // The globe card was replaced by an audit-free pending queue. The ids that
-  // remain are the ones the queue needs: the card, the count, the row list,
-  // the ring and the footer summary.
-  const need = ['id="queue-card"', 'id="queue-count"', 'id="queue-list"', 'id="queue-ring"', 'id="queue-sum"']
+  // The globe card was replaced by the expiry table. The ids that remain are
+  // the ones the table needs: the card, the count, the table, its row body and
+  // the footer that leads to the full list.
+  const need = ['id="aging-card"', 'id="aging-count"', 'id="aging-table"', 'id="aging-rows"', 'id="aging-foot"']
   const missing = need.filter((m) => !html.includes(m))
   const noGlobe = ['id="globe-card"', 'id="globe-box"', 'id="globe-open"', 'id="globe-still"', 'id="globe-pause"'].every((m) => !html.includes(m))
-  if (!missing.length && noGlobe) pass('U1 approval queue present, globe entry points removed')
+  if (!missing.length && noGlobe) pass('U1 aging table present, globe entry points removed')
   else fail('U1', JSON.stringify({ missing, noGlobe }))
 }
 // U2: the queue says what it counts, how long the oldest has waited, and never
 // claims real-time presence or a bar chart.
 {
-  const hasDisclaimer = html.includes('最久等待') && html.includes('待审批队列')
-  const card = (html.match(/id="queue-card"[\s\S]{0,1200}/) || [''])[0]
+  const hasDisclaimer = html.includes('上次轮换') && html.includes('剩余天数')
+  const card = (html.match(/id="aging-card"[\s\S]{0,1200}/) || [''])[0]
   const claimsOnline = /实时在线|柱状|条形/.test(card)
-  if (hasDisclaimer && !claimsOnline) pass('U2 approval queue labels its metric honestly')
+  if (hasDisclaimer && !claimsOnline) pass('U2 aging table labels its metric honestly')
   else fail('U2', JSON.stringify({ hasDisclaimer, claimsOnline }))
 }
 // U3: polling stops when hidden/paused, at whatever cadence the UI ships.
@@ -55,10 +55,11 @@ const html = await mf.dispatchFetch('https://broker.test/', { headers: { cookie 
   if (guarded && fallback) pass('U4 globe load failure is isolated with fallback')
   else fail('U4', JSON.stringify({ guarded, fallback }))
 }
-// U5: the approval queue has an explicit empty state instead of a blank panel
+// U5: the aging table has explicit loading and empty states instead of a blank
+// panel
 {
-  const empty = html.includes('没有待审批请求') && html.includes('Agent 请求读取密钥时会出现在这里')
-  if (empty) pass('U5 approval queue empty state present')
+  const states = html.includes('正在读取条目…') && html.includes('没有可排期的条目') && html.includes('读取条目失败')
+  if (states) pass('U5 aging table ships loading, empty and error states')
   else fail('U5', 'no empty state')
 }
 // U6: geo API returns the documented shape for incremental polling
