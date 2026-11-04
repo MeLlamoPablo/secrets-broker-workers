@@ -32,7 +32,7 @@ input[type=checkbox]{min-width:0;accent-color:var(--ok)}
 .row .chk{flex:0 0 auto;min-width:auto}
 button{border:0;font:inherit;cursor:pointer}
 button.small{white-space:nowrap}
-.notice-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;margin-bottom:12px;cursor:pointer;border:1px solid transparent;font-size:13px;overflow:hidden;transition:transform var(--dur-fade) var(--ease)}
+.notice-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:12px;margin-bottom:6px;cursor:pointer;border:1px solid transparent;font-size:13px;overflow:hidden;transition:transform var(--dur-fade) var(--ease)}
 .notice-bar:active{transform:translateY(1px)}
 .notice-bar .notice-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .notice-bar .notice-count{flex:0 0 auto;font-family:inherit;font-size:12px;line-height:18px;padding:2px 8px;border:0;border-radius:999px;background:rgba(0,0,0,.06);color:inherit;cursor:pointer}
@@ -672,11 +672,11 @@ html[data-theme="dark"] nav button.active{background:transparent;color:var(--ink
 .card{border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:var(--shadow-1);background:var(--surface);padding:18px 20px;margin-bottom:16px}
 .card>h2,h2{font-size:15px;line-height:22px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;color:var(--ink-1)}
 .hint{font-size:13px;line-height:18px;color:var(--ink-2)}
-.ov-head{align-items:center;margin-bottom:14px}
+.ov-head{align-items:center;margin-bottom:6px}
 .ov-title{font-size:var(--t-title);line-height:var(--lh-title);font-weight:700;letter-spacing:-.025em;margin:0}
 .ov-sub{margin-top:4px;font-size:13px;color:var(--ink-2)}
 #updated{color:var(--ink-3);font-size:12px}
-.kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:20px}
+.kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:4px}
 .kpi{min-height:96px;padding:14px 16px;border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:none;background:var(--surface)}
 .kpi .label{font-size:12px;font-weight:500;letter-spacing:.06em;color:var(--ink-2)}
 .kpi .value{font-size:30px;line-height:36px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
@@ -723,17 +723,23 @@ html[data-theme="dark"] nav button.active{background:transparent;color:var(--ink
 .aging-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-top:4px;padding-top:5px;border-top:1px solid var(--hair)}
 .aging-more{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink-2)}
 .dash .recent-card{grid-column:span 12}
-/* Right-bottom placement above 1100px: the aging table shares the last row
-   with the feed instead of sitting mid-page under the KPI row. Narrower layouts
-   keep the auto flow, so the phone order stays trend, ranking, health, share,
-   table, feed — the table never jumps to the top. */
+/* Wide placement: row 1 keeps the 7/5 trend+ranking pair, row 2 is the three
+   cards that fit above a 900px fold (health 5, share 3, aging table 4), and the
+   feed takes the last row alone. The table used to sit in row 3, 17px below the
+   fold at 1280x900; it now shares row 2 with health/share. The row is 276px so
+   the table still shows three rows plus its footer, and row 1 is 220px so the
+   chart is not clipped. Narrower layouts keep the auto flow, so the phone order
+   stays trend, ranking, health, share, table, feed — the table never jumps to
+   the top. */
 @media(min-width:1101px){
-.dash>.span2{grid-column:span 7;grid-row:1}
-.dash .rank-card{grid-column:span 5;grid-row:1}
-.dash #ov-actions{grid-column:span 6;grid-row:2}
-.dash .donut-card{grid-column:span 6;grid-row:2}
-.dash .recent-card{grid-column:1/span 8;grid-row:3}
-.dash #aging-card{grid-column:9/span 4;grid-row:3}
+.dash{gap:12px}
+.dash>.span2{grid-column:span 7;grid-row:1;height:220px;min-height:220px}
+.dash .rank-card{grid-column:span 5;grid-row:1;height:220px;min-height:220px}
+.dash #ov-actions{grid-column:span 5;grid-row:2;height:276px;min-height:276px}
+.dash .donut-card{grid-column:span 3;grid-row:2;height:276px;min-height:276px}
+.dash .recent-card{grid-column:1/span 12;grid-row:3}
+.dash #aging-card{grid-column:span 4;grid-row:2;height:276px;min-height:276px}
+.dash #chart-box svg{height:130px}
 }
 .dash .rank-box{max-height:none;flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}
 .dash .rank-box::-webkit-scrollbar{width:0;height:0;display:none}
