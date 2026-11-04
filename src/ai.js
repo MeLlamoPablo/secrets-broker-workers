@@ -20,7 +20,7 @@ export function aiSnapshot(state, extras = {}) {
   // text and the prompt both quote them back. The caller passes the same
   // server-side mask the console uses, so the AI sees what the UI sees.
   const mask = typeof extras.maskName === 'function' ? extras.maskName : (value) => value
-  const audit = (state.audit ?? []).slice(0, 60).map((entry) => ({
+  const audit = (extras.audit ?? state.audit ?? []).slice(0, 60).map((entry) => ({
     time: entry.time ?? '', event: entry.event ?? '', agent: entry.agent ?? '', name: mask(entry.name ?? ''),
     reason: entry.reason ?? '', severity: entry.severity ?? '',
   }))

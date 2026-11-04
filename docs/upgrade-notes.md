@@ -103,6 +103,15 @@ do {
 
 ---
 
+## 5. 审计存储迁到 D1（非破坏性）
+
+审计条目不再写进 Durable Object 的状态文档，而是逐条写入 `VAULT_DB` 的 `audit_v2` 表：
+
+- `/api/audit` 的 `total` / `hasMore` / 分页以 D1 为准，**不再有 500 条上限**（第 2 节的字段与响应头保持不变）。
+- `/api/state` 里的 `audit` 只是最近 500 条，供控制台首屏与提醒使用；要完整历史请走 `/api/audit`。
+- 旧部署里 `state.audit` 存量的条目会在第一次打开控制台或查询审计时自动搬进 `audit_v2`，搬完立即清空；不会重复写入。
+- 审计写失败只记日志，不再让已消费额度的 `secret.read` 变成 500。
+
 ## 附：另外两个新增的机器可读字段（非破坏性）
 
 - `request_access` 在 `outside_scope` / `not-in-scope` / `no-grant` 时返回 `next_step`（人话的补救动作）与 `docs`。只渲染 `code` 的第三方客户端也能据此提示管理员去「Agents → 权限矩阵」加入可申请范围。

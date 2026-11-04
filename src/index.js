@@ -1148,11 +1148,163 @@ async function updateState(env, mutate) {
   throw new Error('state write conflict: too many concurrent updates')
 }
 
+// Audit is a log, not part of the state document. One INSERT in D1 replaces the
+// whole-state CAS write, so a read that has already spent its capability can no
+// longer turn into a 500 because the log write lost a race. Best-effort by
+// design: losing one log line must never fail the operation it describes.
+const LEGACY_AUDIT_LIMIT = 500
+const AUDIT_INSERT = 'INSERT INTO audit_v2 (at, event, subject, detail) VALUES (?, ?, ?, ?)'
+const AUDIT_SELECT = 'SELECT detail FROM audit_v2'
+
+function auditRecord(entry) {
+  return { ...entry, time: entry?.time ?? nowIso() }
+}
+
+function auditParams(entry) {
+  const record = auditRecord(entry)
+  const nameMasked = record.name ? maskName(String(record.name)) : null
+  return [record.time, String(record.event ?? ''), record.name == null ? null : String(record.name), JSON.stringify(nameMasked ? { ...record, nameMasked } : record)]
+}
+
 async function addAudit(env, entry) {
-  return updateState(env, (state) => {
-    state.audit.unshift({ time: nowIso(), ...entry })
-    state.audit = state.audit.slice(0, 500)
+  try {
+    if (!env.VAULT_DB) {
+      // Deployments without the v2 database keep the old in-state trail.
+      return updateState(env, (state) => {
+        state.audit = [auditRecord(entry), ...(state.audit ?? [])].slice(0, LEGACY_AUDIT_LIMIT)
+      })
+    }
+    await env.VAULT_DB.prepare(AUDIT_INSERT).bind(...auditParams(entry)).run()
+  } catch (error) {
+    console.error('audit write failed: ' + String(error?.message ?? error))
+  }
+}
+
+function auditEntryFromRow(row) {
+  try { return JSON.parse(row.detail ?? '{}') } catch { return null }
+}
+
+// nameMasked is an index column, not part of the API contract. Drop it before
+// an entry leaves the server; masked responses add the boolean flag themselves.
+function stripAuditIndex(entry) {
+  if (!entry || !('nameMasked' in entry)) return entry
+  const { nameMasked, ...rest } = entry
+  return rest
+}
+
+function maskAuditRow(entry) {
+  return {
+    ...entry,
+    name: entry.name ? maskName(entry.name) : entry.name,
+    oldName: entry.oldName ? maskName(entry.oldName) : entry.oldName,
+    nameMasked: true,
+  }
+}
+
+function filterAuditRows(rows, { item, agent, kinds, query, fromMs, toMs }) {
+  return rows.filter((entry) => {
+    if (item && String(entry.name ?? '') !== item) return false
+    if (agent && entry.agent !== agent) return false
+    if (kinds && !auditEventMatches(kinds, entry.event)) return false
+    if (query && !['event', 'agent', 'name', 'reason'].some((key) => String(entry[key] ?? '').toLowerCase().includes(query))) return false
+    const at = Date.parse(String(entry.time ?? ''))
+    if (fromMs != null && Number.isFinite(at) && at < fromMs) return false
+    if (toMs != null && Number.isFinite(at) && at > toMs) return false
+    return true
   })
+}
+
+// Newest first, bounded. Used by /api/state, reminders, activity and item
+// enrichment, where "recent" is the only thing that matters.
+async function recentAuditEntries(env, state, limit = LEGACY_AUDIT_LIMIT) {
+  if (!env.VAULT_DB) return (state?.audit ?? []).slice(0, limit).map(stripAuditIndex)
+  try {
+    const rows = await env.VAULT_DB.prepare(AUDIT_SELECT + ' ORDER BY id DESC LIMIT ?').bind(limit).all()
+    return (rows.results ?? []).map(auditEntryFromRow).filter(Boolean).map(stripAuditIndex)
+  } catch (error) {
+    console.error('audit read failed: ' + String(error?.message ?? error))
+    return (state?.audit ?? []).slice(0, limit).map(stripAuditIndex)
+  }
+}
+
+// Everything since a timestamp, for statistics. The caller has already bounded
+// the window by range, so there is no extra cap here.
+async function auditEntriesSince(env, state, sinceMs) {
+  if (!env.VAULT_DB) return (state?.audit ?? []).filter((entry) => Number.isFinite(Date.parse(String(entry.time ?? '')))).map(stripAuditIndex)
+  try {
+    const rows = await env.VAULT_DB.prepare(AUDIT_SELECT + ' WHERE at >= ? ORDER BY id DESC').bind(new Date(sinceMs).toISOString()).all()
+    return (rows.results ?? []).map(auditEntryFromRow).filter(Boolean).map(stripAuditIndex)
+  } catch (error) {
+    console.error('audit read failed: ' + String(error?.message ?? error))
+    return []
+  }
+}
+
+// The entries in state.audit predate the table. Move them once, oldest first,
+// so the id order still matches the time order; clear only what was inserted.
+async function migrateLegacyAudit(env, state) {
+  if (!env.VAULT_DB || typeof env.VAULT_DB.batch !== 'function') return
+  const pending = Array.isArray(state?.audit) ? state.audit.slice() : []
+  if (!pending.length) return
+  const key = (entry) => String(entry?.time ?? '') + '\u0000' + String(entry?.event ?? '') + '\u0000' + String(entry?.name ?? '')
+  try {
+    await env.VAULT_DB.batch(pending.slice().reverse().map((entry) => env.VAULT_DB.prepare(AUDIT_INSERT).bind(...auditParams(entry))))
+    const claimed = new Set(pending.map(key))
+    await updateState(env, (next) => {
+      next.audit = (next.audit ?? []).filter((entry) => !claimed.has(key(entry)))
+      next.settings ??= {}
+      next.settings.legacyAuditMigratedAt = nowIso()
+      return next
+    })
+  } catch (error) {
+    console.error('legacy audit migration failed: ' + String(error?.message ?? error))
+  }
+}
+
+// Shared by /api/audit (paged) and its CSV export (limit = -1). Filtering lives
+// in SQLite so total/hasMore stay correct without loading the whole log.
+async function queryAuditPage(env, state, options) {
+  const { item, agent, kinds, query, fromMs, toMs, masked, limit, offset } = options
+  if (!env.VAULT_DB) {
+    const rows = (state?.audit ?? []).map(stripAuditIndex)
+    const visible = masked ? rows.map(maskAuditRow) : rows
+    const filtered = filterAuditRows(visible, { item, agent, kinds, query, fromMs, toMs })
+    const end = limit < 0 ? filtered.length : offset + limit
+    return { entries: filtered.slice(offset, end), total: filtered.length }
+  }
+  try {
+    const where = []
+    const values = []
+    const nameExpr = masked ? "json_extract(detail, '$.nameMasked')" : "json_extract(detail, '$.name')"
+    if (item) { where.push(nameExpr + ' = ?'); values.push(item) }
+    if (agent) { where.push("json_extract(detail, '$.agent') = ?"); values.push(agent) }
+    if (kinds) {
+      const clauses = []
+      const exact = []
+      for (const kind of kinds) {
+        if (kind.endsWith('.*')) { clauses.push('event LIKE ?'); values.push(kind.slice(0, -1) + '%') } else exact.push(kind)
+      }
+      if (exact.length) { clauses.push('event IN (' + exact.map(() => '?').join(', ') + ')'); values.push(...exact) }
+      where.push('(' + clauses.join(' OR ') + ')')
+    }
+    if (query) {
+      const like = '%' + String(query).toLowerCase() + '%'
+      where.push('(lower(event) LIKE ? OR lower(json_extract(detail, \'$.agent\')) LIKE ? OR lower(' + nameExpr + ') LIKE ? OR lower(json_extract(detail, \'$.reason\')) LIKE ?)')
+      values.push(like, like, like, like)
+    }
+    if (fromMs != null) { where.push('at >= ?'); values.push(new Date(fromMs).toISOString()) }
+    if (toMs != null) { where.push('at <= ?'); values.push(new Date(toMs).toISOString()) }
+    const clause = where.length ? ' WHERE ' + where.join(' AND ') : ''
+    const count = await env.VAULT_DB.prepare('SELECT COUNT(*) AS n FROM audit_v2' + clause).bind(...values).first()
+    const total = Number(count?.n ?? 0)
+    const rows = await env.VAULT_DB.prepare(AUDIT_SELECT + clause + ' ORDER BY id DESC LIMIT ? OFFSET ?').bind(...values, limit, offset).all()
+    const entries = (rows.results ?? []).map(auditEntryFromRow).filter(Boolean)
+      .map((entry) => (masked ? maskAuditRow(stripAuditIndex(entry)) : stripAuditIndex(entry)))
+    return { entries, total }
+  } catch (error) {
+    console.error('audit query failed: ' + String(error?.message ?? error))
+    return { entries: [], total: 0 }
+  }
 }
 
 // The OIDC providers. The old single configuration is exposed as the
@@ -2399,7 +2551,12 @@ async function syncKeyMatch(env, account, peer) {
 // masked form, because both the insights text and the model prompt quote them.
 async function aiSnapshotFor(env, state, session = null) {
   const masked = await shouldMaskConsole(env)
-  return aiSnapshot(state, { vaultUnlocked: Boolean(session), scope: await vaultItemNames(env, env.NODEWARDEN_DB), maskName: masked ? maskName : undefined })
+  return aiSnapshot(state, {
+    vaultUnlocked: Boolean(session),
+    scope: await vaultItemNames(env, env.NODEWARDEN_DB),
+    maskName: masked ? maskName : undefined,
+    audit: await recentAuditEntries(env, state, 60),
+  })
 }
 
 // Locked consoles still need to approve requests, but they must not read the
@@ -2533,7 +2690,7 @@ function publicState(state, options = {}) {
       }
     }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
     transfers: (state.transfers ?? []).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, sourceAccount: entry.sourceAccount, targetAccount: entry.targetAccount, folder: entry.folder, createdAt: entry.createdAt, error: entry.error ?? '' })),
-    audit: state.audit ?? [],
+    audit: options.audit ?? (state.audit ?? []),
     syncDevices: syncDeviceList(state),
   }
   return options.masked === true ? maskStateView(view) : view
@@ -3134,9 +3291,8 @@ function reminderSeverity(daysLeft) {
   return 'warning'
 }
 
-function buildReminders(state, now = Date.now()) {
+function buildReminders(state, now = Date.now(), audit = state.audit ?? []) {
   const reminders = []
-  const audit = state.audit ?? []
   const lastActivity = new Map()
   for (const entry of audit) {
     if (!entry.agent) continue
@@ -3218,8 +3374,8 @@ function reminderSentKey(r) {
 
 // Send once per (agent, kind, threshold) so a 5-day reminder does not repeat on
 // every page load. State lives under state.reminderSent.
-async function dispatchReminderBatch(env, state, origin, ctx, now = Date.now()) {
-  const reminders = buildReminders(state, now)
+async function dispatchReminderBatch(env, state, origin, ctx, now = Date.now(), audit = null) {
+  const reminders = buildReminders(state, now, audit ?? (await recentAuditEntries(env, state, LEGACY_AUDIT_LIMIT)))
   if (!reminders.length) return { sent: 0, reminders: 0 }
   const sentMap = state.reminderSent ?? {}
   const TTL = 20 * 3600e3
@@ -4548,10 +4704,10 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
   return { status: 'allowed', itemId: resolvedItemId, value: result.value, url: result.url, noApproval: readGuard.noApproval === true }
 }
 
-function statsFor(state, range) {
+function statsFor(state, range, audit = state.audit ?? []) {
   const rangeMs = range === '7d' ? 7 * 86400e3 : range === '30d' ? 30 * 86400e3 : 24 * 3600e3
   const start = Date.now() - rangeMs
-  const reads = (state.audit ?? []).filter((entry) => entry.event === 'secret.read' && Date.parse(entry.time) >= start)
+  const reads = audit.filter((entry) => entry.event === 'secret.read' && Date.parse(entry.time) >= start)
   const bucketCount = range === '24h' ? 24 : range === '7d' ? 28 : 30
   const bucketMs = rangeMs / bucketCount
   const buckets = Array.from({ length: bucketCount }, (_, index) => {
@@ -4933,7 +5089,7 @@ export default {
       const byItem = {}
       let reads = 0
       let denied = 0
-      for (const entry of state.audit ?? []) {
+      for (const entry of await auditEntriesSince(env, state, since)) {
         const at = Date.parse(entry.time ?? '')
         if (!Number.isFinite(at) || at < since) continue
         const event = String(entry.event ?? '')
@@ -5140,7 +5296,7 @@ export default {
       const state = await loadState(env)
       const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit')) || 30))
       const skip = new Set(['admin.login', 'admin.oidc-login', 'admin.login-fail', 'vault.unlock', 'vault.lock'])
-      const activity = (state.audit ?? [])
+      const activity = (await recentAuditEntries(env, state, limit + skip.size))
         .filter((entry) => !skip.has(String(entry.event ?? '')))
         .slice(0, limit)
         .map((entry) => ({
@@ -5976,7 +6132,7 @@ export default {
         // not have to open every item to see whether it is still in use.
         const state = await loadState(env)
         const latest = new Map()
-        for (const entry of state.audit ?? []) {
+        for (const entry of await recentAuditEntries(env, state, LEGACY_AUDIT_LIMIT)) {
           const item = entry.name || entry.oldName
           if (!item) continue
           const time = Date.parse(entry.time)
@@ -6024,7 +6180,7 @@ export default {
         return next
       })
       await addAudit(env, { event: 'policy.update', name, noApproval: body.noApproval === true })
-      const view = publicState(state)
+      const view = publicState(state, { audit: await recentAuditEntries(env, state, LEGACY_AUDIT_LIMIT) })
       return json({ ok: true, state: { ...view, fillPolicies: { ...view.fillPolicies, executionLayer: Boolean(String(env.FILL_EXECUTION_TOKEN ?? '')) } } })
     }
     if (url.pathname === '/api/use-policies' && request.method === 'POST') {
@@ -6643,14 +6799,16 @@ export default {
     if (url.pathname === '/api/state') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const state = await loadState(env)
-      const reminders = buildReminders(state)
+      await migrateLegacyAudit(env, state)
+      const audit = await recentAuditEntries(env, state, LEGACY_AUDIT_LIMIT)
+      const reminders = buildReminders(state, Date.now(), audit)
       // Fire the notification batch opportunistically on admin page loads; the
       // helper de-duplicates per (agent, kind, threshold) so this cannot spam.
-      try { await dispatchReminderBatch(env, state, url.origin, ctx) } catch {}
+      try { await dispatchReminderBatch(env, state, url.origin, ctx, Date.now(), audit) } catch {}
     // Locked sessions can still load this view: approvals are decided by id, and
     // the names they carry are masked server-side until the vault is unlocked.
     const masked = await shouldMaskConsole(env)
-    const view = publicState(state, { masked })
+    const view = publicState(state, { masked, audit })
     return json({ ...view, geoEnabled: GEO_ENABLED(env), fillPolicies: { ...view.fillPolicies, executionLayer: Boolean(String(env.FILL_EXECUTION_TOKEN ?? '')) }, reminders, pendingCount: Object.keys(state.pending ?? {}).length })
     }
     // Read-only migration report: which agents still rely on legacy paths,
@@ -7275,7 +7433,8 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const range = url.searchParams.get('range') ?? '24h'
       const state = await loadState(env)
-      return json(statsFor(state, range))
+      const rangeMs = range === '7d' ? 7 * 86400e3 : range === '30d' ? 30 * 86400e3 : 24 * 3600e3
+      return json(statsFor(state, range, await auditEntriesSince(env, state, Date.now() - rangeMs)))
     }
     if (url.pathname === '/api/audit') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
@@ -7286,13 +7445,8 @@ export default {
       // Leaving raw names here would let a locked console read them by
       // re-exporting the log, so mask the name field and nothing else: events,
       // timestamps, actions and outcomes keep their audit meaning.
+      await migrateLegacyAudit(env, state)
       const masked = await shouldMaskConsole(env)
-      const all = state.audit ?? []
-      // Mask before filtering: when the console is locked its item picker only
-      // has masked labels, so matching on the raw name would return nothing.
-      const rows = masked
-        ? all.map((entry) => ({ ...entry, name: entry.name ? maskName(entry.name) : entry.name, oldName: entry.oldName ? maskName(entry.oldName) : entry.oldName, nameMasked: true }))
-        : all
       const item = param('item')
       const agent = param('agent')
       const eventFilter = param('event')
@@ -7300,16 +7454,7 @@ export default {
       const fromMs = parseAuditBound(param('from'), false)
       const toMs = parseAuditBound(param('to'), true)
       const kinds = eventFilter ? (AUDIT_EVENT_GROUPS[eventFilter] ?? [eventFilter]) : null
-      const filtered = rows.filter((entry) => {
-        if (item && entry.name !== item) return false
-        if (agent && entry.agent !== agent) return false
-        if (kinds && !auditEventMatches(kinds, entry.event)) return false
-        if (query && !['event', 'agent', 'name', 'reason'].some((key) => String(entry[key] ?? '').toLowerCase().includes(query))) return false
-        const at = Date.parse(String(entry.time ?? ''))
-        if (fromMs != null && Number.isFinite(at) && at < fromMs) return false
-        if (toMs != null && Number.isFinite(at) && at > toMs) return false
-        return true
-      })
+      const filters = { item, agent, kinds, query, fromMs, toMs, masked }
       const format = param('format')
       if (format === 'csv') {
         // Audit is still an export: the same second factor as any other export
@@ -7326,6 +7471,8 @@ export default {
         }, 428)
         const refused = await confirmSensitive(request, env, body, 'audit.export', true)
         if (refused) return refused
+        // The export is the whole filtered log, not the page the console shows.
+        const { entries: filtered } = await queryAuditPage(env, state, { ...filters, limit: -1, offset: 0 })
         const fields = ['time', 'event', 'agent', 'name', 'action', 'source', 'ok', 'account', 'targetOrigin', 'reason']
         const cell = (value) => {
           const text = value === undefined || value === null ? '' : (typeof value === 'object' ? JSON.stringify(value) : String(value))
@@ -7349,29 +7496,32 @@ export default {
       // whole log just to filter it locally.
       const limit = Math.min(500, Math.max(1, Number(param('limit')) || 200))
       const offset = Math.max(0, Number(param('offset')) || 0)
-      const page = filtered.slice(offset, offset + limit)
+      const { entries: page, total } = await queryAuditPage(env, state, { ...filters, limit, offset })
       // A client that only reads `entries` can no longer mistake a page for the
       // whole log: firstPage says which window this is, and the headers repeat
       // the totals for callers that never parse the body.
       return json({
         entries: page,
-        total: filtered.length,
+        total,
         offset,
         limit,
-        hasMore: offset + limit < filtered.length,
+        hasMore: offset + limit < total,
         firstPage: offset === 0,
         page: Math.floor(offset / limit) + 1,
-        pageCount: Math.max(1, Math.ceil(filtered.length / limit)),
+        pageCount: Math.max(1, Math.ceil(total / limit)),
         masked,
       }, 200, {
-        'x-audit-total': String(filtered.length),
-        'x-audit-has-more': String(offset + limit < filtered.length),
+        'x-audit-total': String(total),
+        'x-audit-has-more': String(offset + limit < total),
         'x-audit-page-size': String(limit),
         'x-audit-offset': String(offset),
       })
     }
     if (url.pathname === '/api/audit/clear' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      if (env.VAULT_DB) {
+        try { await env.VAULT_DB.prepare('DELETE FROM audit_v2').run() } catch (error) { return fail('audit clear failed: ' + String(error?.message ?? error), 500) }
+      }
       await updateState(env, (state) => { state.audit = []; return state })
       return json({ ok: true })
     }
