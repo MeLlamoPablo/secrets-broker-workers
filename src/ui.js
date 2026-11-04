@@ -33,7 +33,7 @@ input[type=checkbox]{min-width:0;accent-color:var(--ok)}
 button{border:0;font:inherit;cursor:pointer}
 button.small{white-space:nowrap}
 .notice-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;margin-bottom:12px;cursor:pointer;border:1px solid transparent;font-size:13px;overflow:hidden;transition:transform var(--dur-fade) var(--ease)}
-.notice-bar:active{transform:scale(.995)}
+.notice-bar:active{transform:translateY(1px)}
 .notice-bar .notice-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .notice-bar .notice-count{flex:0 0 auto;font-size:12px;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.06)}
 .notice-bar .notice-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%}
@@ -207,9 +207,9 @@ html[data-theme="dark"] .kind-none{background:#3b1d1d;color:#f08f86;border-color
 .legend div.active{background:var(--btn);font-weight:600}
 .legend{font-size:12px;flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px;align-content:flex-start;overflow-y:auto;max-height:100%;scrollbar-width:none;-ms-overflow-style:none}
 .legend::-webkit-scrollbar{width:0;height:0;display:none}
-.legend div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;cursor:pointer;border-radius:6px;padding:1px 4px;min-width:0;width:100%;transition:background-color var(--dur-fade) var(--ease)}
+.legend div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;cursor:pointer;border-radius:6px;padding:1px 4px;min-width:0;width:100%;transition:background-color var(--dur-fade) var(--ease),transform var(--dur-fade) var(--ease)}
 .legend div:hover{background:var(--surface-2)}
-.legend div:active{background:var(--fill-2)}
+.legend div:active{background:var(--fill-2);transform:translateY(1px)}
 .legend div span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .legend div b{flex:0 0 auto;font-weight:500}
 .dot{display:inline-block;width:8px;height:8px;border-radius:99px;margin-right:6px;flex:0 0 auto}
