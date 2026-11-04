@@ -29,13 +29,15 @@ const isrc = fs.readFileSync('src/index.js', 'utf8')
   if (cols && !earlyCollapse) pass('F2 agent stats stay in 3 columns')
   else fail('F2', JSON.stringify({ cols, earlyCollapse }))
 }
-// F3: the expiry table keeps a compact card below the ranking pair
+// F3: the expiry table follows the ranking pair in source order and precedes
+// the feed. It no longer renders under the ranking pair visually: the wide grid
+// puts it in row 2, third column, so the assertion stays a DOM-order check.
 {
   const before = html.indexOf('id="aging-card"')
   const after = html.indexOf('id="recent-box"')
   const ranked = html.indexOf('id="top-box"')
   const inFlow = before > ranked && before < after
-  if (inFlow) pass('F3 aging table sits under the ranking pair')
+  if (inFlow) pass('F3 aging table follows the ranking pair in DOM order (visual row 2, column 3) and precedes the feed')
   else fail('F3', JSON.stringify({ before, ranked, after }))
 }
 // F4: globe canvas is compact, matching the donut card

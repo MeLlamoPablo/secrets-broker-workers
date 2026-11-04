@@ -26,12 +26,17 @@ const skipBrowser = (n) => {
 }
 
 // S1: the overview reads headline, widgets, trend, ranking, work, share, aging table, recent
+// and the wide grid keeps row 1 as 7+5, row 2 as the three cards that fit a
+// 900px fold, with the feed alone in row 3.
 {
   const order = ['id="ov-sub"', 'id="kpis"', 'id="chart-box"', 'id="top-box"', 'id="ov-actions"', 'id="donut-box"', 'id="aging-card"', 'id="recent-box"']
   const idx = order.map((id) => ui.indexOf(id))
   const inOrder = idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1]))
-  if (inOrder) pass('S1 overview ordered: headline, widgets, trend, ranking, work, share, aging table, recent')
-  else fail('S1', JSON.stringify(idx))
+  const row1 = ui.includes('.dash>.span2{grid-column:span 7;grid-row:1;height:220px') && ui.includes('.dash .rank-card{grid-column:span 5;grid-row:1;height:220px')
+  const row2 = ui.includes('.dash #ov-actions{grid-column:span 5;grid-row:2;height:276px') && ui.includes('.dash .donut-card{grid-column:span 3;grid-row:2') && ui.includes('.dash #aging-card{grid-column:span 4;grid-row:2;height:276px')
+  const feed = ui.includes('.dash .recent-card{grid-column:1/span 12;grid-row:3}')
+  if (inOrder && row1 && row2 && feed) pass('S1 overview ordered: headline, widgets, trend, ranking, work, share, aging table, recent (7+5 / 5+3+4 / feed)')
+  else fail('S1', JSON.stringify({ idx, row1, row2, feed }))
 }
 // S2: every panel is a fixed-height grid child
 {
@@ -139,15 +144,16 @@ const skipBrowser = (n) => {
   ['dashboard','login-card','unlock-card'].forEach(function(id){ var el=document.getElementById(id); if(el){ if(id==='dashboard') el.classList.remove('hidden'); else el.classList.add('hidden') } });
   document.querySelectorAll('.view').forEach(function(s){ s.classList.toggle('hidden', s.id !== 'view-overview') });
   var box=document.getElementById('recent-box'); if(box) box.innerHTML=Array(12).join('<div class="feed-row">line</div>');
-  var top=document.getElementById('top-box'); if(top) top.innerHTML=Array(20).join('<div class="rank__row"><div class="rank__head"><span class="rank__name">1. name</span><span class="rank__count">9 次</span></div><div class="rank__track"><div class="rank__fill" style="width:40%"></div></div></div>');
+  var rank=document.getElementById('top-box'); if(rank) rank.innerHTML=Array(20).join('<div class="rank__row"><div class="rank__head"><span class="rank__name">1. name</span><span class="rank__count">9 次</span></div><div class="rank__track"><div class="rank__fill" style="width:40%"></div></div></div>');
   var kp=document.getElementById('kpis'); if(kp) kp.innerHTML=Array(5).join('<div class="kpi"><div class="label">l</div><div class="value">1</div><div class="sub">s</div></div>');
   var oa=document.getElementById('ov-actions'); if(oa) oa.innerHTML='<div class="ov-action"><div>有 3 条请求等待</div><button class="small">去处理</button></div>';
   var chart=document.getElementById('chart-box'); if(chart) chart.innerHTML='<svg viewBox="0 0 600 180"><rect x="40" y="40" width="20" height="120" fill="#5b6cff"/></svg>';
   function bottom(sel){ var el=document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().bottom) : 0 }
-  // The aging table now shares the last row with the feed, so "second row" is
-  // the health + share pair; the table is measured separately to keep its move
-  // visible.
-  var o={ fold: innerHeight, trend: bottom('.dash>.span2'), row2: Math.max(bottom('#ov-actions'), bottom('.donut-card')), aging: bottom('#aging-card') };
+  function topOf(sel){ var el=document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().top) : 0 }
+  // Row 2 is now health + share + the aging table; the feed is alone in row 3.
+  // Y values are page coordinates, so the 900px fold is checked as "<= 880"
+  // rather than against innerHeight (headless windows are not 900px tall).
+  var o={ fold: innerHeight, trend: bottom('.dash>.span2'), row2: Math.max(bottom('#ov-actions'), bottom('.donut-card'), bottom('#aging-card')), aging: bottom('#aging-card'), feedTop: topOf('#recent-box') };
   var pre=document.createElement('pre'); pre.id='M'; pre.textContent=JSON.stringify(o); document.body.appendChild(pre);
 })();
 </script></body></html>`
@@ -163,7 +169,7 @@ const skipBrowser = (n) => {
     else if (!m) fail('S7', 'chrome produced no measurement (status ' + out.status + ')')
     else {
       const d = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'))
-      if (d.trend > 0 && d.row2 <= d.fold) pass('S7 1280x900: both dashboard rows above the fold (row2 bottom ' + d.row2 + ' of ' + d.fold + ')')
+      if (d.trend > 0 && d.aging > 0 && d.row2 === d.aging && d.aging <= 880 && d.feedTop > d.aging) pass('S7 1280x900: row2 (health/share/aging) bottom ' + d.row2 + ' <= 880, feed starts at ' + d.feedTop)
       else fail('S7', JSON.stringify(d))
     }
   }
