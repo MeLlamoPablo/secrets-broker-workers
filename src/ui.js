@@ -35,7 +35,7 @@ button.small{white-space:nowrap}
 .notice-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;margin-bottom:12px;cursor:pointer;border:1px solid transparent;font-size:13px;overflow:hidden;transition:transform var(--dur-fade) var(--ease)}
 .notice-bar:active{transform:translateY(1px)}
 .notice-bar .notice-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.notice-bar .notice-count{flex:0 0 auto;font-size:12px;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.06)}
+.notice-bar .notice-count{flex:0 0 auto;font-family:inherit;font-size:12px;line-height:18px;padding:2px 8px;border:0;border-radius:999px;background:rgba(0,0,0,.06);color:inherit;cursor:pointer}
 .notice-bar .notice-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%}
 .notice-bar[data-tone="red"]{background:#fdecec;border-color:#f5c2c2;color:#a12b2b}
 .notice-bar[data-tone="red"] .notice-dot{background:var(--red)}
@@ -1919,8 +1919,8 @@ $('agents-box').addEventListener('click', (event) => {
 })
 const noticeBar = $('notice-bar')
 if (noticeBar) {
-  noticeBar.onclick = openNoticeModal
-  noticeBar.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openNoticeModal() } }
+  noticeBar.onclick = openNotices
+  noticeBar.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openNotices() } }
 }
 $('agent-new').onclick = openAgentCreate
 const agentMatrixButton = $('agent-matrix'); if (agentMatrixButton) agentMatrixButton.onclick = openPermissionMatrix
@@ -2728,13 +2728,10 @@ function openKpiModal(kind) {
   } else if (kind === 'grants') {
     const now = Date.now(); const active = (app.data.grants || []).filter((grant) => !grant.revokedAt && (!grant.expiresAt || grant.expiresAt > now) && (!grant.maxReads || (grant.reads ?? 0) < grant.maxReads))
     openModal('有效授权', active.length ? '<table><tr><th>Agent</th><th>条目</th><th>到期</th><th>读取</th></tr>' + active.map((grant) => '<tr><td>' + esc(agentLabel(grant.agent)) + '</td><td><code>' + esc(grant.name) + '</code></td><td>' + (grant.expiresAt ? new Date(grant.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久') + '</td><td>' + (grant.reads ?? 0) + '/' + (grant.maxReads || '∞') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无有效授权</div>')
-  } else {
-    const since = Date.now() - 86400e3
-    const rows = (app.data.deniedAttempts || []).filter((entry) => {
-      const at = Date.parse(entry.lastAt)
-      return Number.isFinite(at) && at >= since
-    })
-    openModal('最近 24 小时被拦下的请求', rows.length ? '<table><tr><th>Agent</th><th>条目</th><th>次数</th><th>最近</th></tr>' + rows.map((entry) => '<tr><td>' + esc(agentLabel(entry.agent)) + '</td><td><code>' + esc(entry.name) + '</code></td><td>' + (entry.count || 1) + '</td><td>' + esc(entry.lastAt ? new Date(entry.lastAt).toLocaleString('zh-CN', { hour12: false }) : '') + '</td></tr>').join('') + '</table>' : '<div class="hint">最近 24 小时没有被拒绝的读取</div>')
+  } else if (kind === 'pending') {
+    // The card and the banner both land on this one sheet, so an approval is
+    // read in one place while the two counters stay in agreement.
+    openPendingSheet()
   }
 }
 let legendPage = 0
@@ -2894,15 +2891,9 @@ function renderTrendFace() {
 
 function renderStats() {
   const stats = app.stats || { totalReads: 0, activeAgents: 0, pending: 0, activeGrants: 0, buckets: [], topItems: [], topAgents: [] }
-  // The third card used to repeat the queue count (plus reminders), which put
-  // "3 / 4 / 3" for the same approvals on one screen. It is now a metric the
-  // queue does not carry: requests the broker refused in the last 24h.
-  const since = Date.now() - 86400e3
-  const denied24 = ((app.data && app.data.deniedAttempts) || []).filter((entry) => {
-    const at = Date.parse(entry.lastAt)
-    return Number.isFinite(at) && at >= since
-  }).length
-  const cards = [{ l: '读取次数', v: stats.totalReads, sub: '当前区间 · 点开查看', view: 'reads' }, { l: '活跃 Agent', v: stats.activeAgents, sub: '有读取记录', view: 'agents' }, { l: '24 小时被拒', v: denied24, sub: denied24 ? '点开查看被拦请求' : '没有新的拒绝', warn: denied24 > 0, view: 'denied' }, { l: '有效授权', v: stats.activeGrants, sub: '含免审批', view: 'grants' }]
+  const pendingCount = ((app.data && app.data.pending) || []).length
+  const reminderCount = ((app.data && app.data.reminders) || []).length
+  const cards = [{ l: '读取次数', v: stats.totalReads, sub: '当前区间 · 点开查看', view: 'reads' }, { l: '活跃 Agent', v: stats.activeAgents, sub: '有读取记录', view: 'agents' }, { l: '待审批', v: pendingCount, sub: reminderCount ? '提醒 ' + reminderCount + ' 条 · 点开处理' : '点开处理', warn: pendingCount > 0, view: 'pending' }, { l: '有效授权', v: stats.activeGrants, sub: '含免审批', view: 'grants' }]
   // No sparkline in the KPI: its series is the same one the trend card draws
   // two rows below, so it only restated the chart at 20px tall.
   $('kpis').innerHTML = cards.map((card) => '<div class="kpi' + (card.warn ? ' warn' : '') + '" data-kpi="' + card.view + '"' + (card.event ? ' data-kpi-event="' + card.event + '"' : '') + '><div class="label">' + card.l + '</div><div class="value">' + card.v + '</div><div class="sub">' + card.sub + '</div></div>').join('')
@@ -3598,11 +3589,19 @@ function markNoticeRead(id) {
 }
 function noticeItems() {
   const data = app.data || {}
-  // Approvals belong to the queue card only. The banner used to win them
-  // (the old early return), which put the same request in
-  // three places on one screen and *hid* every reminder while approvals were
-  // waiting. It now carries only reminders: things no card on this page shows.
-  return (data.reminders || []).map((item) => ({
+  // Approvals and reminders share the banner, and neither is allowed to hide
+  // the other: the old early return dropped every reminder while approvals
+  // waited. Both counts are printed as labels on the bar, so the number here
+  // matches the KPI card instead of being pending + reminders in one figure.
+  const pending = (data.pending || []).map((entry) => ({
+    id: 'pending:' + (entry.id || ''),
+    tone: 'warn',
+    level: 'pending',
+    text: pendingAgentLabel(entry) + '：' + pendingActionLabel(entry) + ' ' + String(entry.name || ''),
+    kind: 'pending',
+    entry,
+  }))
+  const reminders = (data.reminders || []).map((item) => ({
     id: 'reminder:' + item.kind + ':' + (item.agent || ''),
     tone: item.severity === 'critical' ? 'bad' : (item.severity === 'warning' ? 'warn' : 'plain'),
     level: item.severity === 'critical' ? 'critical' : (item.severity === 'warning' ? 'warning' : 'notice'),
@@ -3610,6 +3609,11 @@ function noticeItems() {
     kind: item.kind,
     entry: item,
   }))
+  return pending.concat(reminders)
+}
+function noticeCounts() {
+  const data = app.data || {}
+  return { pending: (data.pending || []).length, reminders: (data.reminders || []).length }
 }
 function renderNoticeBar() {
   const bar = $('notice-bar')
@@ -3623,12 +3627,14 @@ function renderNoticeBar() {
   bar.dataset.level = top.level
   const render = () => {
     const item = items[noticeIndex % items.length]
+    const counts = noticeCounts()
     bar.dataset.level = item.level
     bar.dataset.tone = item.tone
-    bar.innerHTML = '<span class="notice-dot"></span><span class="notice-text">' + esc(item.text) + '</span>' +
-      '<span class="notice-count">' + items.length + '</span>' +
-      '<button class="notice-more" data-notice-dismiss="' + esc(item.id) + '" title="标记这条为已读">已读</button>' +
-      '<span class="notice-more">查看全部 ›</span>'
+    bar.innerHTML = '<span class="notice-dot"></span><span class="notice-text">' + esc(item.text) + '</span>'
+      + (counts.pending ? '<button type="button" class="notice-count" data-kind="pending" data-notice-open="pending">待审批 ' + counts.pending + '</button>' : '')
+      + (counts.reminders ? '<button type="button" class="notice-count" data-kind="reminder" data-notice-open="reminder">提醒 ' + counts.reminders + '</button>' : '')
+      + '<button class="notice-more" data-notice-dismiss="' + esc(item.id) + '" title="标记这条为已读（只隐藏横幅，不改审批状态）">已读</button>'
+      + '<span class="notice-more">查看全部 ›</span>'
   }
   render()
   if (noticeTimer) clearInterval(noticeTimer)
@@ -3640,9 +3646,26 @@ function renderNoticeBar() {
       renderNoticeBar()
     }
   })
+  // Each counter is its own entry point, so a waiting approval can never hide
+  // the reminders behind it: the reminder pill opens the reminder sheet even
+  // when the approvals pill (and the bar itself) opens the approvals sheet.
+  bar.querySelectorAll('[data-notice-open]').forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation()
+      if (button.dataset.noticeOpen === 'reminder') openNoticeModal()
+      else openPendingSheet()
+    }
+  })
   if (items.length > 1) {
     noticeTimer = setInterval(() => { noticeIndex += 1; render() }, 4000)
   }
+}
+// The two counters on the banner (and the KPI card) open the matching sheet.
+// With approvals waiting the bar itself opens the approvals sheet; the
+// reminder pill stays separate so the counts cannot mask each other.
+function openNotices() {
+  if (((app.data && app.data.pending) || []).length) openPendingSheet()
+  else openNoticeModal()
 }
 // The sheet behind the queue card. Approvals live in one place on the page, so
 // this is that place's detail view, not a second listing.
