@@ -3,6 +3,9 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-19",
   "observability": { "enabled": true },
+  // scheduled() expires abandoned fill tasks and dispatches reminders. Without
+  // this trigger those only run when an admin happens to open the console.
+  "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
     "VAULT_EMAIL": "you@example.com",
     "MCP_ALLOW_READ": "1",

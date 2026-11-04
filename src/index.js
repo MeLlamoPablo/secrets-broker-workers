@@ -475,7 +475,14 @@ export class BrokerState extends DurableObject {
     }
 
     if (url.pathname === '/fill/task/list' && request.method === 'POST') {
-      const ledger = (await this.ctx.storage.get('fillTasks')) ?? {}
+      // Sweep inside the same transaction as the read: countOpenTasks() calls
+      // this endpoint, so an abandoned task stops counting as open the moment
+      // its deadline passes instead of pinning the credential forever.
+      const ledger = await this.ctx.storage.transaction(async (txn) => {
+        const current = (await txn.get('fillTasks')) ?? {}
+        if (sweepFillTasks(current, Date.now()).length) await txn.put('fillTasks', current)
+        return current
+      })
       const tasks = Object.values(ledger).map((task) => ({
         taskId: task.taskId, state: task.state, agent: task.agent, accountId: task.accountId,
         cipherId: task.cipherId, executorId: task.executorId, origin: task.origin,
@@ -602,20 +609,7 @@ export class BrokerState extends DurableObject {
     if (url.pathname === '/fill/task/expire' && request.method === 'POST') {
       const result = await this.ctx.storage.transaction(async (txn) => {
         const ledger = (await txn.get('fillTasks')) ?? {}
-        const now = Date.now()
-        const expired = []
-        for (const [taskId, task] of Object.entries(ledger)) {
-          if (FILL_TASK_TERMINAL.has(task.state)) continue
-          const limit = FILL_TASK_TIMEOUT_MS[task.state] ?? 0
-          const deadline = (task.updatedAt ?? task.createdAt ?? now) + limit
-          if (now > deadline) {
-            task.state = 'expired'
-            task.updatedAt = now
-            task.expiredAt = now
-            ledger[taskId] = task
-            expired.push(taskId)
-          }
-        }
+        const expired = sweepFillTasks(ledger, Date.now())
         await txn.put('fillTasks', ledger)
         return { ok: true, expired }
       })
@@ -3709,6 +3703,30 @@ const FILL_TASK_TIMEOUT_MS = {
   claimed: 10 * 60 * 1000,
   running: 5 * 60 * 1000,
 }
+// The ledger is swept on every list (which is what the concurrency caps read)
+// and by the cron. A stale non-terminal task therefore stops holding a slot
+// even if the executor that asked for it disappeared.
+function sweepFillTasks(ledger, now = Date.now()) {
+  const expired = []
+  const cutoff = now - 60 * 60 * 1000
+  for (const [taskId, task] of Object.entries(ledger)) {
+    if (!task) continue
+    if (FILL_TASK_TERMINAL.has(task.state)) {
+      // Keep terminal rows for an hour so the console can show what happened.
+      if (task.updatedAt && task.updatedAt < cutoff) delete ledger[taskId]
+      continue
+    }
+    const limit = FILL_TASK_TIMEOUT_MS[task.state] ?? 0
+    const deadline = (task.updatedAt ?? task.createdAt ?? now) + limit
+    if (now > deadline) {
+      task.state = 'expired'
+      task.updatedAt = now
+      task.expiredAt = now
+      expired.push(taskId)
+    }
+  }
+  return expired
+}
 // A task credential is short lived and bound to one task and one executor.
 const FILL_TASK_CREDENTIAL_TTL_MS = 5 * 60 * 1000
 
@@ -4976,6 +4994,9 @@ export default {
   // page load. This is what makes reminders work while nobody is looking.
   async scheduled(event, env, ctx) {
     const work = (async () => {
+      // Expire abandoned fill tasks even when no executor ever polls again, so
+      // their concurrency slots do not stay occupied forever.
+      await stateStub(env).fetch('https://state/fill/task/expire', { method: 'POST', body: '{}' }).catch(() => {})
       const state = await loadState(env)
       const origin = String(env.PUBLIC_ORIGIN || 'https://sb.otscup.com').replace(/\/$/, '')
       await dispatchReminderBatch(env, state, origin, ctx)
