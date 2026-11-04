@@ -254,7 +254,7 @@ nav{overflow-x:auto;padding-bottom:2px}
   --font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;--lh-body-lg:22px;--lh-sub:18px;--text-tab:10px;/* space */
   --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:20px;--sp-6:24px;--sp-7:32px;/* radius */
   --r-sm:4px;--r-md:8px;--r-lg:12px;--r-xl:16px;/* structure + motion */
-  --nav-h:44px;--row-h:52px;--tabbar-h:49px;--ease:cubic-bezier(.2,.7,.3,1);--dur-fade:120ms;--dur-base:200ms;--dur-push:280ms;--dur-sheet:280ms}
+  --nav-h:44px;--row-h:52px;--tabbar-h:62px;--ease:cubic-bezier(.2,.7,.3,1);--dur-fade:120ms;--dur-base:200ms;--dur-push:280ms;--dur-sheet:280ms}
 html[data-theme="dark"]{--tabbar-bg:#161618;--blue:#0A84FF;--green:#30D158;--orange:#FF9F0A;--red:#FF453A;--purple:#BF5AF2;--mix-icon:26%;--mix-badge:24%;--mix-tint:20%;--kpi-bg:var(--card);--ios-shadow:none}
 body{-webkit-font-smoothing:antialiased}
 html[data-theme="dark"] body{background:var(--bg-grouped);color:var(--label)}
@@ -479,7 +479,7 @@ header .badge{display:none}
 }
 @media(max-width:720px){
 nav button{flex-direction:column;gap:3px}
-nav button svg{width:26px;height:26px;stroke-width:1.7}
+nav button svg{display:block;width:22px;height:22px;stroke-width:1.7}
 #globe-range{flex:1 1 100%;justify-content:space-between}
 #view-agents .row>select,#view-logs .row>select{width:auto;flex:1 1 0;min-width:0}
 #view-logs .row>input{flex:1 1 100%}
@@ -667,7 +667,7 @@ nav button{position:relative;padding:7px 14px 9px;border-radius:0;background:tra
 nav button:hover{color:var(--ink-1);background:transparent}
 nav button.active{color:var(--ink-1);background:transparent;box-shadow:none;border-bottom:2px solid var(--brand)}
 html[data-theme="dark"] nav button.active{background:transparent;color:var(--ink-1)}
-nav button svg{display:none}
+@media(min-width:721px){nav button svg{display:none}}
 .card{border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:var(--shadow-1);background:var(--surface);padding:18px 20px;margin-bottom:16px}
 .card>h2,h2{font-size:15px;line-height:22px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;color:var(--ink-1)}
 .hint{font-size:13px;line-height:18px;color:var(--ink-2)}
