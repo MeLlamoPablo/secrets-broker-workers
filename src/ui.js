@@ -922,6 +922,11 @@ nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .dash .recent-card{grid-column:span 12}
 .dash .rank-box{max-height:none;flex:1 1 auto;min-height:0}
 .dash #ov-actions .health{max-height:170px;overflow-y:auto;scrollbar-width:none;mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent)}
+/* All six health rows must fit the shared 240px panel. At the old 36px row the
+   sixth row was cut in half and the fade mask dimmed it; the rows are
+   single-line, so 28px each fits all six without shrinking the type. */
+.dash>#ov-actions .health{max-height:none;overflow:visible;mask-image:none;padding-top:0}
+.dash>#ov-actions .health-row{min-height:28px;padding:0}
 .dash #ov-actions .health::-webkit-scrollbar{width:0;height:0;display:none}
 .dash #recent-box{max-height:288px}
 .dash .trend-box{flex:1 1 auto;min-height:0}
@@ -1052,6 +1057,18 @@ body.auth-mode header{display:none}
   .page-body{padding:14px 12px 28px}
   .page-body>.card{padding:16px}
   .kv{grid-template-columns:88px minmax(0,1fr);gap:10px}
+}
+/* Last-mile density. These rules must come after the legacy and iOS layers:
+   those declare the same selectors later than their own media blocks, which is
+   why 600px still showed four KPI cards across and 20px card padding. */
+@media(max-width:720px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .card{padding:16px}
+  .dash{gap:12px}
+}
+@media(pointer:coarse){
+  .seg button{min-height:36px;padding:0 12px}
+  .notice-bar .notice-more{min-height:32px;padding:0 8px;display:inline-flex;align-items:center}
 }
 </style></head><body><div class="wrap">
 <div id="db-down" class="notice-bar hidden" data-level="critical"><span class="notice-dot"></span><span class="notice-text"></span></div>
