@@ -328,7 +328,9 @@ try {
   const notice = await evaluate(`(async () => {
     const bar = document.querySelector('#notice-bar')
     const hidden = bar.classList.contains('hidden')
-    document.querySelector('[data-kpi="pending"]').click()
+    // The KPI no longer carries approvals, so the bar itself is the reminder
+    // entry point.
+    bar.click()
     await new Promise((r) => setTimeout(r, 300))
     const modal = document.getElementById('modal')
     const extend = modal.querySelector('[data-notice-extend]')

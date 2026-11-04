@@ -2173,9 +2173,6 @@ function openExtendMenu(name) {
 }
 $('kpis').addEventListener('click', (event) => {
   const card = event.target.closest('[data-kpi]'); if (!card) return
-  // 待审批 / 通知 is not a view: it opens the sheet that lists every reminder and
-  // every waiting approval, each row acting on the thing it names.
-  if (card.dataset.kpi === 'pending') { openNoticeModal(); return }
   openKpiModal(card.dataset.kpi)
 })
 document.addEventListener('click', async (event) => {
@@ -2261,7 +2258,12 @@ $('grants-box').addEventListener('click', async (event) => {
     } catch (error) { toast(error.message || '删除失败', true) }
   }
 })
-async function loadAll() { await refreshAll(); startPendingPolling(); updateBrowserNotifyStatus(); if (/^#\/?(pending|grants)$/.test(location.hash)) { openNoticeModal(); history.replaceState({}, '', '/') } }
+async function loadAll() {
+  await refreshAll(); startPendingPolling(); updateBrowserNotifyStatus()
+  if (/^#\/?pending$/.test(location.hash)) openPendingSheet()
+  else if (/^#\/?grants$/.test(location.hash)) openNoticeModal()
+  if (/^#\/?(pending|grants)$/.test(location.hash)) history.replaceState({}, '', '/')
+}
 let pendingTimer = null
 let knownPending = new Set()
 let pendingInitialized = false
@@ -2715,10 +2717,12 @@ function openKpiModal(kind) {
     const now = Date.now(); const active = (app.data.grants || []).filter((grant) => !grant.revokedAt && (!grant.expiresAt || grant.expiresAt > now) && (!grant.maxReads || (grant.reads ?? 0) < grant.maxReads))
     openModal('有效授权', active.length ? '<table><tr><th>Agent</th><th>条目</th><th>到期</th><th>读取</th></tr>' + active.map((grant) => '<tr><td>' + esc(agentLabel(grant.agent)) + '</td><td><code>' + esc(grant.name) + '</code></td><td>' + (grant.expiresAt ? new Date(grant.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久') + '</td><td>' + (grant.reads ?? 0) + '/' + (grant.maxReads || '∞') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无有效授权</div>')
   } else {
-    const pending = app.data.pending || []
-    openModal('待审批 / 通知', pending.length ? pending.map((entry) => '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">'
-      + pendingDetailHtml(entry)
-      + '<div class="row" style="margin-top:8px"><button class="small primary" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="once">仅本次</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="24h">24 小时</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="always">永久</button><button class="small danger" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="deny">拒绝</button></div></div>').join('') : '<div class="hint">暂无待审批请求</div>')
+    const since = Date.now() - 86400e3
+    const rows = (app.data.deniedAttempts || []).filter((entry) => {
+      const at = Date.parse(entry.lastAt)
+      return Number.isFinite(at) && at >= since
+    })
+    openModal('最近 24 小时被拦下的请求', rows.length ? '<table><tr><th>Agent</th><th>条目</th><th>次数</th><th>最近</th></tr>' + rows.map((entry) => '<tr><td>' + esc(agentLabel(entry.agent)) + '</td><td><code>' + esc(entry.name) + '</code></td><td>' + (entry.count || 1) + '</td><td>' + esc(entry.lastAt ? new Date(entry.lastAt).toLocaleString('zh-CN', { hour12: false }) : '') + '</td></tr>').join('') + '</table>' : '<div class="hint">最近 24 小时没有被拒绝的读取</div>')
   }
 }
 let legendPage = 0
@@ -2878,11 +2882,15 @@ function renderTrendFace() {
 
 function renderStats() {
   const stats = app.stats || { totalReads: 0, activeAgents: 0, pending: 0, activeGrants: 0, buckets: [], topItems: [], topAgents: [] }
-  // The sheet lists approvals *and* authorization reminders, so the card has to
-  // count both; counting only state.pending showed 0 while the sheet showed two
-  // expiring grants.
-  const noticeCount = ((app.data && app.data.pending) || []).length + ((app.data && app.data.reminders) || []).length
-  const cards = [{ l: '读取次数', v: stats.totalReads, sub: '当前区间 · 点开查看', view: 'reads' }, { l: '活跃 Agent', v: stats.activeAgents, sub: '有读取记录', view: 'agents' }, { l: '待审批 / 通知', v: noticeCount, sub: '点开处理', warn: noticeCount > 0, view: 'pending' }, { l: '有效授权', v: stats.activeGrants, sub: '含免审批', view: 'grants' }]
+  // The third card used to repeat the queue count (plus reminders), which put
+  // "3 / 4 / 3" for the same approvals on one screen. It is now a metric the
+  // queue does not carry: requests the broker refused in the last 24h.
+  const since = Date.now() - 86400e3
+  const denied24 = ((app.data && app.data.deniedAttempts) || []).filter((entry) => {
+    const at = Date.parse(entry.lastAt)
+    return Number.isFinite(at) && at >= since
+  }).length
+  const cards = [{ l: '读取次数', v: stats.totalReads, sub: '当前区间 · 点开查看', view: 'reads' }, { l: '活跃 Agent', v: stats.activeAgents, sub: '有读取记录', view: 'agents' }, { l: '24 小时被拒', v: denied24, sub: denied24 ? '点开查看被拦请求' : '没有新的拒绝', warn: denied24 > 0, view: 'denied' }, { l: '有效授权', v: stats.activeGrants, sub: '含免审批', view: 'grants' }]
   // No sparkline in the KPI: its series is the same one the trend card draws
   // two rows below, so it only restated the chart at 20px tall.
   $('kpis').innerHTML = cards.map((card) => '<div class="kpi' + (card.warn ? ' warn' : '') + '" data-kpi="' + card.view + '"' + (card.event ? ' data-kpi-event="' + card.event + '"' : '') + '><div class="label">' + card.l + '</div><div class="value">' + card.v + '</div><div class="sub">' + card.sub + '</div></div>').join('')
@@ -2983,7 +2991,7 @@ function renderQueue() {
   if (app.stateError) { empty('读取待审批请求失败', esc(app.stateError), true); return }
   if (!app.stateLoaded) { empty('正在读取待审批请求…', '来自 /api/state，不需要额外轮询。', false); return }
   const pending = ((app.data && app.data.pending) || []).slice()
-  if (!pending.length) { empty('没有待审批请求', 'Agent 请求读取密钥时会出现在这里，并同步到顶部通知栏。', false); return }
+  if (!pending.length) { empty('没有待审批请求', 'Agent 请求读取密钥时会出现在这里，这是页面上唯一的处理入口。', false); return }
   const now = Date.now()
   // Oldest first: the top row is the one that has waited longest.
   pending.sort((a, b) => queueWaitMs(b, now) - queueWaitMs(a, now))
@@ -3002,7 +3010,7 @@ function renderQueue() {
       + '<span class="queue-tone">' + QUEUE_TONE_LABEL[rowTone] + '</span>'
       + '</button>'
   }).join('')
-  list.querySelectorAll('.queue-row').forEach((row) => { row.onclick = () => openNoticeModal() })
+  list.querySelectorAll('.queue-row').forEach((row) => { row.onclick = () => openPendingSheet() })
   if (ring) {
     ring.setAttribute('role', 'img')
     ring.setAttribute('aria-label', '待审批队列：' + pending.length + ' 件，最久等待 ' + queueWaitLabel(oldest) + '（' + QUEUE_TONE_LABEL[tone] + '）')
@@ -3010,7 +3018,7 @@ function renderQueue() {
   }
   if (sum) sum.innerHTML = '<b>最久等待 ' + queueWaitLabel(oldest) + '</b>'
   const open = $('queue-open')
-  if (open) open.onclick = () => openNoticeModal()
+  if (open) open.onclick = () => openPendingSheet()
 }
 // "How many Agents can use this" and "how many credentials can this Agent
 // read" are the same fact seen from two sides: a live grant. Grants arrive in
@@ -3578,13 +3586,10 @@ function markNoticeRead(id) {
 }
 function noticeItems() {
   const data = app.data || {}
-  const pending = data.pending || []
-  if (pending.length) {
-    return pending.map((entry) => ({ id: 'pending:' + (entry.id || entry.name), tone: 'red', level: 'pending', text: '待审批：' + (entry.agent || 'Agent') + ' 请求读取「' + entry.name + '」', kind: 'pending', entry }))
-  }
-  // No approval waiting, but an authorization or a key may still be about to
-  // lapse. These used to be dropped here, so the banner stayed blank while the
-  // bell showed two notices.
+  // Approvals belong to the queue card only. The banner used to win them
+  // (the old early return), which put the same request in
+  // three places on one screen and *hid* every reminder while approvals were
+  // waiting. It now carries only reminders: things no card on this page shows.
   return (data.reminders || []).map((item) => ({
     id: 'reminder:' + item.kind + ':' + (item.agent || ''),
     tone: item.severity === 'critical' ? 'bad' : (item.severity === 'warning' ? 'warn' : 'plain'),
@@ -3627,17 +3632,20 @@ function renderNoticeBar() {
     noticeTimer = setInterval(() => { noticeIndex += 1; render() }, 4000)
   }
 }
-function openNoticeModal() {
+// The sheet behind the queue card. Approvals live in one place on the page, so
+// this is that place's detail view, not a second listing.
+function openPendingSheet() {
   const pending = (app.data && app.data.pending) || []
-  const reminders = (app.data && app.data.reminders) || []
-  // The sheet is the only place reminders live now, so it must open even when
-  // nothing is waiting for approval.
-  if (!pending.length && !reminders.length) return
-
-  const pendingBlock = pending.length ? pending.map((entry) => '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">'
+  const body = pending.length ? pending.map((entry) => '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">'
     + pendingDetailHtml(entry)
-    + '<div class="row" style="margin-top:8px"><button class="small primary" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="once">仅本次</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="24h">24 小时</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="always">永久</button><button class="small danger" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="deny">拒绝</button></div></div>').join('') : ''
-  const reminderBlock = reminders.length ? reminders.map((item) => {
+    + '<div class="row" style="margin-top:8px"><button class="small primary" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="once">仅本次</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="24h">24 小时</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="always">永久</button><button class="small danger" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="deny">拒绝</button></div></div>').join('')
+    : '<div class="hint">暂无待审批请求</div>'
+  openModal('待审批队列', body)
+}
+function openNoticeModal() {
+  const reminders = (app.data && app.data.reminders) || []
+  if (!reminders.length) return
+  const reminderBlock = reminders.map((item) => {
     const tone = item.severity === 'critical' ? 'bad' : (item.severity === 'warning' ? 'warn' : 'plain')
     const isSecret = Boolean(item.kind && item.kind.indexOf('secret-') === 0)
     return '<div class="ios-row ios-row--stack"><div class="ios-main"><div class="ios-title">'
@@ -3648,11 +3656,8 @@ function openNoticeModal() {
       + (item.expiresAt && !isSecret ? '<button class="ios-chip" data-notice-extend="' + esc(item.agent || '') + '">延期</button>' : '')
       + (item.name ? '<button class="ios-chip" data-notice-open="' + esc(item.name) + '">查看凭据</button>' : '')
       + '</div></div></div>'
-  }).join('') : ''
-  const body = (pending.length ? '<div class="hint" style="margin-bottom:8px">有待审批请求时，仅显示待审批内容。</div>' + pendingBlock : '') +
-    (!pending.length && reminders.length ? reminderBlock : '') +
-    (!pending.length && !reminders.length ? '<div class="hint">暂无通知</div>' : '')
-  openModal('待审批 / 通知', body)
+  }).join('')
+  openModal('通知提醒', reminderBlock)
   document.querySelectorAll('[data-notice-extend]').forEach((button) => {
     button.onclick = () => { show('modal', false); openExtendMenu(button.dataset.noticeExtend) }
   })
