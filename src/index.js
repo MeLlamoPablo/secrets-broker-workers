@@ -4633,15 +4633,15 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
           if (cap && !cap.revokedAt) {
             const consumed = await consumeCapability(env, capabilityKey(agentName, itemId, action), session.email, action)
             if (consumed?.ok) {
-              if (action === 'secret.use') return { status: 'use-ok', itemId, url: (await readSecretFromRows(env, env.NODEWARDEN_DB, session, name))?.url ?? '' }
+              if (action === 'secret.use') return { status: 'use-ok', itemId, url: (await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, { itemId }))?.url ?? '' }
               // The auto rule just minted and consumed a capability, so this read
               // is granted: classification is not a second gate on it.
               const guard = plaintextReadAllowed(fresh, itemId, { agent: agentName, noApproval: fresh.policies?.[name]?.noApproval === true, granted: { subject: agentName, accountId: session.email } })
               if (guard.ok) {
-                const result = await readSecretFromRows(env, env.NODEWARDEN_DB, session, name)
+                const result = await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, { itemId })
                 if (result) {
                   await addAudit(env, { event: 'secret.read', agent: agentName, name, itemId, via: 'agent', source: 'auto-rule' })
-                  return { status: 'allowed', itemId: result.id || itemId, value: result.value, url: result.url }
+                  return { status: 'allowed', itemId: result.id || itemId, value: result.value, username: result.username, totp: result.totp, url: result.url }
                 }
               }
             }
@@ -4680,7 +4680,7 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
   }
   if (action === 'secret.use') {
     // The caller (http_request) performs the fetch; this returns metadata only.
-    return { status: 'use-ok', itemId, url: (await readSecretFromRows(env, env.NODEWARDEN_DB, session, name))?.url ?? '' }
+    return { status: 'use-ok', itemId, url: (await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, { itemId }))?.url ?? '' }
   }
   if (action === 'secret.fill') {
     // Metadata only. The value never travels through this path: the execution
@@ -4696,7 +4696,7 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
     await addAudit(env, { event: 'materialize.approved', agent: agentName, name, path: dest.path, key: dest.key })
     return { status: 'materialize-ok', itemId, target: dest }
   }
-  const result = await readSecretFromRows(env, env.NODEWARDEN_DB, session, name)
+  const result = await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, { itemId })
   if (!result) return { status: 'notfound', error: 'not found' }
   // The credential id comes from the row that was actually decrypted, so a
   // stale name->id cache can never point the guard at the wrong item.
@@ -4731,7 +4731,7 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
   // buckets, topItems, topAgents, activeAgents — silently skip exactly the reads
   // that skipped every check, which is the opposite of what an audit is for.
   await addAudit(env, { event: 'secret.read', agent: agentName, name, itemId: resolvedItemId, mode: readGuard.noApproval ? 'no-approval' : 'grant', via: 'agent', legacy: decision.legacy === true, ...(readGuard.noApproval ? { noApproval: true, severity: 'warn', source: 'no-approval' } : {}) })
-  return { status: 'allowed', itemId: resolvedItemId, value: result.value, url: result.url, noApproval: readGuard.noApproval === true }
+  return { status: 'allowed', itemId: resolvedItemId, value: result.value, username: result.username, totp: result.totp, url: result.url, noApproval: readGuard.noApproval === true }
 }
 
 function statsFor(state, range, audit = state.audit ?? []) {
@@ -8780,13 +8780,10 @@ const TOOL_META = {
               await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: credKind, action: 'secret.read', ok: false })
               return result(text('不能读明文：' + readGuardMessage(readGuard.reason), true))
             }
-            const found = await readSecretFromRows(env, env.NODEWARDEN_DB, session, secretName)
-            if (!found) {
-              await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: credKind, action: 'secret.read', ok: false })
-              return result(text('not found', true))
-            }
+            // agentAccess already decrypted this item for this call. Reusing its
+            // fields keeps one decrypt per get_credential instead of two.
             await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: credKind, action: 'secret.read', ok: true })
-            return result(text(JSON.stringify({ username: found.username, password: found.value, totp: found.totp })))
+            return result(text(JSON.stringify({ username: access.username, password: access.value, totp: access.totp })))
           }
           // materialize: the value never travels back through this call. An
           // approval records a one-shot job that only the same subject can
@@ -9114,7 +9111,10 @@ const TOOL_META = {
       if (!name) return fail('name required', 400)
       const refused = await secondFactorWall(request, env, 'secret.view', body.code)
       if (refused) return refused
-      const result = await readSecretFromRows(env, env.NODEWARDEN_DB, session, name)
+      // Resolve to an id first, so the decryption reads one row instead of
+      // listing and decrypting the whole vault to match a name.
+      const itemId = await ensureItemId(env, env.NODEWARDEN_DB, session, name)
+      const result = await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, itemId ? { itemId } : undefined)
       if (!result) return fail('not found', 404)
       await addAudit(env, { event: 'secret.view', name, via: 'web', totp: true })
       return json({ value: result.value, username: result.username, totp: result.totp })
