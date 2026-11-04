@@ -144,7 +144,10 @@ const skipBrowser = (n) => {
   var oa=document.getElementById('ov-actions'); if(oa) oa.innerHTML='<div class="ov-action"><div>有 3 条请求等待</div><button class="small">去处理</button></div>';
   var chart=document.getElementById('chart-box'); if(chart) chart.innerHTML='<svg viewBox="0 0 600 180"><rect x="40" y="40" width="20" height="120" fill="#5b6cff"/></svg>';
   function bottom(sel){ var el=document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().bottom) : 0 }
-  var o={ fold: innerHeight, trend: bottom('.dash>.span2'), row2: Math.max(bottom('#queue-card'), bottom('#ov-actions')) };
+  // The queue now shares the last row with the feed, so "second row" is the
+  // health + share pair; the queue is measured separately to keep its move
+  // visible.
+  var o={ fold: innerHeight, trend: bottom('.dash>.span2'), row2: Math.max(bottom('#ov-actions'), bottom('.donut-card')), queue: bottom('#queue-card') };
   var pre=document.createElement('pre'); pre.id='M'; pre.textContent=JSON.stringify(o); document.body.appendChild(pre);
 })();
 </script></body></html>`

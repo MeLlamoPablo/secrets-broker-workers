@@ -717,6 +717,18 @@ html[data-theme="dark"] nav button.active{background:transparent;color:var(--ink
 .queue-empty b{color:var(--ink-1);font-weight:600}
 .queue-empty button{align-self:flex-start;margin-top:2px}
 .dash .recent-card{grid-column:span 12}
+/* Right-bottom placement above 1100px: the queue shares the last row with the
+   feed instead of sitting mid-page under the KPI row. Narrower layouts keep the
+   auto flow, so the phone order stays trend, ranking, health, share, queue,
+   feed — the queue never jumps to the top. */
+@media(min-width:1101px){
+.dash>.span2{grid-column:span 7;grid-row:1}
+.dash .rank-card{grid-column:span 5;grid-row:1}
+.dash #ov-actions{grid-column:span 6;grid-row:2}
+.dash .donut-card{grid-column:span 6;grid-row:2}
+.dash .recent-card{grid-column:1/span 8;grid-row:3}
+.dash #queue-card{grid-column:9/span 4;grid-row:3}
+}
 .dash .rank-box{max-height:none;flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}
 .dash .rank-box::-webkit-scrollbar{width:0;height:0;display:none}
 .dash #ov-actions .health{max-height:170px;overflow-y:auto;scrollbar-width:none;mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent)}
