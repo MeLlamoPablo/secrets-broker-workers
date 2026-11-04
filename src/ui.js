@@ -1127,7 +1127,7 @@ body.auth-mode header{display:none}
           <span class="queue-count" id="queue-count" aria-live="polite">0 件</span>
         </div>
         <div class="queue-list" id="queue-list"><div class="queue-empty"><b>正在读取待审批请求…</b></div></div>
-        <div class="queue-foot" id="queue-foot">
+        <div class="queue-foot hidden" id="queue-foot">
           <div class="queue-ring" id="queue-ring"></div>
           <span class="queue-sum" id="queue-sum"></span>
           <button class="small" id="queue-open" type="button">查看全部</button>
