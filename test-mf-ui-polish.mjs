@@ -37,9 +37,12 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
   else fail('X3', JSON.stringify({ btn, logic, darkCss }))
 }
 // X4: the trend spans the row, ranking and share sit side by side
+// The old assertions matched declarations a later rule always overrode
+// (`.kpis` was split by media queries, `.dash` went 3 -> 12 columns). Those
+// dead copies are now deleted, so assert the declaration that actually wins.
 {
-  const widgets = /\.kpis\{display:grid;grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/.test(ui)
-  const dash = /\.dash\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(ui)
+  const widgets = /\.kpis\{display:grid\}/.test(ui) && /\.kpis\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/.test(ui)
+  const dash = /\.dash\{display:grid;grid-template-columns:repeat\(12,minmax\(0,1fr\)\)/.test(ui)
   // The trend card now carries two faces (chart + heat map, swapped by the
   // chevrons), so the heading lives in a card-head rather than directly in
   // the card.
@@ -52,7 +55,9 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
 {
   const cols = /\.agent-stats\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(ui)
   const uniform = /\.agent-stat\{[^}]*min-height/.test(ui)
-  const kpiLook = /\.agent-stat\{[^}]*border-radius:var\(--ios-radius\)/.test(ui)
+  // `--ios-radius` resolves to `--r-card`, and the effective rule spells
+  // `var(--r-lg)`; the earlier alias declaration never won.
+  const kpiLook = /\.agent-stat\{[^}]*border-radius:var\(--r-lg\)/.test(ui)
   const notOneCol = !/@media\(max-width:720px\)\{\.agent-stats\{grid-template-columns:1fr/.test(ui)
   if (cols && uniform && kpiLook && notOneCol) pass('X5 agent stats are three uniform horizontal cards')
   else fail('X5', JSON.stringify({ cols, uniform, kpiLook, notOneCol }))
