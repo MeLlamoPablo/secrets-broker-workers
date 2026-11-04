@@ -887,19 +887,38 @@ nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .dash .rank-card{grid-column:span 5;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
 .dash #ov-actions{grid-column:span 4;height:240px;min-height:240px;overflow:hidden}
 .dash .donut-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
-/* The third working panel used to hold the globe. It now answers "when is this
-   broker used" from audit timestamps, so it keeps the same slot and height. */
-.dash #activity-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
-#activity-card .card-head,#activity-card .seg{flex:0 0 auto}
-.activity-chart{flex:1 1 auto;min-height:0;position:relative;display:flex;padding-top:4px}
-.activity-chart svg{display:block;width:100%;height:100%}
-.activity-bar{fill:var(--brand)}
-.activity-bar[data-zero="1"]{opacity:.18}
-.activity-axis{fill:currentColor;opacity:.55;font-size:9px}
-.activity-empty{display:flex;flex-direction:column;justify-content:center;gap:3px;height:100%;color:var(--ink-2);font-size:13px;line-height:18px}
-.activity-empty b{color:var(--ink-1);font-weight:600}
-.activity-empty button{align-self:flex-start;margin-top:4px}
-.activity-note{flex:0 0 auto;margin-top:2px;font-variant-numeric:tabular-nums}
+/* The third working panel used to hold the globe, then a time-series bar
+   chart. Bars restated the trend card and a second ring would restate the
+   agent donut, so this slot now answers the one question nobody else asks:
+   what is waiting for me, and how long has it been waiting. Rows are the
+   chart; there are deliberately no bars here. */
+.dash #queue-card{grid-column:span 4;height:240px;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
+#queue-card .card-head{flex:0 0 auto}
+.queue-count{flex:0 0 auto;min-height:24px;padding:2px 9px;border:1px solid var(--hair);border-radius:999px;background:var(--surface-2);color:var(--ink-1);font-size:12px;font-weight:600;line-height:18px;font-variant-numeric:tabular-nums}
+.queue-count[data-warn="1"]{background:color-mix(in srgb,var(--orange) 14%,transparent);border-color:color-mix(in srgb,var(--orange) 32%,transparent);color:var(--warn-text)}
+.queue-list{flex:1 1 auto;min-height:0;margin-top:6px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;scrollbar-width:none}
+.queue-list::-webkit-scrollbar{width:0;height:0;display:none}
+.queue-row{display:grid;grid-template-columns:9px minmax(0,1fr) auto auto;align-items:center;gap:8px;width:100%;min-height:38px;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:var(--ink-1);text-align:left;cursor:pointer}
+.queue-row:hover{background:var(--surface-2)}
+.queue-row:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.queue-dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+.queue-row[data-tone="wait"] .queue-dot{background:var(--orange)}
+.queue-row[data-tone="late"] .queue-dot{background:var(--red)}
+.queue-main{min-width:0;display:flex;align-items:baseline;gap:6px}
+.queue-agent{max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600}
+.queue-action{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink-2)}
+.queue-wait{white-space:nowrap;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.queue-tone{white-space:nowrap;padding:1px 6px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:600}
+.queue-row[data-tone="wait"] .queue-tone{background:color-mix(in srgb,var(--orange) 12%,transparent);color:var(--warn-text)}
+.queue-row[data-tone="late"] .queue-tone{background:color-mix(in srgb,var(--red) 10%,transparent);color:var(--danger-text)}
+.queue-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-top:6px;padding-top:6px;border-top:1px solid var(--hair)}
+.queue-ring{flex:0 0 auto;width:26px;height:26px}
+.queue-ring svg{display:block;width:100%;height:100%}
+.queue-sum{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink-2)}
+.queue-sum b{color:var(--ink-1);font-weight:600}
+.queue-empty{height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;color:var(--ink-2);font-size:13px;line-height:18px}
+.queue-empty b{color:var(--ink-1);font-weight:600}
+.queue-empty button{align-self:flex-start;margin-top:2px}
 .dash .recent-card{grid-column:span 12}
 .dash .rank-box{max-height:none;flex:1 1 auto;min-height:0}
 .dash #ov-actions .health{max-height:170px;overflow-y:auto;scrollbar-width:none;mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent)}
@@ -909,14 +928,14 @@ nav button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 @media(max-width:1100px){
   .dash{grid-template-columns:repeat(6,minmax(0,1fr))}
   .dash>.span2,.dash .rank-card{grid-column:span 6}
-  .dash #ov-actions,.dash .donut-card,.dash #activity-card{grid-column:span 2}
+  .dash #ov-actions,.dash .donut-card,.dash #queue-card{grid-column:span 2}
   .dash .recent-card{grid-column:span 6}
 }
 @media(max-width:900px){
   .dash{grid-template-columns:1fr}
-  .dash>.span2,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #activity-card,.dash .recent-card{grid-column:auto;height:auto;min-height:0}
+  .dash>.span2,.dash .rank-card,.dash #ov-actions,.dash .donut-card,.dash #queue-card,.dash .recent-card{grid-column:auto;height:auto;min-height:0}
   .dash>.span2,.dash .rank-card{min-height:260px}
-  .dash #ov-actions,.dash .donut-card,.dash #activity-card{min-height:220px}
+  .dash #ov-actions,.dash .donut-card,.dash #queue-card{min-height:220px}
 }
 /* Credential list: a dense, scannable group. Name leads, metadata follows,
    the approval state stays right-aligned; hover and the open row are different
@@ -1085,17 +1104,17 @@ body.auth-mode header{display:none}
       <div class="card rank-card"><h2>条目读取排行</h2><div class="hint" style="margin-bottom:6px">按被读取次数排序</div><div id="top-box" class="rank-box"></div></div>
       <div id="ov-actions" class="card ov-actions"></div>
       <div class="card donut-card"><h2>Agent 读取占比</h2><div class="hint" style="margin-bottom:6px">按 agent 聚合 · 点击扇区查看</div><div id="donut-box" class="donut-wrap"></div></div>
-      <div class="card" id="activity-card" role="region" aria-labelledby="activity-title">
+      <div class="card" id="queue-card" role="region" aria-labelledby="queue-title">
         <div class="card-head">
-          <h2 id="activity-title">访问活跃度</h2>
-          <div class="seg" id="activity-range" role="tablist" aria-label="访问活跃度区间">
-            <button type="button" role="tab" data-arange="24h" class="on" aria-selected="true">24 小时</button>
-            <button type="button" role="tab" data-arange="7d" aria-selected="false">7 天</button>
-          </div>
+          <h2 id="queue-title">待审批队列</h2>
+          <span class="queue-count" id="queue-count" aria-live="polite">0 件</span>
         </div>
-        <div class="hint" id="activity-hint">按小时统计的读取次数</div>
-        <div id="activity-chart" class="activity-chart"></div>
-        <div class="hint activity-note" id="activity-note"></div>
+        <div class="queue-list" id="queue-list"><div class="queue-empty"><b>正在读取待审批请求…</b></div></div>
+        <div class="queue-foot" id="queue-foot">
+          <div class="queue-ring" id="queue-ring"></div>
+          <span class="queue-sum" id="queue-sum"></span>
+          <button class="small" id="queue-open" type="button">查看全部</button>
+        </div>
       </div>
       <div class="card span3 recent-card"><h2>最近活动</h2><div id="recent-box" class="recent"></div></div>
     <div id="chart-tip" class="chart-tip"></div>
@@ -1307,7 +1326,7 @@ async function api(path, options = {}) {
   if (route === '/api/items' || route === '/api/v2/status') clearDbDown()
   return body
 }
-let app = { me: null, data: { agents: [], policies: {}, grants: [], pending: [], audit: [] }, items: [], itemsLoaded: false, itemsError: '', stats: null, range: '24h', token: '' }
+let app = { me: null, data: { agents: [], policies: {}, grants: [], pending: [], audit: [] }, items: [], itemsLoaded: false, itemsError: '', stateLoaded: false, stateError: '', stats: null, range: '24h', token: '' }
 const selectedItems = new Set()
 // Selection is an explicit mode: iOS lists do not show checkboxes until you ask
 // for them, and showing them all the time squeezed the name column.
@@ -2490,7 +2509,10 @@ async function checkPendingNotifications() {
       const logsMoved = !same((data.audit || []).slice(0, 1), (app.data.audit || []).slice(0, 1)) || (data.audit || []).length !== (app.data.audit || []).length
       const agentsMoved = !same(data.agents, app.data.agents)
       app.data = data
+      app.stateLoaded = true
+      app.stateError = ''
       renderPending()
+      renderQueue()
       if (agentsMoved) renderAgents()
       if (logsMoved) { renderRecent(); renderLogs() }
       if (!grantsSelecting) renderGrants()
@@ -2522,7 +2544,7 @@ function applyGlobeAvailability(geoOn) {
   if (!geoOn) note.textContent = '实时访问未启用 · 设置 GEO_ENABLED=1 后显示实时连接'
   else if (note.textContent.indexOf('实时访问未启用') === 0) note.textContent = ''
 }
-async function loadState() { try { app.data = await api('/api/state'); app.locked = app.data.masked === true || app.me?.unlocked !== true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
+async function loadState() { try { app.data = await api('/api/state'); app.stateLoaded = true; app.stateError = ''; app.locked = app.data.masked === true || app.me?.unlocked !== true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderQueue(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { app.stateError = (error && error.message) || '读取状态失败'; renderQueue(); if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
 async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; app.locked = false; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { app.locked = true; app.items = []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', app.data?.masked === true ? '已锁定：条目名称已脱敏，审批仍可进行' : '已锁定：查看条目需要解锁') } else { app.itemsError = error.message; renderItems(); status('item-status', error.message, 'error') } } }
 async function loadStats() { try { app.stats = await api('/api/stats?range=' + app.range); renderStats() } catch {} }
 // One operator action changes the logs, the counts and the item rows at once.
@@ -2531,7 +2553,7 @@ async function loadStats() { try { app.stats = await api('/api/stats?range=' + a
 // The zero-knowledge listing used to load (and prompt for TOTP) on every boot,
 // even when the operator never opened that card. Status-only now; the explicit
 // refresh/device actions still ask for the second factor.
-async function refreshAll() { await Promise.all([loadState(), loadItems(), loadStats(), loadActivity(), loadVault2(false)]) }
+async function refreshAll() { await Promise.all([loadState(), loadItems(), loadStats(), loadVault2(false)]) }
 // The OIDC providers. Each one is edited on its own; the client secret is
 // never sent back, so the field starts empty and an empty value keeps the
 // stored one.
@@ -3103,104 +3125,92 @@ function renderStats() {
   renderTrendFace()
   $('updated').textContent = '最后更新 ' + new Date().toLocaleTimeString('zh-CN', { hour12: false })
 }
-// ── Access activity ────────────────────────────────────────────────────────
-// The slot the globe used to hold now answers "when is this broker used".
-// It buckets audit timestamps already returned by /api/audit: no new endpoint,
-// no chart library and no extra polling. Names in those rows are masked when
-// the console is locked, which does not matter because only the time is read.
-let activityState = { range: '24h', entries: null, truncated: false, loading: false, error: '' }
-function activityBuckets(range, entries, now = Date.now()) {
-  const reads = (entries || [])
-    .filter((entry) => entry && entry.event === 'secret.read')
-    .map((entry) => Date.parse(entry.time))
-    .filter((time) => Number.isFinite(time))
-  const bucket = (from, to, label) => ({ label, count: reads.filter((time) => time >= from && time < to).length })
-  const out = []
-  if (range === '7d') {
-    const start = new Date(now); start.setHours(0, 0, 0, 0)
-    for (let index = 6; index >= 0; index -= 1) {
-      const from = start.getTime() - index * 86400e3
-      const date = new Date(from)
-      out.push(bucket(from, from + 86400e3, (date.getMonth() + 1) + '/' + date.getDate()))
-    }
-    return out
-  }
-  const start = new Date(now); start.setMinutes(0, 0, 0)
-  for (let index = 23; index >= 0; index -= 1) {
-    const from = start.getTime() - index * 3600e3
-    const date = new Date(from)
-    out.push(bucket(from, from + 3600e3, String(date.getHours()).padStart(2, '0') + ':00'))
-  }
-  return out
+// ── Approval queue ─────────────────────────────────────────────────────────
+// The slot the globe and then a time-series chart used to hold. Bars restated
+// the trend card, and a second ring would restate the agent donut, so this card
+// answers the question no other card answers: what is waiting for me, and how
+// long has it waited. The data is state.pending, already delivered by
+// /api/state, so there is no new endpoint, polling or collection.
+const QUEUE_WAIT_SOON = 5 * 60e3
+const QUEUE_WAIT_LATE = 30 * 60e3
+const QUEUE_TONE_LABEL = { new: '新', wait: '等待中', late: '较久' }
+function queueWaitMs(entry, now = Date.now()) {
+  const at = Date.parse(entry && entry.createdAt)
+  return Number.isFinite(at) ? Math.max(0, now - at) : -1
 }
-function renderActivity() {
-  const box = $('activity-chart')
-  if (!box) return
-  const hint = $('activity-hint')
-  const note = $('activity-note')
-  if (hint) hint.textContent = activityState.range === '7d' ? '按天统计的读取次数' : '按小时统计的读取次数'
-  if (note) note.textContent = activityState.truncated ? '统计基于最近 500 条审计记录，更早的记录未计入' : ''
+function queueWaitLabel(ms) {
+  if (!(ms >= 0)) return '时间未知'
+  if (ms < 60e3) return '刚刚'
+  const minutes = Math.floor(ms / 60e3)
+  if (minutes < 60) return minutes + ' 分钟'
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return hours + ' 小时' + (minutes % 60 ? ' ' + (minutes % 60) + ' 分' : '')
+  return Math.floor(hours / 24) + ' 天'
+}
+function queueTone(ms) {
+  if (!(ms >= 0)) return 'new'
+  if (ms >= QUEUE_WAIT_LATE) return 'late'
+  if (ms >= QUEUE_WAIT_SOON) return 'wait'
+  return 'new'
+}
+// A single progress ring, filled against the 30-minute "late" threshold. The
+// track is dashed, so the two states differ by texture as well as colour.
+function queueRingHtml(ms) {
+  const fraction = ms >= 0 ? Math.min(1, ms / QUEUE_WAIT_LATE) : 0
+  const length = 2 * Math.PI * 12
+  const dash = Math.max(0.8, fraction * length)
+  const tone = queueTone(ms)
+  const stroke = tone === 'late' ? 'var(--red)' : tone === 'wait' ? 'var(--orange)' : 'var(--green)'
+  return '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">'
+    + '<circle cx="16" cy="16" r="12" fill="none" stroke="var(--hair-strong)" stroke-width="3" stroke-dasharray="3 3"/>'
+    + '<circle cx="16" cy="16" r="12" fill="none" stroke="' + stroke + '" stroke-width="3" stroke-linecap="round" stroke-dasharray="' + dash.toFixed(2) + ' ' + (length - dash).toFixed(2) + '" transform="rotate(-90 16 16)"/>'
+    + '</svg>'
+}
+function renderQueue() {
+  const list = $('queue-list'); if (!list) return
+  const countEl = $('queue-count')
+  const ring = $('queue-ring')
+  const sum = $('queue-sum')
+  const foot = $('queue-foot')
   const empty = (title, text, retry) => {
-    box.removeAttribute('role')
-    box.removeAttribute('aria-label')
-    box.innerHTML = '<div class="activity-empty"><b>' + title + '</b><span>' + text + '</span>' + (retry ? '<button class="small" id="activity-retry">重试</button>' : '') + '</div>'
-    const button = $('activity-retry')
-    if (button) button.onclick = () => loadActivity()
+    if (countEl) { countEl.textContent = '—'; countEl.removeAttribute('data-warn') }
+    if (foot) foot.classList.add('hidden')
+    list.innerHTML = '<div class="queue-empty"><b>' + title + '</b><span>' + text + '</span>'
+      + (retry ? '<button class="small" id="queue-retry" type="button">重试</button>' : '') + '</div>'
+    const button = $('queue-retry')
+    if (button) button.onclick = () => { app.stateError = ''; loadState() }
   }
-  if (activityState.error) { empty('读取失败', esc(activityState.error), true); return }
-  if (activityState.loading && !activityState.entries) { empty('正在读取审计记录…', '只统计读取事件的时间，不读取条目内容。'); return }
-  const buckets = activityBuckets(activityState.range, activityState.entries || [])
-  const total = buckets.reduce((sum, entry) => sum + entry.count, 0)
-  if (!total) { empty('还没有读取记录', 'Agent 读取密钥后会出现在这里；先签发一条授权就能产生记录。'); return }
-  const W = 300, H = 128, padX = 4, padY = 14, innerW = W - padX * 2, innerH = H - padY * 2
-  const max = Math.max(1, ...buckets.map((entry) => entry.count))
-  const slot = innerW / buckets.length
-  const barW = Math.max(3, Math.min(20, slot * 0.62))
-  const bars = buckets.map((entry, index) => {
-    const height = Math.max((entry.count / max) * innerH, 0.8)
-    const x = padX + index * slot + (slot - barW) / 2
-    const y = H - padY - height
-    return '<rect class="activity-bar" data-zero="' + (entry.count ? 0 : 1) + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + height.toFixed(1) + '" rx="2">'
-      + '<title>' + esc(entry.label) + ' · ' + entry.count + ' 次</title></rect>'
+  if (app.stateError) { empty('读取待审批请求失败', esc(app.stateError), true); return }
+  if (!app.stateLoaded) { empty('正在读取待审批请求…', '来自 /api/state，不需要额外轮询。', false); return }
+  const pending = ((app.data && app.data.pending) || []).slice()
+  if (!pending.length) { empty('没有待审批请求', 'Agent 请求读取密钥时会出现在这里，并同步到顶部通知栏。', false); return }
+  const now = Date.now()
+  // Oldest first: the top row is the one that has waited longest.
+  pending.sort((a, b) => queueWaitMs(b, now) - queueWaitMs(a, now))
+  const oldest = queueWaitMs(pending[0], now)
+  const tone = queueTone(oldest)
+  if (countEl) { countEl.textContent = pending.length + ' 件'; countEl.setAttribute('data-warn', '1') }
+  if (foot) foot.classList.remove('hidden')
+  list.innerHTML = pending.map((entry) => {
+    const ms = queueWaitMs(entry, now)
+    const rowTone = queueTone(ms)
+    const action = pendingActionLabel(entry) + ' ' + String(entry.name || '')
+    return '<button class="queue-row" type="button" data-tone="' + rowTone + '" title="' + esc(action) + '">'
+      + '<span class="queue-dot" aria-hidden="true"></span>'
+      + '<span class="queue-main"><span class="queue-agent">' + esc(pendingAgentLabel(entry)) + '</span><span class="queue-action">' + esc(action) + '</span></span>'
+      + '<span class="queue-wait">' + queueWaitLabel(ms) + '</span>'
+      + '<span class="queue-tone">' + QUEUE_TONE_LABEL[rowTone] + '</span>'
+      + '</button>'
   }).join('')
-  const every = buckets.length > 10 ? 6 : 1
-  const labels = buckets.map((entry, index) => index % every === 0
-    ? '<text class="activity-axis" x="' + (padX + index * slot + slot / 2).toFixed(1) + '" y="' + (H - 3) + '" text-anchor="middle">' + esc(entry.label) + '</text>'
-    : '').join('')
-  const peak = buckets.reduce((best, entry) => (entry.count > best.count ? entry : best), buckets[0])
-  // Totals belong in the note line, not as a floating label over the bars.
-  if (note) {
-    const summary = total + ' 次读取 · 峰值 ' + peak.label + '（' + peak.count + ' 次）'
-    note.textContent = activityState.truncated ? summary + ' · 基于最近 500 条审计记录' : summary
+  list.querySelectorAll('.queue-row').forEach((row) => { row.onclick = () => openNoticeModal() })
+  if (ring) {
+    ring.setAttribute('role', 'img')
+    ring.setAttribute('aria-label', '待审批队列：' + pending.length + ' 件，最久等待 ' + queueWaitLabel(oldest) + '（' + QUEUE_TONE_LABEL[tone] + '）')
+    ring.innerHTML = queueRingHtml(oldest)
   }
-  const aria = (activityState.range === '7d' ? '7 天' : '24 小时') + '读取次数柱状图，共 ' + total + ' 次读取，峰值 ' + peak.label + ' 的 ' + peak.count + ' 次'
-  box.setAttribute('role', 'img')
-  box.setAttribute('aria-label', aria)
-  box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true" focusable="false">'
-    + '<line x1="' + padX + '" y1="' + (H - padY) + '" x2="' + (W - padX) + '" y2="' + (H - padY) + '" stroke="currentColor" stroke-opacity=".12"/>'
-    + bars + labels + '</svg>'
-}
-async function loadActivity() {
-  if (!$('activity-chart')) return
-  activityState.loading = true
-  renderActivity()
-  try {
-    const from = new Date(Date.now() - 7 * 86400e3).toISOString()
-    const data = await api('/api/audit?from=' + encodeURIComponent(from) + '&limit=500')
-    activityState.entries = data.entries || []
-    activityState.truncated = data.hasMore === true
-    activityState.error = ''
-  } catch (error) { activityState.error = (error && error.message) || '读取审计失败' }
-  activityState.loading = false
-  renderActivity()
-}
-const activityRange = $('activity-range')
-if (activityRange) activityRange.onclick = (event) => {
-  const button = event.target.closest('[data-arange]')
-  if (!button) return
-  activityState.range = button.dataset.arange === '7d' ? '7d' : '24h'
-  activityRange.querySelectorAll('button').forEach((entry) => { const on = entry === button; entry.classList.toggle('on', on); entry.setAttribute('aria-selected', String(on)) })
-  renderActivity()
+  if (sum) sum.innerHTML = '<b>最久等待 ' + queueWaitLabel(oldest) + '</b>'
+  const open = $('queue-open')
+  if (open) open.onclick = () => openNoticeModal()
 }
 // "How many Agents can use this" and "how many credentials can this Agent
 // read" are the same fact seen from two sides: a live grant. Grants arrive in

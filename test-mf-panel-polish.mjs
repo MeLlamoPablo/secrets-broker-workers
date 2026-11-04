@@ -21,13 +21,13 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
   if (hidden && webkit) pass('Z1 ranking scrolls with no visible scrollbar')
   else fail('Z1', JSON.stringify({ hidden, webkit }))
 }
-// Z2: the activity range switch sits in the card head, right of the title
+// Z2: the pending count sits in the card head, right of the title
 {
-  const head = html.indexOf('id="activity-title"')
-  const seg = html.indexOf('id="activity-range"')
-  const tabs = html.includes('data-arange="24h"') && html.includes('data-arange="7d"')
-  if (seg > head && seg < head + 600 && tabs) pass('Z2 activity range switch lives in the card head')
-  else fail('Z2', JSON.stringify({ head, seg, tabs }))
+  const head = html.indexOf('id="queue-title"')
+  const count = html.indexOf('id="queue-count"')
+  const rows = html.includes('id="queue-list"') && html.includes('id="queue-ring"')
+  if (count > head && count < head + 600 && rows) pass('Z2 pending count lives in the card head')
+  else fail('Z2', JSON.stringify({ head, count, rows }))
 }
 // Z3: the globe panel is shorter, the donut gets more room
 {

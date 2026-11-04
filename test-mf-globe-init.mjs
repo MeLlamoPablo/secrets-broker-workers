@@ -45,15 +45,15 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
   if (asset.status === 200 && exportsMount && /javascript/.test(ct)) pass('G4 island serves as JS module with mountGlobe export')
   else fail('G4', JSON.stringify({ status: asset.status, exportsMount, ct }))
 }
-// G5: the globe is not mounted from the dashboard any more; the activity chart
+// G5: the globe is not mounted from the dashboard any more; the approval queue
 // takes its slot, and nothing starts a globe poll on load.
 {
   const noOpen = !ui.includes('id="globe-open"')
   const noStill = !ui.includes('id="globe-still"')
   const noAutoStart = !/if \(!globeBooted\) \{ globeBooted = true; try \{ initGlobe\(\) \}/.test(ui)
-  const hasChart = ui.includes('id="activity-card"') && ui.includes('function loadActivity')
-  if (noOpen && noStill && noAutoStart && hasChart) pass('G5 dashboard mounts the activity chart, not the globe')
-  else fail('G5', JSON.stringify({ noOpen, noStill, noAutoStart, hasChart }))
+  const hasQueue = ui.includes('id="queue-card"') && ui.includes('function renderQueue')
+  if (noOpen && noStill && noAutoStart && hasQueue) pass('G5 dashboard mounts the approval queue, not the globe')
+  else fail('G5', JSON.stringify({ noOpen, noStill, noAutoStart, hasQueue }))
 }
 await mf.dispose()
 const passed = results.filter((r) => r.ok).length

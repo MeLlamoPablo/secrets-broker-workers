@@ -6,12 +6,13 @@ const pass = (n) => { results.push({ n, ok: true }); console.log('PASS  ' + n) }
 const fail = (n, d) => { results.push({ n, ok: false, d }); console.log('FAIL  ' + n + ' :: ' + d) }
 const ui = fs.readFileSync('src/ui.js', 'utf8')
 
-// G1: the plot host is empty in the markup; the chart draws into it at runtime,
-// so no caption can sit inside the plotting area and swallow the pointer.
+// G1: the replacement card ships an explicit empty state in the markup, so an
+// empty dashboard never renders a blank panel that looks broken.
 {
-  const markup = /<div id="activity-chart" class="activity-chart"><\/div>/.exec(ui)
-  if (markup) pass('G1 activity plot host is empty in the markup')
-  else fail('G1', 'plot host missing or pre-filled')
+  const markup = /<div class="queue-list" id="queue-list">[\s\S]{0,160}<div class="queue-empty">/.test(ui)
+  const copy = ui.includes('没有待审批请求')
+  if (markup && copy) pass('G1 approval queue ships an explicit empty state')
+  else fail('G1', JSON.stringify({ markup, copy }))
 }
 // G2: the empty overlay is never shown for the no-traffic case
 {

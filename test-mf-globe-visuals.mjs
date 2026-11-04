@@ -75,14 +75,15 @@ const src = fs.readFileSync('src/globe/index.js', 'utf8')
   if (ok) pass('T7 globe container background follows theme')
   else fail('T7', 'background not themed')
 }
-// T8: the activity chart is announced as an image with a data summary, and the
+// T8: the approval queue is announced as an image with a data summary, and the
 // fullscreen globe overlay it replaced is no longer reachable from the page.
 {
-  const hasRole = html.includes("box.setAttribute('role', 'img')") && html.includes("box.setAttribute('aria-label', aria)")
-  const hasSummary = html.includes("'读取次数柱状图，共 ' + total + ' 次读取，峰值 '")
+  const hasRole = html.includes("ring.setAttribute('role', 'img')") && html.includes("ring.setAttribute('aria-label', '待审批队列：'")
+  const hasSummary = html.includes("最久等待 ' + queueWaitLabel(oldest) + '（")
+  const noBars = !html.includes('activity-bar')
   const noFullBtn = !html.includes('id="globe-full"')
-  if (hasRole && hasSummary && noFullBtn) pass('T8 activity chart exposes an accessible summary')
-  else fail('T8', JSON.stringify({ hasRole, hasSummary, noFullBtn }))
+  if (hasRole && hasSummary && noBars && noFullBtn) pass('T8 approval queue exposes an accessible summary without bars')
+  else fail('T8', JSON.stringify({ hasRole, hasSummary, noBars, noFullBtn }))
 }
 // T9: bundle keeps drag usable on touch (touch-action none)
 {
