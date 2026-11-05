@@ -57,6 +57,7 @@ html[data-theme="dark"] .notice-bar .notice-more:hover{background:rgba(255,255,2
 .notice-approve button{min-height:24px;padding:2px 8px;border:1px solid var(--hair);border-radius:8px;background:var(--surface-2);color:var(--ink-1);font:inherit;font-size:12px;line-height:18px;cursor:pointer}
 .notice-approve button[data-quick-decide="1h"]{background:var(--brand-strong);border-color:transparent;color:#fff}
 .notice-approve button[data-quick-decide="deny"]{color:var(--danger)}
+.notice-approve button.na-notify{background:var(--brand-soft);border-color:transparent;color:var(--brand-text)}
 .notice-approve button.na-more{padding:2px 4px;background:transparent;border-color:transparent;color:var(--brand-text)}
 .notice-approve .na-blocked{flex:0 0 auto;font-size:12px;color:var(--danger)}
 @media(max-width:720px){
@@ -2078,13 +2079,14 @@ if (noticeBar) {
   noticeBar.onclick = (event) => {
     const quick = event.target.closest('[data-quick-decide]')
     if (quick) { event.stopPropagation(); decideQuickApproval(quick); return }
+    if (event.target.closest('[data-notice-notify]')) { event.stopPropagation(); askNotifyFromBar(); return }
     if (event.target.closest('[data-notice-approve-more]')) { event.stopPropagation(); openNotices(); return }
     openNotices()
   }
   noticeBar.onkeydown = (event) => {
     // Keys pressed on a button inside the bar belong to that button, not to the
     // bar's own open-the-sheet shortcut.
-    if (event.target.closest('[data-quick-decide],[data-notice-approve-more]')) return
+    if (event.target.closest('[data-quick-decide],[data-notice-notify],[data-notice-approve-more]')) return
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openNotices() }
   }
 }
@@ -2526,6 +2528,9 @@ async function checkPendingNotifications() {
       app.data = data
       app.stateLoaded = true
       app.stateError = ''
+      // The title count must follow the queue even when the bar itself did not
+      // re-render (no new ids, only a decision elsewhere).
+      syncPendingTitle()
       renderPending()
       renderAging()
       if (agentsMoved) renderAgents()
@@ -3887,6 +3892,14 @@ function noticeCounts() {
   const unread = noticeItems().filter((item) => !read.includes(item.id))
   return { pending: unread.filter((item) => item.kind === 'pending').length, reminders: unread.filter((item) => item.kind !== 'pending').length }
 }
+const BASE_TITLE = document.title || 'Secrets Broker · Cloudflare Workers'
+// The in-bar prompt must be askable exactly once: after a denial or a dismissed
+// browser prompt the button never comes back, so the bar cannot nag.
+const NOTIFY_ASK_KEY = 'sb.notify.asked.v1'
+function syncPendingTitle() {
+  const n = ((app.data && app.data.pending) || []).length
+  document.title = n ? '(' + n + ') ' + BASE_TITLE : BASE_TITLE
+}
 function waitedLabel(createdAt) {
   const ms = Date.now() - new Date(createdAt).getTime()
   if (!Number.isFinite(ms) || ms < 60000) return '不到 1 分钟'
@@ -3894,6 +3907,13 @@ function waitedLabel(createdAt) {
   if (min < 60) return min + ' 分钟'
   const hr = Math.floor(min / 60)
   return hr < 24 ? hr + ' 小时' : Math.floor(hr / 24) + ' 天'
+}
+function notifyOptInHtml() {
+  try {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'default') return ''
+    if (localStorage.getItem(NOTIFY_ASK_KEY) === '1') return ''
+  } catch { return '' }
+  return '<button type="button" class="na-notify" data-notice-notify aria-label="开启桌面通知：审批出现时提醒你，只询问一次">开启桌面通知</button>'
 }
 // Rows show who asked, which item and how long it has waited; the buttons are
 // the duration the approver grants, so one click settles the request here.
@@ -3915,7 +3935,7 @@ function noticeApproveHtml(pendingUnread) {
   }).join('')
   const more = pendingUnread.length > 2 ? '<button type="button" class="na-more" data-notice-approve-more aria-label="查看全部 ' + pendingUnread.length + ' 条待审批">还有 ' + (pendingUnread.length - 2) + ' 条 ›</button>' : ''
   return '<div class="notice-approve" role="region" aria-label="待审批，可直接处理">'
-    + '<div class="na-head"><span role="status" aria-live="polite">' + pendingUnread.length + ' 条待审批 · 就地处理</span>' + more + '</div>'
+    + '<div class="na-head"><span role="status" aria-live="polite">' + pendingUnread.length + ' 条待审批 · 就地处理</span>' + more + notifyOptInHtml() + '</div>'
     + rows + '</div>'
 }
 async function decideQuickApproval(button) {
@@ -3934,9 +3954,21 @@ async function decideQuickApproval(button) {
     toast('审批失败：' + error.message, true)
   }
 }
+async function askNotifyFromBar() {
+  // Mark first: a dismissed prompt must not bring the button back either.
+  try { localStorage.setItem(NOTIFY_ASK_KEY, '1') } catch {}
+  let permission = 'denied'
+  try { permission = Notification.permission } catch {}
+  try { if (permission === 'default') permission = await Notification.requestPermission() } catch {}
+  updateBrowserNotifyStatus()
+  renderNoticeBar()
+  if (permission === 'granted') { toast('桌面通知已开启：审批出现时会提醒你'); startPendingPolling() }
+  else toast(permission === 'denied' ? '已拒绝桌面通知；审批仍显示在标题计数和提示条里' : '未开启桌面通知；审批仍显示在标题计数和提示条里')
+}
 function renderNoticeBar() {
   const bar = $('notice-bar')
   if (!bar) return
+  syncPendingTitle()
   const read = noticeReadIds()
   const items = noticeItems().filter((item) => !read.includes(item.id))
   if (!items.length) { bar.classList.add('hidden'); bar.innerHTML = ''; if (noticeTimer) { clearInterval(noticeTimer); noticeTimer = null }; return }
