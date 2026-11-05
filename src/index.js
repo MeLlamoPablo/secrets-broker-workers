@@ -47,6 +47,7 @@ const AUDIT_EVENT_GROUPS = {
   login: ['admin.login', 'admin.login-fail', 'admin.oidc-login', 'admin.origin-mismatch', 'vault.unlock', 'vault.lock', 'vault.oidc-unlock'],
   item: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.rotate.purge', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update'],
   oauth: ['oauth.*', 'fill.*'],
+  connection: ['connection.request', 'connection.approve', 'connection.deny', 'connection.expire', 'connection.access-deny'],
   risk: AUDIT_RED_EVENTS,
 }
 function auditEventMatches(kinds, event) {
@@ -1210,6 +1211,9 @@ async function loadState(env) {
   }
   state.pending ??= {}
   state.audit ??= []
+  // Connection admission records live in the state document itself; the
+  // document is schemaless, so this needs no migration and no new table.
+  state.connections ??= {}
   // Bootstrap writes must not blindly overwrite the whole state: that would
   // discard concurrent changes (notably a just-created admin session). Use the
   // compare-and-swap writer and, on conflict, skip — the migration simply runs
@@ -2000,6 +2004,241 @@ function grantStatusForAgent(state, agent, agentName, name, itemId) {
   const capLive = cap && !cap.revokedAt && !(cap.expiresAt && cap.expiresAt < Date.now()) && (cap.maxReads == null || (cap.reads ?? 0) < cap.maxReads)
   if (capLive || activeGrant(state, agentName, name) || (agent.federated !== true && state.policies?.[name]?.noApproval === true)) return 'granted'
   return 'none'
+}
+
+// ── Connection admission ──────────────────────────────────────────────────
+// A token proves which agent the operator created; it does not prove that the
+// device holding it may open a session. A connection is admitted once — the
+// operator picks the readable items, whether values may be shown, and for how
+// long — and that admission is checked BEFORE the capability / action-grant
+// decision. It only narrows access; it never widens it.
+const CONNECTION_PENDING_TTL_MS = 10 * 60 * 1000
+const CONNECTION_MAX_TTL_MS = 30 * 86400 * 1000
+const CONNECTION_DENY_TTL_MS = 24 * 3600 * 1000
+const CONNECTION_RETENTION_MS = 24 * 3600 * 1000
+const CONNECTION_TTL_PRESETS = { '1h': 3600e3, '24h': 86400e3, '7d': 7 * 86400e3, '30d': 30 * 86400e3 }
+// Agents that existed before connection admission shipped are already admitted:
+// the operator created them, and re-asking would cut every running client off
+// on deploy. Everything created after this point has to be admitted explicitly.
+const CONNECTION_ADMISSION_EPOCH = '2026-11-05T16:00:00.000Z'
+
+const CONNECTION_MESSAGES = {
+  'connection-pending': '这台设备还没有获得连接许可。请管理员在面板里批准后再试。',
+  'connection-denied': '管理员拒绝了这台设备的连接请求。',
+  'connection-expired': '这次连接许可已到期，或申请超时作废。请让管理员重新批准。',
+  'connection-item-not-approved': '这次连接许可没有包含这个条目。',
+  'connection-plaintext-denied': '这次连接许可只允许使用凭据，不允许显示明文值。',
+}
+function connectionMessage(code) { return CONNECTION_MESSAGES[code] ?? '这次连接没有获得许可。' }
+
+// The address is hashed so the console can tell "same source" from "another
+// source" without keeping an IP address it does not need. An unknown source
+// keeps its own bucket so a probe from a header-less client still de-duplicates.
+async function connectionSourceOf(request) {
+  const raw = String(clientIp(request) ?? '').trim()
+  if (!raw || raw === 'unknown') return { ipHash: 'ip:unknown' }
+  return { ipHash: 'ip:' + (await sha256Base64(raw)).slice(0, 16) }
+}
+
+function connectionAgentCreatedAt(state, agentName) {
+  const agent = state.agents?.[agentName]
+  if (agent?.createdAt) return agent.createdAt
+  for (const token of Object.values(state.oauthTokens ?? {})) {
+    if (token?.agent === agentName && token.createdAt) return token.createdAt
+  }
+  return ''
+}
+
+function connectionGrandfathered(state, agentName) {
+  const created = Date.parse(connectionAgentCreatedAt(state, agentName))
+  return Number.isFinite(created) && created < Date.parse(CONNECTION_ADMISSION_EPOCH)
+}
+
+function connectionExpiredAt(record) {
+  if (record?.expiresAt == null || record.expiresAt === '') return null
+  const expires = Date.parse(record.expiresAt)
+  return Number.isFinite(expires) ? expires : null
+}
+
+// Moves records whose time is up to 'expired' and returns the transitions that
+// still need an audit line. Called inside a state transaction, so two readers
+// cannot both claim the same transition.
+function sweepConnections(state, now = Date.now()) {
+  state.connections ??= {}
+  const expired = []
+  for (const [id, record] of Object.entries(state.connections)) {
+    if (!record) { delete state.connections[id]; continue }
+    const expires = connectionExpiredAt(record)
+    if (expires === null) continue
+    if ((record.state === 'pending' || record.state === 'approved') && expires <= now) {
+      const from = record.state
+      record.state = 'expired'
+      record.expiredAt = new Date(now).toISOString()
+      record.reasonCode = from === 'pending' ? 'not-decided-in-10m' : 'ttl-elapsed'
+      expired.push({ id, agent: record.agent, from, reasonCode: record.reasonCode })
+      continue
+    }
+    // A denial holds for one day so a retrying client cannot turn a "no" into a
+    // fresh pending row; an expired record is kept a day so the console can say
+    // what happened. The audit line outlives both.
+    if (record.state === 'denied' && expires <= now) delete state.connections[id]
+    else if (record.state === 'expired' && expires + CONNECTION_RETENTION_MS <= now) delete state.connections[id]
+  }
+  return expired
+}
+
+function connectionSweepNeeded(state, now = Date.now()) {
+  for (const record of Object.values(state.connections ?? {})) {
+    if (!record) return true
+    const expires = connectionExpiredAt(record)
+    if (expires === null) continue
+    if ((record.state === 'pending' || record.state === 'approved') && expires <= now) return true
+    if (record.state === 'denied' && expires <= now) return true
+    if (record.state === 'expired' && expires + CONNECTION_RETENTION_MS <= now) return true
+  }
+  return false
+}
+
+// Lazy sweep: this deployment has no cron (the account's slot limit is full),
+// so expiry is applied the next time anyone reads or uses a connection. It is
+// safe to call often: the snapshot check avoids a write when nothing is due.
+async function sweepConnectionExpiry(env) {
+  const snapshot = await loadState(env)
+  if (!connectionSweepNeeded(snapshot)) return []
+  const expired = []
+  await updateState(env, (state) => {
+    expired.push(...sweepConnections(state, Date.now()))
+    return state
+  })
+  for (const entry of expired) {
+    await addAudit(env, { event: 'connection.expire', agent: entry.agent, requestId: entry.id, from: entry.from, reasonCode: entry.reasonCode })
+  }
+  return expired
+}
+
+function connectionAllowsItem(connection, itemId) {
+  if (!connection) return true
+  if (connection.scope?.all === true) return true
+  return Boolean(itemId) && (connection.scope?.itemIds ?? []).includes(itemId)
+}
+
+function connectionItemNames(state, itemIds) {
+  return (itemIds ?? []).map((id) => Object.keys(state.itemIds ?? {}).find((name) => state.itemIds[name] === id) ?? '')
+}
+
+function connectionRecordView(state, record, { masked = false } = {}) {
+  const scope = record.scope
+    ? {
+        all: record.scope.all === true,
+        itemIds: record.scope.itemIds ?? [],
+        // Ids are the stable identity; names are resolved for display only and
+        // are masked while the console is locked, exactly like item rows.
+        itemNames: connectionItemNames(state, record.scope.itemIds ?? []).map((name) => (masked && name ? maskName(name) : name)),
+      }
+    : null
+  return {
+    id: record.id,
+    agent: record.agent,
+    account: record.account ?? '',
+    oauth: record.oauth === true,
+    source: { ipHash: record.source?.ipHash ?? 'ip:unknown' },
+    origin: record.origin ?? '',
+    createdAt: record.createdAt ?? '',
+    expiresAt: record.expiresAt ?? null,
+    state: record.state,
+    requestedScope: { all: record.requestedScope?.all !== false, itemIds: record.requestedScope?.itemIds ?? [] },
+    requestedPlaintext: record.requestedPlaintext === true,
+    scope,
+    plaintextAllowed: record.plaintextAllowed === true,
+    ttlMs: typeof record.ttlMs === 'number' ? record.ttlMs : null,
+    decidedAt: record.decidedAt ?? null,
+    decidedBy: record.decidedBy ?? null,
+    reasonCode: record.reasonCode ?? null,
+  }
+}
+
+function connectionView(state, { masked = false, limit = 20 } = {}) {
+  const pending = []
+  const recent = []
+  for (const record of Object.values(state.connections ?? {})) {
+    if (!record) continue
+    const view = connectionRecordView(state, record, { masked })
+    if (record.state === 'pending') pending.push(view)
+    else recent.push(view)
+  }
+  pending.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+  recent.sort((a, b) => String(b.decidedAt || b.expiresAt || '').localeCompare(String(a.decidedAt || a.expiresAt || '')))
+  return { pending, recent: recent.slice(0, limit), count: pending.length }
+}
+
+function connectionDecision(record, now = Date.now()) {
+  if (!record) return { ok: false, status: 'pending', record: null, reasonCode: 'connection-pending' }
+  const expires = connectionExpiredAt(record)
+  const live = expires === null || expires > now
+  if (record.state === 'approved' && live) return { ok: true, record }
+  if (record.state === 'pending' && live) return { ok: false, status: 'pending', record, reasonCode: 'connection-pending' }
+  if (record.state === 'denied') return { ok: false, status: 'denied', record, reasonCode: record.reasonCode || 'admin-denied' }
+  return { ok: false, status: 'expired', record, reasonCode: record.reasonCode || (record.state === 'pending' ? 'not-decided-in-10m' : 'ttl-elapsed') }
+}
+
+// Looks up (or asks for) the admission for this agent + account + source.
+// Repeats from the same source reuse the pending record, so a retrying or
+// probing client cannot flood the approval list.
+async function connectionAdmission(env, { state, agentName, account, request, origin = '', plaintextRequested = false }) {
+  if (state.connectionPolicy?.required === false) return { ok: true, record: null, disabled: true }
+  const accountKey = String(account ?? '').trim().toLowerCase()
+  const source = await connectionSourceOf(request)
+  const match = (connections) => Object.values(connections ?? {}).find((record) => record
+    && record.agent === agentName
+    && String(record.account ?? '').trim().toLowerCase() === accountKey
+    && String(record.source?.ipHash ?? '') === source.ipHash)
+  const existing = match(state.connections)
+  if (existing) {
+    const decision = connectionDecision(existing)
+    // Time is the authority even when nobody has read the list: an expired
+    // record never works again, and this call leaves the audit line behind.
+    if (decision.status === 'expired' && existing.state !== 'expired') await sweepConnectionExpiry(env).catch(() => {})
+    return decision
+  }
+  if (connectionGrandfathered(state, agentName)) return { ok: true, record: null, grandfathered: true }
+  let created = null
+  await updateState(env, (next) => {
+    next.connections ??= {}
+    if (match(next.connections)) return next
+    const id = crypto.randomUUID()
+    created = {
+      id, agent: agentName, account: accountKey, oauth: false,
+      source, origin: String(origin ?? ''),
+      createdAt: nowIso(), expiresAt: new Date(Date.now() + CONNECTION_PENDING_TTL_MS).toISOString(),
+      state: 'pending',
+      // The agent does not name items when it connects, so the request says
+      // "unknown/everything" and the operator narrows it when approving.
+      requestedScope: { all: true, itemIds: [] },
+      requestedPlaintext: plaintextRequested === true,
+      scope: null, plaintextAllowed: null, ttlMs: null,
+      decidedAt: null, decidedBy: null, reasonCode: null,
+    }
+    next.connections[id] = created
+    return next
+  })
+  if (!created) return { ok: false, status: 'pending', record: null, reasonCode: 'connection-pending' }
+  await addAudit(env, {
+    event: 'connection.request', agent: agentName, requestId: created.id,
+    account: accountKey, plaintextRequested: created.requestedPlaintext, source: source.ipHash,
+  })
+  return { ok: false, status: 'pending', record: created, reasonCode: 'connection-pending' }
+}
+
+function connectionBlockedPayload(admission, origin) {
+  const record = admission.record ?? null
+  return {
+    status: admission.status === 'pending' ? 'pending-connection' : 'connection-' + String(admission.status ?? 'denied'),
+    reasonCode: admission.reasonCode ?? 'connection-denied',
+    requestId: record?.id ?? '',
+    approvalUrl: record ? String(origin ?? '').replace(/\/$/, '') + '/#connections' : '',
+    expiresAt: record?.expiresAt ?? null,
+    message: connectionMessage(admission.reasonCode ?? 'connection-denied'),
+  }
 }
 
 // Restore is revoke's inverse, and it has to undo the same two things: the
@@ -4756,7 +4995,7 @@ function matrixCell(state, agent, agentName, itemId, itemName, action) {
   return { state: 'none', source: 'none', status: 'none' }
 }
 
-async function agentAccess(env, { session, agentName, agent, state, name, origin, ctx, consumeRead = true, action = 'secret.read', target = null, createRequest = false }) {
+async function agentAccess(env, { session, agentName, agent, state, name, origin, ctx, consumeRead = true, action = 'secret.read', target = null, createRequest = false, connection = null }) {
   if (agent.account && session.email && String(agent.account).toLowerCase() !== String(session.email).toLowerCase()) return { status: createRequest ? 'outside_scope' : 'forbidden', code: 'outside_scope', error: 'agent is bound to another vault account' }
   if (agent.muted) return { status: 'muted', code: 'muted', error: 'this agent is muted by the operator' }
   // Legacy scope is only a fallback for secret.read; it must not pre-block an
@@ -4772,6 +5011,19 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
   }
   const itemId = state.itemIds?.[name] ?? ''
   if (createRequest && !itemId) return { status: 'not_found', code: 'not_found', error: 'no item named "' + name + '" in this account' }
+  // Connection admission is the outermost gate for reads: it narrows which
+  // items this device may read and whether it may see values, before any
+  // capability / action grant is consulted. It never adds access.
+  if (connection && action === 'secret.read') {
+    if (!connectionAllowsItem(connection, itemId)) {
+      await addAudit(env, { event: 'connection.access-deny', agent: agentName, name, itemId, action, reasonCode: 'connection-item-not-approved' })
+      return { status: 'forbidden', code: 'connection-item-not-approved', reason: 'connection-item-not-approved', reasonCode: 'connection-item-not-approved', error: connectionMessage('connection-item-not-approved') }
+    }
+    if (connection.plaintextAllowed !== true) {
+      await addAudit(env, { event: 'connection.access-deny', agent: agentName, name, itemId, action, reasonCode: 'connection-plaintext-denied' })
+      return { status: 'forbidden', code: 'connection-plaintext-denied', reason: 'connection-plaintext-denied', reasonCode: 'connection-plaintext-denied', error: connectionMessage('connection-plaintext-denied') }
+    }
+  }
   const decision = authorizeSecretAction(state, { agent, agentName, itemId, itemName: name, action, target, accountId: session.email })
   await shadowAudit(env, state, action, agentName, name, itemId, decision.ok, decision.legacy)
 
@@ -7080,6 +7332,9 @@ export default {
     }
     if (url.pathname === '/api/state') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      // Expiry is applied here too, so an open console loses a stale request
+      // without waiting for the operator to open a separate panel.
+      await sweepConnectionExpiry(env)
       const state = await loadState(env)
       await migrateLegacyAudit(env, state)
       const audit = await recentAuditEntries(env, state, LEGACY_AUDIT_LIMIT)
@@ -7091,7 +7346,8 @@ export default {
     // the names they carry are masked server-side until the vault is unlocked.
     const masked = await shouldMaskConsole(env)
     const view = publicState(state, { masked, audit })
-    return json({ ...view, geoEnabled: GEO_ENABLED(env), fillPolicies: { ...view.fillPolicies, executionLayer: Boolean(String(env.FILL_EXECUTION_TOKEN ?? '')) }, reminders, pendingCount: Object.keys(state.pending ?? {}).length })
+    const connections = connectionView(state, { masked })
+    return json({ ...view, connections: { pending: connections.pending, recent: connections.recent }, pendingConnectionCount: connections.count, geoEnabled: GEO_ENABLED(env), fillPolicies: { ...view.fillPolicies, executionLayer: Boolean(String(env.FILL_EXECUTION_TOKEN ?? '')) }, reminders, pendingCount: Object.keys(state.pending ?? {}).length })
     }
     // Read-only migration report: which agents still rely on legacy paths,
     // what would break, and current capability terms. Never mutates.
@@ -7449,6 +7705,124 @@ export default {
       const outcome = await decidePending(env, String(body.id ?? ''), String(body.decision ?? ''), 'web')
       if (!outcome) return fail('pending request not found', 404)
       return json({ ok: true, outcome })
+    }
+    // ── Connection admission ───────────────────────────────────────────────
+    // The console reads the pending connections and decides one at a time.
+    if (url.pathname === '/api/connections' && request.method === 'GET') {
+      if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      await sweepConnectionExpiry(env)
+      const state = await loadState(env)
+      const masked = await shouldMaskConsole(env)
+      const connections = connectionView(state, { masked })
+      return json({ ok: true, now: nowIso(), pending: connections.pending, recent: connections.recent, count: connections.count })
+    }
+    if (url.pathname === '/api/connections/decide' && request.method === 'POST') {
+      if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
+      const body = await request.json().catch(() => ({}))
+      const id = String(body.id ?? '').trim()
+      const decision = String(body.decision ?? '').trim()
+      if (!id) return json({ ok: false, reasonCode: 'connection-id-required', error: 'id required' }, 400)
+      if (decision !== 'approve' && decision !== 'deny') return json({ ok: false, reasonCode: 'connection-decision-invalid', error: 'decision must be approve or deny' }, 400)
+      // A late click must not resurrect a request whose window closed: apply
+      // expiry first, then refuse anything that is no longer pending.
+      await sweepConnectionExpiry(env)
+      const state = await loadState(env)
+      const existing = state.connections?.[id]
+      if (!existing) return json({ ok: false, reasonCode: 'connection-not-found', error: 'connection request not found' }, 404)
+      if (existing.state !== 'pending') return json({ ok: false, reasonCode: 'connection-not-pending', error: 'connection request is ' + existing.state, state: existing.state }, 409)
+      const adminSession = await getSession(env)
+      const adminEmail = String(adminSession?.email ?? '').trim().toLowerCase()
+      if (decision === 'deny') {
+        let denied = null
+        await updateState(env, (next) => {
+          const record = next.connections?.[id]
+          if (!record || record.state !== 'pending') { denied = null; return next }
+          record.state = 'denied'
+          record.decidedAt = nowIso()
+          record.decidedBy = adminEmail ? 'admin:' + adminEmail : 'admin'
+          // A denial holds for a day, so retrying the same source cannot turn
+          // "no" into a fresh row in the approval list.
+          record.expiresAt = new Date(Date.now() + CONNECTION_DENY_TTL_MS).toISOString()
+          record.reasonCode = 'admin-denied'
+          denied = record
+          return next
+        })
+        if (!denied) return json({ ok: false, reasonCode: 'connection-not-pending', error: 'connection request changed state' }, 409)
+        await addAudit(env, { event: 'connection.deny', agent: denied.agent, requestId: id, account: denied.account, reasonCode: 'admin-denied', via: 'web' })
+        return json({ ok: true, connection: connectionRecordView(await loadState(env), denied) })
+      }
+      const { account, unlocked } = await consoleVault(env)
+      if (!unlocked) return fail('locked', 423)
+      if (existing.account && account && String(existing.account).toLowerCase() !== String(account).toLowerCase()) {
+        return json({ ok: false, reasonCode: 'connection-account-mismatch', error: 'connection belongs to another vault account' }, 409)
+      }
+      const all = body.all === true
+      const itemIds = (Array.isArray(body.itemIds) ? body.itemIds : [])
+        .map((value) => String(value ?? '').trim())
+        .filter((value) => value.length > 0 && value.length <= 128)
+      if (!all && itemIds.length === 0) return json({ ok: false, reasonCode: 'connection-scope-empty', error: 'approve needs itemIds or all:true' }, 400)
+      // Fail closed: only an explicit true may expose values.
+      const plaintextAllowed = body.plaintextAllowed === true
+      // ttlMs is the precise form; duration is the friendly one. "always" is
+      // the only way to make an admission permanent, so it must be explicit.
+      let ttlMs = null
+      if (Object.prototype.hasOwnProperty.call(body, 'ttlMs')) {
+        ttlMs = body.ttlMs === null ? null : Number(body.ttlMs)
+      } else if (typeof body.duration === 'string' && body.duration) {
+        if (body.duration === 'always') ttlMs = null
+        else if (Object.prototype.hasOwnProperty.call(CONNECTION_TTL_PRESETS, body.duration)) ttlMs = CONNECTION_TTL_PRESETS[body.duration]
+        else ttlMs = NaN
+      } else {
+        ttlMs = CONNECTION_TTL_PRESETS['24h']
+      }
+      if (ttlMs !== null && (!Number.isFinite(ttlMs) || ttlMs < 60_000 || ttlMs > CONNECTION_MAX_TTL_MS)) {
+        return json({ ok: false, reasonCode: 'connection-ttl-invalid', error: 'ttlMs must be 60000..2592000000, or duration 1h/24h/7d/30d/always' }, 400)
+      }
+      let approved = null
+      await updateState(env, (next) => {
+        const record = next.connections?.[id]
+        if (!record || record.state !== 'pending') { approved = null; return next }
+        record.state = 'approved'
+        record.scope = { all, itemIds: all ? [] : [...new Set(itemIds)] }
+        record.plaintextAllowed = plaintextAllowed
+        record.ttlMs = ttlMs
+        record.decidedAt = nowIso()
+        record.decidedBy = adminEmail ? 'admin:' + adminEmail : 'admin'
+        record.reasonCode = null
+        record.expiresAt = ttlMs === null ? null : new Date(Date.now() + ttlMs).toISOString()
+        approved = record
+        return next
+      })
+      if (!approved) return json({ ok: false, reasonCode: 'connection-not-pending', error: 'connection request changed state' }, 409)
+      await addAudit(env, {
+        event: 'connection.approve', agent: approved.agent, requestId: id, account: approved.account,
+        all, itemIds: approved.scope.itemIds, itemCount: approved.scope.itemIds.length,
+        plaintextAllowed, ttlMs, expiresAt: approved.expiresAt, via: 'web',
+      })
+      return json({ ok: true, connection: connectionRecordView(await loadState(env), approved) })
+    }
+    // Agent-side poll, so a client that got "pending" can learn the answer
+    // without hammering the tool that was refused.
+    if (url.pathname === '/api/connection/status' && request.method === 'GET') {
+      const resolved = await resolveAgent(request, env)
+      if (!resolved) return fail('unauthorized', 401)
+      const session = await getSession(env)
+      const account = String((session?.email || resolved.agent.account) ?? '').trim().toLowerCase()
+      await sweepConnectionExpiry(env)
+      const state = await loadState(env)
+      const record = Object.values(state.connections ?? {})
+        .filter((entry) => entry && entry.agent === resolved.name && String(entry.account ?? '').toLowerCase() === account)
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0] ?? null
+      if (!record) return json({ ok: true, state: 'none', reasonCode: null, approvalUrl: '', expiresAt: null, scope: null, plaintextAllowed: false })
+      const outcome = connectionDecision(record)
+      return json({
+        ok: true,
+        state: outcome.ok ? 'approved' : outcome.status,
+        reasonCode: outcome.reasonCode ?? null,
+        ...connectionRecordView(state, record, { masked: await shouldMaskConsole(env) }),
+        approvalUrl: outcome.ok ? '' : String(url.origin) + '/#connections',
+        message: outcome.ok ? '' : connectionMessage(outcome.reasonCode ?? 'connection-pending'),
+      })
     }
     if (url.pathname === '/api/grants/revoke' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
@@ -8897,6 +9271,22 @@ const TOOL_META = {
         // before this setting keep working; a non-empty list is an allowlist.
         const allowedTools = Array.isArray(resolved.agent.tools) && resolved.agent.tools.length ? resolved.agent.tools : null
         if (allowedTools && !allowedTools.includes(name)) return result(text('this agent is restricted to: ' + allowedTools.join(', ') + ' — ' + name + ' is not allowed', true))
+        // Connection admission. A token identifies the agent; the first call
+        // from a new device is what asks the operator to allow that connection
+        // and to pick what it may read. Repeats from the same source reuse the
+        // request instead of adding rows to the approval list.
+        const admission = await connectionAdmission(env, {
+          state: resolved.state,
+          agentName: resolved.name,
+          account: session.email || resolved.agent.account || '',
+          request,
+          origin: url.origin,
+          plaintextRequested: name === 'get_secret' || name === 'get_credential' || name === 'http_request',
+        })
+        if (!admission.ok) {
+          const blocked = connectionBlockedPayload(admission, url.origin)
+          return result(text({ ...blocked, next: admission.status === 'pending' ? '管理员批准后重新调用同一个工具即可；不需要重复申请' : '请让管理员重新批准这台设备' }, admission.status !== 'pending'))
+        }
         try {
           if (name === 'put_secret') {
             const itemName = argName()
@@ -8952,6 +9342,8 @@ const TOOL_META = {
             const filter = String(args.filter ?? '').trim().toLowerCase()
             const limit = Math.min(Math.max(Math.floor(Number(args.limit)) || 200, 1), 500)
             const visible = items
+              // An admitted connection only sees the items the operator chose.
+              .filter((item) => connectionAllowsItem(admission.record, item.id))
               .filter((item) => !filter || String(item.name).toLowerCase().includes(filter))
               .sort((a, b) => String(a.name).localeCompare(String(b.name)))
               .slice(0, limit)
@@ -8976,7 +9368,7 @@ const TOOL_META = {
             // The same authority checks as the real use, minus the counter:
             // the DO still validates the identity binding, so a legacy grant
             // without one is reported here instead of at read time.
-            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, consumeRead: false, createRequest: true })
+            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, consumeRead: false, createRequest: true, connection: admission.record })
             const label = accessStatusLabel(access)
             if (label.status === 'allowed') return result(text(label.message))
             if (label.status === 'pending') return result(text({ status: 'pending', request_id: label.requestId, approval_url: label.approvalUrl, item_id: label.itemId }))
@@ -9000,7 +9392,7 @@ const TOOL_META = {
             if (env.MCP_ALLOW_READ !== '1') return result(text('get_secret is disabled; set MCP_ALLOW_READ=1 to expose values', true))
             const secretName = argName()
             if (!secretName) return result(text('name is required', true))
-            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx })
+            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, connection: admission.record })
             if (access.status === 'pending') {
               await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: resolved.agent.oauth ? 'oauth' : 'token', action: 'secret.read', ok: false })
               return result(pendingText(access))
@@ -9026,7 +9418,7 @@ const TOOL_META = {
             if (env.MCP_ALLOW_READ !== '1') return result(text('get_credential is disabled; set MCP_ALLOW_READ=1', true))
             const secretName = argName()
             if (!secretName) return result(text('name is required', true))
-            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx })
+            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, connection: admission.record })
             const credKind = resolved.agent.oauth ? 'oauth' : 'token'
             if (access.status === 'pending') {
               await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: credKind, action: 'secret.read', ok: false })
@@ -9061,7 +9453,7 @@ const TOOL_META = {
               await addAudit(env, { event: 'materialize.deny', agent: resolved.name, name: secretName, path: String(args.path ?? '').slice(0, 200), key: String(args.key ?? '').slice(0, 64), reason: 'target-not-allowed' })
               return result(text('target path is not on the materialize allowlist; add it in 设置 → 安全 first', true))
             }
-            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, action: 'secret.materialize', target: dest })
+            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, action: 'secret.materialize', target: dest, connection: admission.record })
             // The request id is the job id once approved, so the caller can poll
             // materialize_redeem with it instead of asking again (asking again
             // would just queue another approval).
@@ -9131,6 +9523,7 @@ const TOOL_META = {
               session, agentName: resolved.name, agent: resolved.agent, state: resolved.state,
               name: secretName, origin: url.origin, ctx, action: 'secret.fill',
               target: { host: requestedOrigin.host, port: requestedOrigin.port, method: 'POST', pathname: '/', origin: requestedOrigin.origin, action: String(args.action ?? 'login') },
+              connection: admission.record,
             })
             const fillKind = resolved.agent.oauth ? 'oauth' : 'token'
             if (access.status === 'pending') {
@@ -9206,7 +9599,7 @@ const TOOL_META = {
             // returns plaintext and requires a per-item target policy.
             const useTarget = useTargetOf(args.url, args.method)
             if (!useTarget) return result(text('invalid url', true))
-            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, action: 'secret.use', target: useTarget })
+            const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, action: 'secret.use', target: useTarget, connection: admission.record })
             const useKind = resolved.agent.oauth ? 'oauth' : 'token'
             if (access.status === 'pending') {
               await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: useKind, action: 'secret.use', ok: false })
@@ -9316,6 +9709,17 @@ const TOOL_META = {
       const session = await getSession(env)
       if (!session) return fail('vault locked', 423)
       if (resolved.agent.account && String(resolved.agent.account).toLowerCase() !== String(session.email).toLowerCase()) return fail('agent is bound to another vault account', 403)
+      // Writing also requires an admitted connection: an unapproved device
+      // cannot queue changes for the operator to approve.
+      const admission = await connectionAdmission(env, {
+        state: resolved.state, agentName: resolved.name,
+        account: session.email || resolved.agent.account || '',
+        request, origin: url.origin,
+      })
+      if (!admission.ok) {
+        const blocked = connectionBlockedPayload(admission, url.origin)
+        return json(blocked, admission.status === 'pending' ? 202 : 403)
+      }
       const body = await request.json().catch(() => ({}))
       const name = String(body.name ?? '').trim()
       if (!name) return fail('name required', 400)
@@ -9400,13 +9804,24 @@ const TOOL_META = {
       if (!session) return fail('vault locked', 423)
       const name = url.searchParams.get('name') ?? ''
       if (!name) return fail('name required', 400)
+      // Connection admission runs before the capability / grant decision. An
+      // unapproved device gets the approval link instead of a value.
+      const admission = await connectionAdmission(env, {
+        state: resolved.state, agentName: resolved.name,
+        account: session.email || resolved.agent.account || '',
+        request, origin: url.origin, plaintextRequested: true,
+      })
+      if (!admission.ok) {
+        const blocked = connectionBlockedPayload(admission, url.origin)
+        return json(blocked, admission.status === 'pending' ? 202 : 403)
+      }
       try {
         const access = await agentAccess(env, {
           session, agentName: resolved.name, agent: resolved.agent, state: resolved.state,
-          name, origin: url.origin, ctx,
+          name, origin: url.origin, ctx, connection: admission.record,
         })
         if (access.status === 'pending') return json({ status: 'pending', requestId: access.requestId, approvalUrl: access.approvalUrl }, 202)
-        if (accessRefused(access)) return fail(access.error, 403)
+        if (accessRefused(access)) return json({ error: access.error, ...(access.reasonCode ? { reasonCode: access.reasonCode } : {}) }, 403)
         if (access.status === 'notfound') return fail(access.error, 404)
         // Second layer: the same guard already ran inside agentAccess. A
         // website login is refused; only an api credential with an explicit
