@@ -472,7 +472,7 @@ input.ios-switch::after{content:"";position:absolute;top:2px;left:2px;width:27px
 input.ios-switch:checked{background:var(--green);border-color:var(--green)}
 input.ios-switch:checked::after{transform:translateX(20px);border:0}
 .page .row>button{flex:1 1 auto;min-width:0;font-weight:500}
-.page .row>button.primary{background:var(--blue);color:#fff}
+.page .row>button.primary{background:var(--brand-strong);color:#fff}
 .page .row>button.danger{background:color-mix(in srgb,var(--red) var(--mix-badge),var(--card));color:var(--red)}
 html[data-theme="dark"] .page .row>button.danger{background:color-mix(in srgb,var(--red) 16%,var(--card))}
 .page .row>button:not(.primary):not(.danger){background:var(--fill);color:var(--label)}
@@ -831,8 +831,8 @@ html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="da
 input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 26%,transparent);outline:none}
 label.field{font-size:13px;color:var(--ink-2);margin:12px 0 6px}
 button{border-radius:var(--r-control);font-size:14px;font-weight:500}
-button.primary{background:var(--brand);color:#fff;border:1px solid transparent}
-button.primary:hover{background:var(--brand-strong)}
+button.primary{background:var(--brand-strong);color:#fff;border:1px solid transparent}
+button.primary:hover{background:var(--brand-strong);filter:brightness(.93)}
 button.danger{background:color-mix(in srgb,var(--red) 10%,transparent);color:var(--danger-text);border:1px solid color-mix(in srgb,var(--red) 24%,transparent)}
 button.small{min-height:34px;padding:6px 12px;font-size:13px}
 .state{display:flex;flex-direction:column;align-items:center;gap:6px;margin:16px 0;padding:36px 20px;border:1px solid var(--hair);border-radius:var(--r-card);background:var(--surface-2);text-align:center}
