@@ -129,4 +129,27 @@ async function stateOf(env) {
   }
 }
 
+// ============ 5. Before the migration runs, the old trail is still served ============
+{
+  // failAuditInsert makes both the login entry and the legacy batch fail, so D1
+  // stays empty exactly like production right after a deploy. The console reads
+  // /api/state, so that is the request that must not show "no history".
+  const env = makeEnv({ vault: new FakeD1({ failAuditInsert: true }), legacy: new FakeD1() })
+  await seedState(env, { audit: legacyEntries() })
+  const cookie = await login(env)
+  const stateResponse = await (await call(env, '/api/state', { headers: { cookie } })).json()
+  const audit = stateResponse.audit || []
+  if (audit.length === 3 && audit.every((entry) => entry.name === 'legacy')) {
+    pass('5a /api/state serves the in-state trail while audit_v2 is empty')
+  } else {
+    fail('5a /api/state before migration', 'audit=' + JSON.stringify(audit).slice(0, 220))
+  }
+  const paged = await (await call(env, '/api/audit?limit=10', { headers: { cookie } })).json()
+  if (paged.total === 3 && paged.entries.length === 3 && paged.entries.every((entry) => entry.name === 'legacy')) {
+    pass('5b /api/audit pages the in-state trail instead of reporting an empty total')
+  } else {
+    fail('5b /api/audit before migration', 'total=' + paged.total + ' entries=' + (paged.entries || []).length)
+  }
+}
+
 finish()

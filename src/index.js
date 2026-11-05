@@ -1230,13 +1230,39 @@ function filterAuditRows(rows, { item, agent, kinds, query, fromMs, toMs }) {
   })
 }
 
+function auditDedupeKey(entry) {
+  return String(entry?.time ?? '') + '\u0000' + String(entry?.event ?? '') + '\u0000' + String(entry?.name ?? '')
+}
+
+// Merge rows that already live in D1 with entries still waiting in state.audit.
+// The console reads /api/state, which answers from D1 only; on a fresh deploy
+// the legacy entries do not exist there yet, so without this merge the log list
+// (and the item filter it feeds) looks empty until the migration completes.
+// Duplicates are removed by the same time+event+name key the migration uses to
+// clear state.audit, so a partially completed migration cannot double-count.
+function mergeLegacyAudit(rows, state, limit) {
+  const legacy = (state?.audit ?? []).map(stripAuditIndex)
+  if (!legacy.length) return rows
+  const seen = new Set(rows.map(auditDedupeKey))
+  const merged = rows.slice()
+  for (const entry of legacy) {
+    const key = auditDedupeKey(entry)
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push(entry)
+  }
+  merged.sort((a, b) => Date.parse(String(b?.time ?? '')) - Date.parse(String(a?.time ?? '')) || 0)
+  return limit < 0 ? merged : merged.slice(0, limit)
+}
+
 // Newest first, bounded. Used by /api/state, reminders, activity and item
 // enrichment, where "recent" is the only thing that matters.
 async function recentAuditEntries(env, state, limit = LEGACY_AUDIT_LIMIT) {
   if (!env.VAULT_DB) return (state?.audit ?? []).slice(0, limit).map(stripAuditIndex)
   try {
     const rows = await env.VAULT_DB.prepare(AUDIT_SELECT + ' ORDER BY id DESC LIMIT ?').bind(limit).all()
-    return (rows.results ?? []).map(auditEntryFromRow).filter(Boolean).map(stripAuditIndex)
+    const entries = (rows.results ?? []).map(auditEntryFromRow).filter(Boolean).map(stripAuditIndex)
+    return mergeLegacyAudit(entries, state, limit)
   } catch (error) {
     console.error('audit read failed: ' + String(error?.message ?? error))
     return (state?.audit ?? []).slice(0, limit).map(stripAuditIndex)
@@ -1246,13 +1272,21 @@ async function recentAuditEntries(env, state, limit = LEGACY_AUDIT_LIMIT) {
 // Everything since a timestamp, for statistics. The caller has already bounded
 // the window by range, so there is no extra cap here.
 async function auditEntriesSince(env, state, sinceMs) {
-  if (!env.VAULT_DB) return (state?.audit ?? []).filter((entry) => Number.isFinite(Date.parse(String(entry.time ?? '')))).map(stripAuditIndex)
+  const legacy = (state?.audit ?? []).filter((entry) => Number.isFinite(Date.parse(String(entry.time ?? '')))).map(stripAuditIndex)
+  if (!env.VAULT_DB) return legacy
   try {
     const rows = await env.VAULT_DB.prepare(AUDIT_SELECT + ' WHERE at >= ? ORDER BY id DESC').bind(new Date(sinceMs).toISOString()).all()
-    return (rows.results ?? []).map(auditEntryFromRow).filter(Boolean).map(stripAuditIndex)
+    const entries = (rows.results ?? []).map(auditEntryFromRow).filter(Boolean).map(stripAuditIndex)
+    // Statistics must see the same log as the list: entries still in state.audit
+    // count towards the window until the migration moves them.
+    return mergeLegacyAudit(entries, state, -1)
+      .filter((entry) => {
+        const at = Date.parse(String(entry.time ?? ''))
+        return Number.isFinite(at) && at >= sinceMs
+      })
   } catch (error) {
     console.error('audit read failed: ' + String(error?.message ?? error))
-    return []
+    return legacy.filter((entry) => Date.parse(String(entry.time ?? '')) >= sinceMs)
   }
 }
 
@@ -1314,13 +1348,17 @@ async function migrateLegacyAudit(env, state) {
 // in SQLite so total/hasMore stay correct without loading the whole log.
 async function queryAuditPage(env, state, options) {
   const { item, agent, kinds, query, fromMs, toMs, masked, limit, offset } = options
-  if (!env.VAULT_DB) {
+  // Same paging over the in-state trail. Reached when the deployment has no D1
+  // and, below, when the table is still empty because the legacy migration has
+  // not run yet: an empty table must not read as "no history".
+  const legacyPage = () => {
     const rows = (state?.audit ?? []).map(stripAuditIndex)
     const visible = masked ? rows.map(maskAuditRow) : rows
     const filtered = filterAuditRows(visible, { item, agent, kinds, query, fromMs, toMs })
     const end = limit < 0 ? filtered.length : offset + limit
     return { entries: filtered.slice(offset, end), total: filtered.length }
   }
+  if (!env.VAULT_DB) return legacyPage()
   try {
     const where = []
     const values = []
@@ -1346,6 +1384,10 @@ async function queryAuditPage(env, state, options) {
     const clause = where.length ? ' WHERE ' + where.join(' AND ') : ''
     const count = await env.VAULT_DB.prepare('SELECT COUNT(*) AS n FROM audit_v2' + clause).bind(...values).first()
     const total = Number(count?.n ?? 0)
+    // The table exists but has no rows while state.audit still holds the legacy
+    // trail: serve that trail rather than an empty page. Once the migration
+    // clears state.audit this branch stops being reachable.
+    if (total === 0 && Array.isArray(state?.audit) && state.audit.length) return legacyPage()
     const rows = await env.VAULT_DB.prepare(AUDIT_SELECT + clause + ' ORDER BY id DESC LIMIT ? OFFSET ?').bind(...values, limit, offset).all()
     const entries = (rows.results ?? []).map(auditEntryFromRow).filter(Boolean)
       .map((entry) => (masked ? maskAuditRow(stripAuditIndex(entry)) : stripAuditIndex(entry)))
