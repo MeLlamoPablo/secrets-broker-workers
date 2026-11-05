@@ -1482,7 +1482,7 @@ function renderLockedSurface() {
     $('locked-unlock').textContent = '就地解锁'
     $('locked-unlock').dataset.mode = 'unlock'
   } else if (plainGate) {
-    $('locked-text').textContent = '已解锁 · 这组零知识条目的名称还需要一次两步验证，不是未解锁'
+    $('locked-text').textContent = '已解锁 · 显示条目名称需要一次验证码，本次解锁内只问一次'
     $('locked-unlock').textContent = '验证并显示'
     $('locked-unlock').dataset.mode = 'plain'
   }
@@ -3333,7 +3333,7 @@ async function loadVault2(withItems = true) {
       // 428 means this unlock has not passed the second factor for the plaintext
       // listing yet. Ask once; the server remembers the pass for this session.
       if (error.status !== 428) throw error
-      const code = await askCode('条目列表包含明文名称。请输入 6 位验证码：')
+      const code = await askCode('为显示条目名称，请输入手机上 6 位验证码（本次解锁内只需一次）')
       if (!/^\d{6}$/.test(code)) throw new Error('需要 6 位验证码才能显示条目')
       plain = await api('/api/v2/items?plain=1', { headers: { 'x-totp-code': code } })
     }
