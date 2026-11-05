@@ -4,7 +4,7 @@
 // checks restart the object (a new instance over the same storage) and require
 // the unlock to still be there, isolated per session and bounded by its TTL.
 import { BrokerState } from './src/index.js'
-import { HARNESS, makeReporter } from './test-support/broker-harness.mjs'
+import { HARNESS, makeReporter, makeEnv, seedState, login, call as workerCall } from './test-support/broker-harness.mjs'
 
 const { pass, fail, finish } = makeReporter()
 const SESSION = 'session-a'
@@ -101,6 +101,47 @@ async function call(durable, path, method = 'GET', body) {
   else fail('5a expired entry', `status=${got.status}`)
   if (store[name] === undefined) pass('5b the expired entry is deleted from storage')
   else fail('5b expired cleanup', 'record still present')
+}
+
+// ============ 6. A Vault 2.0 unlock is enough for the console helpers ============
+// The live vault has no account:<email> keyring (migration never ran) and its
+// only unlock is /api/v2/unlock, which writes a key slot and never the legacy
+// session. "Extend authorization" answered 423 forever because its gate asked
+// getSession() for that session. Either unlock must now satisfy the gate.
+{
+  const LIVE = 'agent@otscup.com'
+  const web = makeEnv({ extra: { VAULT_EMAIL: LIVE } })
+  await seedState(web, { settings: { vaultEmail: LIVE } })
+  // Mirror the live vault: the agent belongs to the deployment account.
+  const seeded = (await (await web.BROKER_STATE.get().fetch('https://state/state')).json()).state
+  seeded.agents[HARNESS.AGENT].account = LIVE
+  await web.BROKER_STATE.get().fetch('https://state/state', { method: 'PUT', body: JSON.stringify(seeded) })
+
+  const cookie = await login(web)
+  const extend = (headers = {}) => workerCall(web, '/api/agents/extend', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie, ...headers },
+    body: JSON.stringify({ name: HARNESS.AGENT, days: 1 }),
+  })
+
+  const locked = await extend()
+  if (locked.status === 423) pass('6a before unlocking, extend still refuses with 423')
+  else fail('6a locked baseline', `status=${locked.status}`)
+
+  // Exactly what /api/v2/unlock does after vault2Unlock returns: one key slot.
+  await web.BROKER_STATE.get().fetch('https://state/v2-key?account=' + encodeURIComponent(LIVE) + '&session=' + encodeURIComponent('console'), {
+    method: 'PUT',
+    body: JSON.stringify({ dek: DEK, ttlMs: 12 * 3600 * 1000 }),
+  })
+  const slots = Object.keys(web._store).filter((name) => name.startsWith('v2key:'))
+  const legacySession = (await (await web.BROKER_STATE.get().fetch('https://state/session')).json()).session
+  console.log('      slots=' + slots.join(', ') + ' legacySession=' + (legacySession ? 'present' : 'null'))
+
+  const unlocked = await extend()
+  if (unlocked.status === 200) pass('6b a v2 unlock alone lets extend through (no legacy session exists)')
+  else fail('6b extend after v2 unlock', `status=${unlocked.status} body=${await unlocked.text().catch(() => '')}`)
+  if (legacySession === null) pass('6c the unlock wrote no legacy session, which is why the old gate failed')
+  else fail('6c legacy session should be absent', JSON.stringify(legacySession))
 }
 
 finish()

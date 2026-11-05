@@ -1814,6 +1814,30 @@ async function putSession(env, session) {
   await stateStub(env).fetch('https://state/session', { method: 'PUT', body: JSON.stringify({ wrapped, expiresAt: session.expiresAt ?? 0 }) })
 }
 
+// The account a request acts on, decided here and only here. A v1 session names
+// the account it was unlocked for; a Vault 2.0 unlock never writes that session,
+// so the configured vault email answers instead. Two spellings of one account
+// address two different key slots, and an unlock that writes one while a helper
+// reads the other looks like "locked right after unlocking".
+function resolveVaultAccount(state, session, env) {
+  return String(session?.email ?? state?.settings?.vaultEmail ?? env.VAULT_EMAIL ?? '').trim().toLowerCase().slice(0, 254)
+}
+
+// Console actions that need an account and an unlocked vault (grants, policies,
+// extend, migration report) used to require getSession(): that record is only
+// written by the legacy /api/unlock, so a correct Vault 2.0 unlock still got
+// 423 here. Accept either unlock and answer with the shared account string.
+async function consoleVault(env) {
+  const session = await getSession(env)
+  const account = resolveVaultAccount(await loadState(env), session, env)
+  if (session) return { session, account, unlocked: true }
+  const query = account ? '?account=' + encodeURIComponent(account) : ''
+  const cached = await stateStub(env).fetch('https://state/v2-key' + query)
+    .then((response) => response.json())
+    .catch(() => ({}))
+  return { session: null, account, unlocked: cached?.ok === true }
+}
+
 // OIDC can only restore what a password unlock has already opened once. The
 // keys are wrapped with SESSION_KEK, never stored as plaintext.
 function forgetOidcVault(next, providerId) {
@@ -2167,8 +2191,8 @@ async function vault2Context(env, options = {}) {
   // and a deployment with no account at all keeps the original single-key
   // behaviour (the unscoped slot).
   const session = options.session ?? null
-  const sessionAccount = String(session?.email ?? '').trim().toLowerCase()
-  const stateAccount = String(state.settings?.vaultEmail ?? env.VAULT_EMAIL ?? '').trim().toLowerCase()
+  const account = resolveVaultAccount(state, session, env)
+  const deploymentAccount = resolveVaultAccount(state, null, env)
   // The session id is not known here (the helpers only carry the vault session),
   // so the lookup is the account slot: it holds the key of that account's latest
   // unlock and never another account's. With no account, the request falls back
@@ -2177,18 +2201,18 @@ async function vault2Context(env, options = {}) {
     const query = account ? '?account=' + encodeURIComponent(account) : ''
     return (await stateStub(env).fetch('https://state/v2-key' + query)).json().catch(() => ({}))
   }
-  let account = sessionAccount || stateAccount
-  let cached = await readSlot(account)
+  let lookup = account
+  let cached = await readSlot(lookup)
   // Degraded path, kept deliberately: a vault session can name an account this
   // deployment never unlocked v2 under (a legacy deployment resolves the session
   // email from the users table, while v2 runs without an account). In that case
   // only, fall back to the deployment account, which is empty for a legacy
   // deployment and then reads the unscoped mirror.
-  if (!cached.ok && account && account !== stateAccount) {
-    account = stateAccount
-    cached = await readSlot(account)
+  if (!cached.ok && lookup && lookup !== deploymentAccount) {
+    lookup = deploymentAccount
+    cached = await readSlot(lookup)
   }
-  const status = await vault2Status(env, { account }).catch(() => null)
+  const status = await vault2Status(env, { account: lookup }).catch(() => null)
   if (!status?.initialized) return null
   // Once a row has ever been written through v2, deleting the last one must not
   // put the old table back in charge: that would silently resume stale writes.
@@ -6202,8 +6226,8 @@ export default {
     }
     if (url.pathname === '/api/items/rotate/restore' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
-      const session = await getSession(env)
-      if (!session) return fail('locked', 423)
+      const { account, unlocked } = await consoleVault(env)
+      if (!unlocked) return fail('locked', 423)
       const body = await request.json().catch(() => ({}))
       const state = await loadState(env)
       const itemId = String(body.itemId ?? '')
@@ -6216,10 +6240,10 @@ export default {
       const name = Object.keys(state.itemIds ?? {}).find((key) => state.itemIds[key] === itemId) ?? entry.itemId ?? itemId
       await updateState(env, (next) => {
         const current = next.itemMeta?.[itemId]
-        if (current) { delete current.backup; current.lastRestoredAt = nowIso(); current.restoredBy = session.email || '' }
+        if (current) { delete current.backup; current.lastRestoredAt = nowIso(); current.restoredBy = account || '' }
         return next
       })
-      await addAudit(env, { event: 'item.rotate.restore', name, itemId, actor: session.email || '' })
+      await addAudit(env, { event: 'item.rotate.restore', name, itemId, actor: account || '' })
       return json({ ok: true, name, itemId })
     }
     // A kept old value is a second copy of the credential. Waiting out the
@@ -6227,8 +6251,8 @@ export default {
     // and that act itself has to be visible in the audit trail.
     if (url.pathname === '/api/items/rotate/purge' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
-      const session = await getSession(env)
-      if (!session) return fail('locked', 423)
+      const { account, unlocked } = await consoleVault(env)
+      if (!unlocked) return fail('locked', 423)
       const body = await request.json().catch(() => ({}))
       const state = await loadState(env)
       const itemId = String(body.itemId ?? '')
@@ -6238,10 +6262,10 @@ export default {
       const hadUntil = Number(entry.backup.until ?? 0)
       await updateState(env, (next) => {
         const current = next.itemMeta?.[itemId]
-        if (current) { delete current.backup; current.backupPurgedAt = nowIso(); current.backupPurgedBy = session.email || '' }
+        if (current) { delete current.backup; current.backupPurgedAt = nowIso(); current.backupPurgedBy = account || '' }
         return next
       })
-      await addAudit(env, { event: 'item.rotate.purge', name, itemId, actor: session.email || '', hadUntil })
+      await addAudit(env, { event: 'item.rotate.purge', name, itemId, actor: account || '', hadUntil })
       return json({ ok: true, name, itemId })
     }
     if (url.pathname === '/api/items/delete' && request.method === 'POST') {
@@ -6969,8 +6993,9 @@ export default {
     }
     if (url.pathname === '/api/action-grants/revoke' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
-      const session = await getSession(env)
-      if (!session) return fail('locked', 423)
+      // Vault 2.0 unlocks do not create the v1 session; accept either unlock.
+      const { account, unlocked } = await consoleVault(env)
+      if (!unlocked) return fail('locked', 423)
       const body = await request.json().catch(() => ({}))
       const agentName = String(body.agent ?? '')
       // One row in the dialog is one request; "revoke everything I ticked" is
@@ -6999,7 +7024,7 @@ export default {
           .filter((cap) => cap && !cap.revokedAt)
         if (!existing && !capKeys.length) return fail('grant not found', 404)
         const owner = (existing || capKeys[0])?.accountId
-        if (owner && String(owner).toLowerCase() !== String(session.email).toLowerCase()) return fail('grant belongs to another account', 403)
+        if (owner && String(owner).toLowerCase() !== account) return fail('grant belongs to another account', 403)
       }
       const revoked = []
       await updateState(env, (state) => {
@@ -7064,13 +7089,12 @@ export default {
     // what would break, and current capability terms. Never mutates.
     if (url.pathname === '/api/migration-report' && request.method === 'GET') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
-      const session = await getSession(env)
+      const { account, unlocked } = await consoleVault(env)
       // Locked vault => no account scope => refuse rather than leak a global
       // cross-account report.
-      if (!session) return fail('locked', 423)
+      if (!unlocked) return fail('locked', 423)
       const state = await loadState(env)
-      const account = (session?.email ?? '').toLowerCase()
-      const report = { account: session?.email ?? '', agents: [], capabilities: [], legacyGrants: [] }
+      const report = { account, agents: [], capabilities: [], legacyGrants: [] }
       for (const [name, agent] of Object.entries(state.agents ?? {})) {
         if (account && agent.account && String(agent.account).toLowerCase() !== account) continue
         const caps = Object.values(state.capabilities ?? {}).filter((c) => c.subjectId === name)
@@ -7358,8 +7382,10 @@ export default {
     // oauthTokens entry for that subject). Admin session required.
     if (url.pathname === '/api/agents/extend' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
-      const session = await getSession(env)
-      if (!session) return fail('locked', 423)
+      // A Vault 2.0 unlock writes a key slot but never the v1 session, so this
+      // gate has to accept either unlock or it 423s right after unlocking.
+      const { account, unlocked } = await consoleVault(env)
+      if (!unlocked) return fail('locked', 423)
       const body = await request.json().catch(() => ({}))
       const name = String(body.name ?? '').trim()
       if (!name) return fail('name required', 400)
@@ -7377,14 +7403,14 @@ export default {
       await updateState(env, (state) => {
         const agent = state.agents?.[name]
         if (agent) {
-          if (agent.account && String(agent.account).toLowerCase() !== String(session.email).toLowerCase()) return state
+          if (agent.account && String(agent.account).toLowerCase() !== account) return state
           agent.expiresAt = expiresAt === null ? null : expiresAt
           found = true
         }
         // OAuth subjects keep their window on the token records.
         for (const token of Object.values(state.oauthTokens ?? {})) {
           if (token.agent !== name) continue
-          if (token.account && String(token.account).toLowerCase() !== String(session.email).toLowerCase()) continue
+          if (token.account && String(token.account).toLowerCase() !== account) continue
           token.expiresAt = expiresAt
           extendedTokens += 1
           found = true
@@ -7418,14 +7444,15 @@ export default {
     }
     if (url.pathname === '/api/grants/revoke' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
-      const session = await getSession(env)
-      // An unlocked vault is the only trustworthy source of the account scope.
-      if (!session) return fail('locked', 423)
+      // An unlocked vault is the only trustworthy source of the account scope,
+      // and a Vault 2.0 unlock is a legitimate unlock without a v1 session.
+      const { account, unlocked } = await consoleVault(env)
+      if (!unlocked) return fail('locked', 423)
       const body = await request.json().catch(() => ({}))
       const agentName = String(body.agent ?? '')
       const itemName = String(body.name ?? '')
       if (!agentName || !itemName) return fail('agent and name required', 400)
-      const sessionAccount = String(session.email ?? '').trim()
+      const sessionAccount = account
       if (!isWellFormedAccountId(sessionAccount)) return fail('account scope unavailable', 403)
       const key = grantKey(agentName, itemName)
       let found = false
@@ -9494,7 +9521,7 @@ const TOOL_META = {
       // from the active vault email; an empty account keeps the old single-key
       // behaviour and the same cache slot.
       const state = await loadState(env)
-      const account = String(state.settings?.vaultEmail ?? env.VAULT_EMAIL ?? '').trim().toLowerCase()
+      const account = resolveVaultAccount(state, null, env)
       const sessionId = cookieSessionId(request) ?? ''
       const keyQuery = `account=${encodeURIComponent(account)}&session=${encodeURIComponent(sessionId)}`
       const keyCall = async (method, body) => {
