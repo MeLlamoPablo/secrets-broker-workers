@@ -43,6 +43,30 @@ button.small{white-space:nowrap}
 .notice-bar [data-notice-dismiss]{font-size:15px;line-height:16px;padding:8px 10px}
 html[data-theme="dark"] .notice-bar .notice-more:hover{background:rgba(255,255,255,.12)}
 .notice-dismiss{flex:0 0 auto}
+/* The approval panel floats below the bar: it must never push row1/row2 down,
+   so it is positioned out of flow and capped with its own scroll. */
+#notice-bar{position:relative;overflow:visible}
+.notice-approve{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:45;display:flex;flex-direction:column;gap:2px;padding:6px 10px;background:var(--surface);border:1px solid var(--hair);border-radius:12px;box-shadow:var(--shadow-2);color:var(--ink-1);cursor:default;max-height:132px;overflow-y:auto}
+.notice-approve .na-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--ink-2)}
+.notice-approve .na-head>span[role="status"]{flex:1;min-width:120px}
+.notice-approve .na-row{display:flex;align-items:center;gap:6px;min-height:28px;font-size:12px}
+.notice-approve .na-who{flex:0 0 auto;max-width:36%;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notice-approve .na-what{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+.notice-approve .na-what b{color:var(--ink-1);font-weight:600}
+.notice-approve .na-actions{flex:0 0 auto;display:flex;gap:4px}
+.notice-approve button{min-height:24px;padding:2px 8px;border:1px solid var(--hair);border-radius:8px;background:var(--surface-2);color:var(--ink-1);font:inherit;font-size:12px;line-height:18px;cursor:pointer}
+.notice-approve button[data-quick-decide="1h"]{background:var(--brand-strong);border-color:transparent;color:#fff}
+.notice-approve button[data-quick-decide="deny"]{color:var(--danger)}
+.notice-approve button.na-more{padding:2px 4px;background:transparent;border-color:transparent;color:var(--brand-text)}
+.notice-approve .na-blocked{flex:0 0 auto;font-size:12px;color:var(--danger)}
+@media(max-width:720px){
+.notice-approve{max-height:190px;padding:8px 10px}
+.notice-approve .na-row{flex-wrap:wrap;min-height:40px;gap:4px}
+.notice-approve .na-who{max-width:none}
+.notice-approve .na-what{flex:1 1 60%}
+.notice-approve .na-actions{width:100%}
+.notice-approve button{min-height:40px;padding:8px 10px;font-size:13px}
+}
 @media(max-width:720px){
 .notice-bar{flex-wrap:wrap}
 .notice-bar .notice-more{min-width:40px;min-height:40px;padding:8px 10px}
@@ -2049,8 +2073,20 @@ if (noticeBar) {
   // One banner, two kinds. With approvals waiting it opens the approvals
   // panel — the same sheet the KPI card opens — so the two counters agree.
   // With only reminders it opens the reminder sheet.
-  noticeBar.onclick = openNotices
-  noticeBar.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openNotices() } }
+  // The inline approval buttons live inside the bar, so one dispatcher has to
+  // tell them apart from a plain click (which still opens the full queue).
+  noticeBar.onclick = (event) => {
+    const quick = event.target.closest('[data-quick-decide]')
+    if (quick) { event.stopPropagation(); decideQuickApproval(quick); return }
+    if (event.target.closest('[data-notice-approve-more]')) { event.stopPropagation(); openNotices(); return }
+    openNotices()
+  }
+  noticeBar.onkeydown = (event) => {
+    // Keys pressed on a button inside the bar belong to that button, not to the
+    // bar's own open-the-sheet shortcut.
+    if (event.target.closest('[data-quick-decide],[data-notice-approve-more]')) return
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openNotices() }
+  }
 }
 $('agent-new').onclick = openAgentCreate
 const agentMatrixButton = $('agent-matrix'); if (agentMatrixButton) agentMatrixButton.onclick = openPermissionMatrix
@@ -3851,6 +3887,53 @@ function noticeCounts() {
   const unread = noticeItems().filter((item) => !read.includes(item.id))
   return { pending: unread.filter((item) => item.kind === 'pending').length, reminders: unread.filter((item) => item.kind !== 'pending').length }
 }
+function waitedLabel(createdAt) {
+  const ms = Date.now() - new Date(createdAt).getTime()
+  if (!Number.isFinite(ms) || ms < 60000) return '不到 1 分钟'
+  const min = Math.floor(ms / 60000)
+  if (min < 60) return min + ' 分钟'
+  const hr = Math.floor(min / 60)
+  return hr < 24 ? hr + ' 小时' : Math.floor(hr / 24) + ' 天'
+}
+// Rows show who asked, which item and how long it has waited; the buttons are
+// the duration the approver grants, so one click settles the request here.
+function noticeApproveHtml(pendingUnread) {
+  const rows = pendingUnread.slice(0, 2).map((item) => {
+    const entry = item.entry || {}
+    const who = pendingAgentLabel(entry)
+    const action = pendingActionLabel(entry)
+    const name = String(entry.name || '')
+    const blocked = String(entry.action || '') === 'secret.fill' && /^目标无效/.test(pendingOriginLabel(entry))
+    const age = entry.createdAt ? ' · 等了 ' + waitedLabel(entry.createdAt) : ''
+    const button = (decision, label, aria) => '<button type="button" data-quick-decide="' + decision + '" data-quick-id="' + esc(entry.id || '') + '" aria-label="' + esc(aria + '：' + who + ' ' + action + ' ' + name) + '">' + label + '</button>'
+    return '<div class="na-row">'
+      + '<span class="na-who" title="' + esc(who) + '">' + esc(who) + '</span>'
+      + '<span class="na-what">' + esc(action) + ' <b>' + esc(name) + '</b>' + esc(age) + '</span>'
+      + (blocked ? '<span class="na-blocked">目标无效，无法批准</span>'
+        : '<span class="na-actions">' + button('1h', '批准 1 小时', '批准 1 小时') + button('7d', '批准 7 天', '批准 7 天') + button('deny', '拒绝', '拒绝') + '</span>')
+      + '</div>'
+  }).join('')
+  const more = pendingUnread.length > 2 ? '<button type="button" class="na-more" data-notice-approve-more aria-label="查看全部 ' + pendingUnread.length + ' 条待审批">还有 ' + (pendingUnread.length - 2) + ' 条 ›</button>' : ''
+  return '<div class="notice-approve" role="region" aria-label="待审批，可直接处理">'
+    + '<div class="na-head"><span role="status" aria-live="polite">' + pendingUnread.length + ' 条待审批 · 就地处理</span>' + more + '</div>'
+    + rows + '</div>'
+}
+async function decideQuickApproval(button) {
+  const id = button.dataset.quickId
+  const decision = button.dataset.quickDecide
+  if (!id || button.disabled) return
+  button.disabled = true
+  button.setAttribute('aria-busy', 'true')
+  try {
+    await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id, decision }) })
+    toast(decision === 'deny' ? '已拒绝' : decision === '7d' ? '已批准 7 天' : '已批准 1 小时')
+    await Promise.all([loadState(), loadStats(), loadItems()])
+  } catch (error) {
+    button.disabled = false
+    button.removeAttribute('aria-busy')
+    toast('审批失败：' + error.message, true)
+  }
+}
 function renderNoticeBar() {
   const bar = $('notice-bar')
   if (!bar) return
@@ -3859,19 +3942,31 @@ function renderNoticeBar() {
   if (!items.length) { bar.classList.add('hidden'); bar.innerHTML = ''; if (noticeTimer) { clearInterval(noticeTimer); noticeTimer = null }; return }
   bar.classList.remove('hidden')
   const order = { pending: 0, critical: 1, warning: 2, notice: 3 }
-  const top = items.slice().sort((a, b) => order[a.level] - order[b.level])[0]
-  bar.dataset.level = top.level
+  const ranked = items.slice().sort((a, b) => order[a.level] - order[b.level])
+  // Approvals outrank the rotating line: while anything waits the bar shows the
+  // queue with its buttons, instead of cycling text under the operator.
+  const pendingUnread = ranked.filter((item) => item.kind === 'pending')
+  const head = pendingUnread.length ? pendingUnread[0] : ranked[0]
+  bar.dataset.level = head.level
   const render = () => {
-    const item = items[noticeIndex % items.length]
+    const item = pendingUnread.length ? head : items[noticeIndex % items.length]
     const counts = noticeCounts()
     bar.dataset.level = item.level
     bar.dataset.tone = item.tone
-    bar.innerHTML = '<span class="notice-dot"></span><span class="notice-text">' + esc(item.text) + '</span>'
+    // A button cannot contain buttons: with the panel open the bar becomes a
+    // group and the counters/查看全部 keep the queue reachable by keyboard.
+    if (pendingUnread.length) { bar.setAttribute('role', 'group'); bar.removeAttribute('tabindex') }
+    else { bar.setAttribute('role', 'button'); bar.setAttribute('tabindex', '0') }
+    const lead = pendingUnread.length
+      ? (pendingUnread.length === 1 ? pendingUnread[0].text : pendingUnread.length + ' 条在等：' + pendingUnread[0].text)
+      : item.text
+    bar.innerHTML = '<span class="notice-dot"></span><span class="notice-text">' + esc(lead) + '</span>'
       + (counts.pending ? '<button type="button" class="notice-count" data-kind="pending" data-notice-open="pending">待审批 ' + counts.pending + '</button>' : '')
       + (counts.reminders ? '<button type="button" class="notice-count" data-kind="reminder" data-notice-open="reminder">提醒 ' + counts.reminders + '</button>' : '')
       + '<button type="button" class="notice-more" data-notice-dismiss="' + esc(item.id) + '" aria-label="忽略这条提示" title="忽略这条提示（只隐藏提示，不改审批状态）">✕</button>'
       + '<button type="button" class="notice-more" data-notice-dismiss-all aria-label="全部标为已读" title="全部标为已读（只隐藏提示，不改审批状态）">全部已读</button>'
       + '<span class="notice-more">查看全部 ›</span>'
+      + (pendingUnread.length ? noticeApproveHtml(pendingUnread) : '')
   }
   render()
   if (noticeTimer) clearInterval(noticeTimer)
@@ -3900,7 +3995,7 @@ function renderNoticeBar() {
       else openPendingSheet()
     }
   })
-  if (items.length > 1) {
+  if (!pendingUnread.length && items.length > 1) {
     noticeTimer = setInterval(() => { noticeIndex += 1; render() }, 4000)
   }
 }
