@@ -52,6 +52,18 @@ secrets-broker restore --from "$env:USERPROFILE\secrets-broker-backups\<时间�
 | Web Push 没收到 | 浏览器通知权限、service worker 是否注册；重新订阅后再点“测试推送” |
 | 更新提示 403/429 | 客户端会回退到 release 页面解析；仍失败时手动打开 Releases |
 
+## 定时任务（cron）
+
+`src/index.js` 的 `scheduled()` 做两件事：把过期/被弃置的 fill 任务置为 `expired`，以及在没有管理员打开控制台时补发提醒批次。
+
+它只有在**实际部署配置**里带 `triggers.crons` 时才会被 Cloudflare 调用：
+
+- 仓库里跟踪的 `wrangler.example.jsonc` 已写好模板 `"triggers": { "crons": ["*/5 * * * *"] }`；
+- 真正生效的是本机 `wrangler.jsonc`。该文件在 `.gitignore` 里、不随提交走（它带部署专属的值，这是有意的），本地必须保留同一段 `triggers`，下一次 `npx wrangler deploy` 才会把 cron 一起装到线上；
+- 没配置或没部署 cron 时功能不会坏：`countOpenTasks` 读的 `/fill/task/list` 每次都会先清扫过期任务，提醒仍会在有人打开 `/api/state` 时补发。cron 只是把这两件事从“有人打开页面时”提前到“每 5 分钟一次”。
+
+这一段只是部署配置里的声明，**不需要任何新的 secret**：没有 `wrangler secret put` 步骤，仓库里也不会因此出现任何敏感值。
+
 ## 发布与更新
 
 - 安装包是 unsigned；Windows 可能提示“未知发布者”，这是当前已知限制。
