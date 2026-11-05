@@ -2386,6 +2386,10 @@ async function loadAll() {
   if (/^#\/?(pending|grants)$/.test(location.hash)) history.replaceState({}, '', '/')
 }
 let pendingTimer = null
+// The console polls approvals every 30s while it is on screen. A hidden tab
+// cannot show the banner, so it backs off instead of writing to D1 for nobody.
+const PENDING_POLL_MS = 30000
+const PENDING_POLL_HIDDEN_MS = 120000
 let knownPending = new Set()
 let pendingInitialized = false
 function updateBrowserNotifyStatus() { const el = $('browser-notify-status'); if (!el) return; el.textContent = typeof Notification === 'undefined' ? '此浏览器不支持通知' : '当前权限：' + Notification.permission }
@@ -2421,10 +2425,18 @@ async function testWebPush() {
 async function checkPendingNotifications() {
   try {
     const data = await api('/api/state'); const pending = data.pending || []; const ids = new Set(pending.map((entry) => entry.id))
-    if (pendingInitialized) {
-      for (const entry of pending) if (!knownPending.has(entry.id)) showBrowserNotification('Secrets Broker 授权请求', (pendingAgentLabel(entry)) + ' 请求读取「' + entry.name + '」', entry.id)
-    }
+    const fresh = pendingInitialized ? pending.filter((entry) => !knownPending.has(entry.id)) : []
+    // Only a change in the waiting set needs a new banner; a 30s re-render
+    // would restart the rotation timer and rebuild the same DOM for nothing.
+    const pendingMoved = fresh.length > 0 || ids.size !== knownPending.size
+    for (const entry of fresh) showBrowserNotification('Secrets Broker 授权请求', (pendingAgentLabel(entry)) + ' 请求读取「' + entry.name + '」', entry.id)
     knownPending = ids; pendingInitialized = true
+    // The tab already has a browser notification path for the background case,
+    // so the in-page toast is only for someone actually looking at the page.
+    if (fresh.length && !document.hidden) {
+      const first = pendingAgentLabel(fresh[0])
+      toast(fresh.length === 1 ? first + ' 请求读取「' + fresh[0].name + '」' : first + ' 等 ' + fresh.length + ' 条新审批请求')
+    }
     if (app.data) {
       // Re-render only what moved: rebuilding the log list every 30s would throw
       // away the operator's scroll position while they read it.
@@ -2439,10 +2451,21 @@ async function checkPendingNotifications() {
       if (agentsMoved) renderAgents()
       if (logsMoved) { renderRecent(); renderLogs() }
       if (!grantsSelecting) renderGrants()
+      if (pendingMoved) renderNoticeBar()
     }
   } catch {}
 }
-function startPendingPolling() { updateBrowserNotifyStatus(); if (pendingTimer) return; checkPendingNotifications(); pendingTimer = setInterval(checkPendingNotifications, 30000) }
+function pendingPollDelay() { return document.hidden ? PENDING_POLL_HIDDEN_MS : PENDING_POLL_MS }
+function schedulePendingPoll() {
+  clearTimeout(pendingTimer)
+  // A timeout chain rather than setInterval: the delay is re-read after every
+  // tick, so hiding or showing the tab takes effect without a second timer.
+  pendingTimer = setTimeout(async () => { await checkPendingNotifications(); schedulePendingPoll() }, pendingPollDelay())
+}
+function startPendingPolling() { updateBrowserNotifyStatus(); if (pendingTimer) return; checkPendingNotifications(); schedulePendingPoll() }
+// Coming back to the tab is when a stale banner is most visible, so refresh
+// immediately; going away re-arms the timer with the slower interval.
+document.addEventListener('visibilitychange', () => { if (!pendingTimer) return; schedulePendingPoll(); if (!document.hidden) checkPendingNotifications() })
 let globeBooted = false
 // The card itself is always on screen now; only the live map is gated. A still
 // earth plus the access summary fills the slot, so an opt-out deployment never
