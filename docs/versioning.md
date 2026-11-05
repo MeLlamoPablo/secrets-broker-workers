@@ -1,6 +1,16 @@
 # 版本号与发版
 
-版本号只有一个来源：仓库根目录 `package.json` 的 `version`。Worker 在打包时把该文件内联进 bundle（`src/index.js` 直接 `import pkg from '../package.json'`），`/api/version` 与 CLI 的 MCP `serverInfo` 都从这一份读取。**任何地方都不再手写版本号**。
+版本号只有一个来源：仓库根目录 `package.json` 的 `version`。
+
+运行时代码读的是 `src/version.js` 里的 `NAME` / `VERSION` 常量，它由 `scripts/sync-version.mjs` 从 `package.json` 生成。之所以不直接 `import '../package.json'`：wrangler 打包时会内联 JSON，但 CI 的 Miniflare 套件不走打包（它直接按模块图加载 `src/index.js`），而 Miniflare 的模块规则只支持 `ESModule` / `CommonJS` / `CompiledWasm` / `Text` / `Data`，JSON 导入会以 `ERR_MODULE_RULE` 直接失败。所以运行时留一份生成副本，并由 `test:version` 校验它与 `package.json` 一致——**两个文件不会各写一个版本号，第二处永远是从第一处生成的**。
+
+改了 `package.json` 的版本后跑一次：
+
+```powershell
+npm run sync:version
+```
+
+`npm version` 和 `npm run deploy` 都会自动调用它，正常发版不需要手动跑。忘了同步时 CI 的 `test:version` 会失败，不会把不一致的版本带上线。
 
 ## 当前版本
 
@@ -21,8 +31,9 @@
 
 ```powershell
 npm version 0.6.0 --no-git-tag-version   # 只改 package.json + package-lock.json，不建 tag
-npm run test:oidc && npm run test:r1-r6
-git add package.json package-lock.json
+npm run sync:version                     # 把 src/version.js 同步到 0.6.0
+npm run test:version && npm run test:oidc && npm run test:r1-r6
+git add package.json package-lock.json src/version.js
 git commit -m "release: 0.6.0"
 git push origin main
 git tag v0.6.0

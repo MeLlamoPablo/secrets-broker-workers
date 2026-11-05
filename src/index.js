@@ -14,10 +14,11 @@ import { publicKeyFingerprint, dekFingerprint } from './envelope.js'
 import { generateVapid, vapidAuthorization } from './webpush.js'
 import { scrubSecret } from './redact.js'
 import { verifyGatewayJwt, federatedAgent } from './federation.js'
-// The worker's version has exactly one source: package.json, inlined by the
-// bundler. /api/version reports it so an operator can match a running deploy to
-// a commit without reading the dashboard.
-import pkg from '../package.json' with { type: 'json' }
+// The worker's version has exactly one editable source: package.json. This
+// module mirrors it because the Miniflare suites cannot load a JSON module
+// (see src/version.js), and the endpoint reports it so an operator can match a
+// running deploy to a commit without reading the dashboard.
+import { NAME, VERSION } from './version.js'
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -8779,8 +8780,8 @@ const TOOL_META = {
     if (url.pathname === '/api/version' && request.method === 'GET') {
       const meta = env.CF_VERSION_METADATA ?? {}
       return json({
-        name: pkg.name,
-        version: pkg.version,
+        name: NAME,
+        version: VERSION,
         commit: meta.tag || 'unknown',
         deployedAt: meta.timestamp || 'unknown',
         workerVersion: meta.id || 'unknown',

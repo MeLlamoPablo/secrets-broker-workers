@@ -7,10 +7,9 @@
  * remote, where a human approves them.
  */
 import { scrubSecret } from '../src/redact.js'
-// Same single source as the worker: the CLI ships with package.json beside
-// cli/ (the desktop sidecar copies it there too), so importing it works both
-// from the repo and from an installed package.
-import pkg from '../package.json' with { type: 'json' }
+// Same source as the worker: src/version.js mirrors package.json, and the
+// desktop sidecar stages that file next to cli/ (see desktop/copy-sidecar.mjs).
+import { VERSION } from '../src/version.js'
 
 const PROTOCOL_VERSION = '2025-06-18'
 
@@ -207,7 +206,7 @@ export function createLocalServer({ vault, revision = 0, fetchImpl = globalThis.
       const id = message?.id ?? null
       const method = String(message?.method ?? '')
       if (method === 'initialize') {
-        return { status: 200, body: reply(id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: 'secrets-broker-local', version: pkg.version } }) }
+        return { status: 200, body: reply(id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: 'secrets-broker-local', version: VERSION } }) }
       }
       if (method === 'tools/list') return { status: 200, body: reply(id, { tools: TOOLS }) }
       if (method === 'tools/call') {
