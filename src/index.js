@@ -34,6 +34,8 @@ const htmlResponse = (body, status = 200) => new Response(body, { status, header
 const fail = (message, status = 400) => json({ error: message }, status)
 const failBase = fail
 const nowIso = () => new Date().toISOString()
+// Long polls and the CLI helper both need this; Workers exposes setTimeout.
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Audit is searched and exported on the server. These groups mirror the
 // console's own grouping so a filter means the same thing on both sides; a
@@ -2237,6 +2239,11 @@ function connectionBlockedPayload(admission, origin) {
     requestId: record?.id ?? '',
     approvalUrl: record ? String(origin ?? '').replace(/\/$/, '') + '/#connections' : '',
     expiresAt: record?.expiresAt ?? null,
+    // A pending answer is not a failure: tell the caller to wait and where the
+    // window ends, so a client can keep the original request alive instead of
+    // giving up and asking the operator why nothing happened.
+    retryAfterMs: admission.status === 'pending' ? 2000 : 0,
+    waitUntil: record?.expiresAt ?? null,
     message: connectionMessage(admission.reasonCode ?? 'connection-denied'),
   }
 }
@@ -7801,25 +7808,51 @@ export default {
       })
       return json({ ok: true, connection: connectionRecordView(await loadState(env), approved) })
     }
-    // Agent-side poll, so a client that got "pending" can learn the answer
-    // without hammering the tool that was refused.
+    // Agent-side poll, so a client that got "pending" can wait in the same
+    // call instead of resubmitting. `wait` is clamped to 30 seconds: one Worker
+    // request must never approach its duration limit, so the client loops for
+    // the rest of the ten-minute window.
     if (url.pathname === '/api/connection/status' && request.method === 'GET') {
       const resolved = await resolveAgent(request, env)
       if (!resolved) return fail('unauthorized', 401)
       const session = await getSession(env)
       const account = String((session?.email || resolved.agent.account) ?? '').trim().toLowerCase()
-      await sweepConnectionExpiry(env)
-      const state = await loadState(env)
-      const record = Object.values(state.connections ?? {})
+      const latest = (state) => Object.values(state.connections ?? {})
         .filter((entry) => entry && entry.agent === resolved.name && String(entry.account ?? '').toLowerCase() === account)
         .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0] ?? null
-      if (!record) return json({ ok: true, state: 'none', reasonCode: null, approvalUrl: '', expiresAt: null, scope: null, plaintextAllowed: false })
+      const waitMs = Math.min(Math.max(Number(url.searchParams.get('wait')) || 0, 0), 30) * 1000
+      const deadline = Date.now() + waitMs
+      let state = await loadState(env)
+      let record = latest(state)
+      while (record && record.state === 'pending' && Date.now() < deadline) {
+        const expires = connectionExpiredAt(record)
+        if (expires !== null && expires <= Date.now()) break
+        await sleep(Math.min(1000, Math.max(20, deadline - Date.now())))
+        state = await loadState(env)
+        record = latest(state)
+      }
+      // Apply the transition (and its audit line) before answering, so a caller
+      // that waited past the window learns "expired" instead of "pending".
+      if (record && record.state === 'pending') {
+        const expires = connectionExpiredAt(record)
+        if (expires !== null && expires <= Date.now()) {
+          await sweepConnectionExpiry(env).catch(() => {})
+          state = await loadState(env)
+          record = latest(state)
+        }
+      }
+      if (!record) {
+        return json({ ok: true, state: 'none', reasonCode: null, approvalUrl: '', expiresAt: null, scope: null, plaintextAllowed: false, retryAfterMs: 2000, waitUntil: null })
+      }
       const outcome = connectionDecision(record)
+      const view = connectionRecordView(state, record, { masked: await shouldMaskConsole(env) })
       return json({
+        ...view,
         ok: true,
         state: outcome.ok ? 'approved' : outcome.status,
         reasonCode: outcome.reasonCode ?? null,
-        ...connectionRecordView(state, record, { masked: await shouldMaskConsole(env) }),
+        retryAfterMs: outcome.ok ? 0 : 2000,
+        waitUntil: outcome.ok ? null : (record.expiresAt ?? null),
         approvalUrl: outcome.ok ? '' : String(url.origin) + '/#connections',
         message: outcome.ok ? '' : connectionMessage(outcome.reasonCode ?? 'connection-pending'),
       })
