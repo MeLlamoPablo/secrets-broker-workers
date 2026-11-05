@@ -5705,7 +5705,10 @@ export default {
       // this order means a just-switched account cannot report the new email
       // next to an unlock state that still belongs to the previous one.
       const email = (session && session.email) || state.settings?.vaultEmail || env.VAULT_EMAIL || ''
-      return json({ email, name: state.profile?.name || '', avatarUrl: state.profile?.avatarUrl || '', siteName: state.settings?.siteName || 'Secrets Broker', unlocked: v2 ? Boolean(v2.dek) : Boolean(session), expiresAt: session?.expiresAt ?? 0, pending: Object.keys(state.pending ?? {}).length })
+      // totpEnabled lets the unlock form show its code field in the same
+      // submit: this operator is already logged in, so the flag tells them
+      // nothing the login page did not already ask them for.
+      return json({ email, name: state.profile?.name || '', avatarUrl: state.profile?.avatarUrl || '', siteName: state.settings?.siteName || 'Secrets Broker', unlocked: v2 ? Boolean(v2.dek) : Boolean(session), expiresAt: session?.expiresAt ?? 0, pending: Object.keys(state.pending ?? {}).length, totpEnabled: state.security?.totpEnabled === true })
     }
     if (url.pathname === '/api/profile') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
