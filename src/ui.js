@@ -327,6 +327,10 @@ html[data-theme="dark"] .kind-api,html[data-theme="dark"] .kind-web,html[data-th
 .status{font-size:var(--text-sub);color:var(--label-2)}
 .error{color:var(--red)}
 .ok{color:var(--green)}
+.app-version{text-align:center;font-size:var(--text-caption);line-height:18px;color:var(--label-3);padding:14px 0 0}
+.about-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--separator);font-size:var(--text-sub)}
+.about-row span{color:var(--label-2);flex:0 0 auto}
+.about-row b{font-weight:600;color:var(--label);text-align:right;word-break:break-all;font-variant-numeric:tabular-nums}
 .extend-error{margin-top:12px;padding:10px 12px;border-radius:var(--r-md);font-size:var(--text-sub);line-height:18px;color:var(--red);background:color-mix(in srgb,var(--red) 10%,transparent);border:1px solid color-mix(in srgb,var(--red) 30%,transparent)}
 ul.items li{border-bottom:1px solid var(--separator);padding:12px 0}
 ul.items .name{font-weight:600;font-size:var(--text-body-lg)}
@@ -471,6 +475,7 @@ header{flex-wrap:nowrap}
 header h1{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 h1{font-size:22px;line-height:28px}
 header .badge{display:none}
+.brand #header-version{display:inline-block;background:transparent;border:0;padding:0 0 0 4px;font-size:11px;color:var(--label-2);font-variant-numeric:tabular-nums}
 .hdr-actions #ai-help,.hdr-actions .icon-btn,.hdr-actions #page-refresh{display:none}
 .hdr-actions .small{font-size:var(--text-caption);padding:6px 10px;min-height:36px}
 }
@@ -882,14 +887,14 @@ nav{grid-area:tabs}
 }
 </style></head><body><div class="wrap">
 <div id="db-down" class="notice-bar hidden" data-level="critical"><span class="notice-dot"></span><span class="notice-text"></span></div>
-<header><div class="brand"><img id="site-logo" src="/logo.png" alt="" style="cursor:pointer"><h1 id="site-title" style="cursor:pointer">Secrets Broker</h1><span class="badge">Cloudflare Workers</span></div>
+<header><div class="brand"><img id="site-logo" src="/logo.png" alt="" style="cursor:pointer"><h1 id="site-title" style="cursor:pointer">Secrets Broker</h1><span class="badge">Cloudflare Workers</span><span class="badge" id="header-version" title="应用版本">版本未知</span></div>
 <div class="hdr-actions">
 <button id="theme-cycle" class="theme-cycle" title="切换主题：浅色 / 深色 / 跟随系统" aria-label="切换主题（当前：浅色）">☀️</button>
 <button id="ai-help" class="small" title="用 AI 解释当前状态">问 AI</button>
 <a class="icon-btn" href="https://github.com/otscup/secrets-broker-workers" target="_blank" rel="noreferrer" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
 <button id="page-refresh" class="small" title="刷新当前页面">刷新</button>
 <div class="user-wrap"><span class="user"><span class="who-name" id="who"></span><button id="avatar" class="avatar" title="账户" aria-label="账户菜单" aria-haspopup="menu" aria-expanded="false">SB</button></span>
-<div id="account-menu" class="account-menu hidden"><button data-view="profile">个人资料</button><button data-view="settings">系统设置</button><button id="account-logout">退出登录</button><button id="lock" class="danger">锁定</button></div></div>
+<div id="account-menu" class="account-menu hidden"><button data-view="profile">个人资料</button><button data-view="settings">系统设置</button><button id="account-about">关于</button><button id="account-logout">退出登录</button><button id="lock" class="danger">锁定</button></div></div>
 </div>
 <nav id="nav"><button data-view="overview" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span>概览</span></button><button data-view="items"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.6"/><path d="M10.6 10.6 20 20"/><path d="M15.6 15.6l2-2"/><path d="M17.8 17.8l2-2"/></svg><span>密钥</span></button><button data-view="devices"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="1.6"/><path d="M9 20h6"/><path d="M12 16.5V20"/></svg><span>电脑</span></button><button data-view="agents"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.4" r="3"/><path d="M3.5 19c0-2.9 2.5-4.6 5.5-4.6s5.5 1.7 5.5 4.6"/><path d="M16.2 6.6a2.6 2.6 0 0 1 0 5"/><path d="M17.6 14.6c2 .6 3.4 2.2 3.4 4.4"/></svg><span>Agents</span></button><button data-view="grants"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 5 6.4v5c0 4.3 2.9 7.4 7 8.9 4.1-1.5 7-4.6 7-8.9v-5z"/><path d="M9 12.1l2.1 2.1 4-4.4"/></svg><span>授权</span></button><button data-view="logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.5h11"/><path d="M8.5 12h11"/><path d="M8.5 17.5h11"/><circle cx="4.6" cy="6.5" r="1.1"/><circle cx="4.6" cy="12" r="1.1"/><circle cx="4.6" cy="17.5" r="1.1"/></svg><span>日志</span></button></nav>
 </header>
@@ -1118,6 +1123,7 @@ nav{grid-area:tabs}
   </section>
 </section>
 
+<div id="app-version" class="app-version" aria-live="polite">版本未知</div>
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div><div id="live-alert" class="sr-only" role="alert"></div>
 <section id="item-page" class="page hidden" tabindex="-1" aria-label="条目详情"><div class="page-nav"><button class="page-back" id="item-page-back" aria-label="返回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>返回</button><div class="page-title" id="item-page-title"></div><button class="page-action" id="item-page-edit">编辑</button><button class="page-close" id="item-page-close" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="page-state" id="item-page-state" role="status" aria-live="polite"></div><div class="page-body" id="item-page-body"></div></section><div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="card"><button class="modal-x" id="modal-close-x" title="关闭" aria-label="关闭">×</button><h2 id="modal-title"></h2><div id="modal-body"></div><div style="margin-top:12px"><button id="modal-close">关闭</button></div></div></div>
@@ -1310,6 +1316,52 @@ function toast(text, error = false) {
   if (live) live.textContent = error ? text : ''
   const statusEl = $('item-status')
   if (statusEl && !$('view-items').classList.contains('hidden')) status(statusEl.id, text, error ? 'error' : 'ok')
+}
+
+// The version endpoint ships with the worker half, which may not be deployed
+// yet: a 404 must degrade to "版本未知" and never block the About dialog.
+let versionInfo = null
+let versionRequest = null
+function loadVersion(force = false) {
+  if (versionRequest && !force) return versionRequest
+  versionRequest = fetch('/api/version', { cache: 'no-store', credentials: 'same-origin' })
+    .then((response) => (response.ok ? response.json() : null))
+    .catch(() => null)
+    .then((data) => {
+      versionInfo = data && typeof data === 'object' && !Array.isArray(data) ? data : null
+      renderVersion()
+      return versionInfo
+    })
+  return versionRequest
+}
+function versionLabel() {
+  const info = versionInfo || {}
+  const number = info.version || info.appVersion || ''
+  if (!number) return '版本未知'
+  const deployed = info.workerVersion || ''
+  return 'v' + number + (deployed ? ' · 部署 ' + String(deployed).slice(0, 8) : '')
+}
+function renderVersion() {
+  const label = versionLabel()
+  const foot = $('app-version')
+  if (foot) foot.textContent = label
+  const header = $('header-version')
+  if (header) header.textContent = versionInfo && (versionInfo.version || versionInfo.appVersion) ? 'v' + (versionInfo.version || versionInfo.appVersion) : '版本未知'
+  const slot = $('about-version')
+  if (!slot) return
+  const info = versionInfo || {}
+  const rows = [['版本', info.version || info.appVersion || '未知']]
+  if (info.commit) rows.push(['提交', String(info.commit).slice(0, 7)])
+  if (info.deployedAt) {
+    const built = new Date(info.deployedAt)
+    rows.push(['构建时间', Number.isNaN(built.getTime()) ? String(info.deployedAt) : built.toLocaleString('zh-CN', { hour12: false })])
+  }
+  if (info.workerVersion) rows.push(['部署版本', String(info.workerVersion)])
+  slot.innerHTML = rows.map(([label, value]) => '<div class="about-row"><span>' + esc(label) + '</span><b>' + esc(String(value)) + '</b></div>').join('')
+}
+function openAbout() {
+  openModal('关于', '<div class="hint">Secrets Broker 把密钥留在你自己的 Cloudflare 账户里，按需、按时限发给 Agent，并记录每一次读取。</div><div id="about-version" style="margin-top:10px"></div><div class="hint" style="margin-top:10px"><a href="https://github.com/otscup/secrets-broker-workers" target="_blank" rel="noreferrer">github.com/otscup/secrets-broker-workers</a></div>')
+  loadVersion(true).catch(() => {})
 }
 
 function renderAvatar(name, avatarUrl) { const el = $('avatar'); if (!el) return; el.textContent = String(name || 'SB').trim().slice(0, 2).toUpperCase(); // Initials are the default. A picture is only used when the profile names one,
@@ -1505,6 +1557,7 @@ $('login').onclick = async () => {
   }
 }
 $('avatar').onclick = (event) => { event.stopPropagation(); show('account-menu', $('account-menu').classList.contains('hidden')) }
+$('account-about').onclick = () => { show('account-menu', false); openAbout() }
 document.addEventListener('click', (event) => { if (!$('account-menu').classList.contains('hidden') && !event.target.closest('#account-menu') && !event.target.closest('#avatar')) show('account-menu', false) })
 document.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-revoke-session]'); if (!button) return
@@ -5269,4 +5322,5 @@ async function disable2fa() {
 // stale inline handler still works.
 async function createAgent() { openAgentCreate() }
 boot()
+loadVersion()
 </script></body></html>`
