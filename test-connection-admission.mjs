@@ -156,7 +156,12 @@ async function main() {
 
     const other = await getSecret(env, ITEM2)
     const otherBody = await other.json()
-    ok('未选中的条目读不到', other.status === 403 && otherBody.reasonCode === 'connection-item-not-approved',
+    const absent = await getSecret(env, 'no-such-item-xyz')
+    const absentBody = await absent.json()
+    ok('未选中的条目读不到，且与不存在的名字答复完全同形',
+      other.status === 403 && absent.status === 403
+      && otherBody.reasonCode === 'item-not-found'
+      && JSON.stringify(otherBody).split(ITEM2).join('<name>') === JSON.stringify(absentBody).split('no-such-item-xyz').join('<name>'),
       JSON.stringify(otherBody))
   }
 
@@ -388,6 +393,7 @@ async function main() {
   // applied for.
   {
     const env = await freshEnv()
+    env.MCP_ALLOW_READ = '1'
     const first = await getSecret(env)
     const pending = await first.json()
     const cookie = await login(env)
@@ -407,19 +413,35 @@ async function main() {
     ok('list_secrets 不泄露不可见条目的名称', !listText.includes(ITEM2), listText)
 
     const apply = await mcpCall(env, 'request_access', { name: ITEM2 })
-    const applyPayload = JSON.parse(mcpText(apply))
-    ok('对不可见条目发起申请直接 403 / forbidden',
-      applyPayload.status === 'forbidden'
-      && applyPayload.reasonCode === 'connection-item-not-approved'
-      && applyPayload.code === 'connection-item-not-approved',
-      mcpText(apply))
+    const applyText = mcpText(apply)
+    const absentApply = await mcpCall(env, 'request_access', { name: 'no-such-item-xyz' })
+    const absentText = mcpText(absentApply)
+    const applyPayload = JSON.parse(applyText)
+    ok('对不可见条目的申请对外只说 not_found',
+      applyPayload.status === 'not_found' && applyPayload.code === 'not_found'
+      && !applyText.includes('connection-item-not-approved'),
+      applyText)
+    ok('不可见与不存在的申请对外逐字节一致',
+      applyText.split(ITEM2).join('<name>') === absentText.split('no-such-item-xyz').join('<name>'),
+      applyText + ' / ' + absentText)
     const state = await readState(env)
     ok('范围外申请不生成待审批记录',
       Object.keys(state.pending ?? {}).length === 0
       && !env._vault.auditRows.some((entry) => entry.event === 'request.create'))
-    ok('范围外申请写入 connection.access-deny 审计',
+    ok('审计里仍能区分范围外与不存在',
       env._vault.auditRows.some((entry) => entry.event === 'connection.access-deny'
-        && entry.reasonCode === 'connection-item-not-approved'))
+        && entry.itemExists === true && entry.reasonCode === 'connection-item-not-approved'
+        && entry.detail === 'outside-admitted-scope')
+      && env._vault.auditRows.some((entry) => entry.event === 'connection.access-deny'
+        && entry.itemExists === false && entry.reasonCode === 'connection-item-not-found'
+        && entry.detail === 'name-not-in-vault'),
+      JSON.stringify(env._vault.auditRows.filter((entry) => entry.event === 'connection.access-deny')))
+
+    const getHidden = await mcpCall(env, 'get_secret', { name: ITEM2 })
+    const getAbsent = await mcpCall(env, 'get_secret', { name: 'no-such-item-xyz' })
+    ok('读取不可见与读取不存在的条目对外逐字节一致',
+      mcpText(getHidden).split(ITEM2).join('<name>') === mcpText(getAbsent).split('no-such-item-xyz').join('<name>'),
+      mcpText(getHidden) + ' / ' + mcpText(getAbsent))
   }
 
   report.finish()

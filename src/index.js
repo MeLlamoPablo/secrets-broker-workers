@@ -4971,9 +4971,9 @@ function accessStatusLabel(access) {
   if (reason === 'item-expired') {
     return { status: 'expired', message: 'the credential passed its expiry date and this deployment blocks reads after expiry; rotate it or extend the date' }
   }
-  if (reason === 'connection-item-not-approved' || reason === 'connection-plaintext-denied') {
-    // Outside the connection's admitted scope: this is a hard refusal, not
-    // something to queue. Keep the code so the caller can explain it.
+  if (reason === 'connection-plaintext-denied') {
+    // The item is inside the admitted scope but this connection cannot read
+    // values. Nothing here reveals an item the device may not see.
     return { status: 'forbidden', code: reason, reasonCode: reason, message: access.error ?? 'this connection cannot use that item' }
   }
   return { status: 'forbidden', code: access.code ?? 'no_grant', message: access.error ?? 'access denied' }
@@ -5007,6 +5007,34 @@ function matrixCell(state, agent, agentName, itemId, itemName, action) {
   return { state: 'none', source: 'none', status: 'none' }
 }
 
+// The one outward answer for "this name is not yours to see". An item outside
+// the connection's admitted scope must be indistinguishable from a name that
+// does not exist: same status, same code, same error text. Which one it was is
+// recorded in the audit, where only the operator can read it.
+function itemNotFoundFor(action, createRequest, name) {
+  if (createRequest) return { status: 'not_found', code: 'not_found', error: 'no item named "' + name + '" in this account' }
+  const verb = action === 'secret.use' ? 'use this credential (http_request)' : action === 'secret.fill' ? 'fill with this credential' : 'read this item'
+  return {
+    status: 'forbidden', code: 'not-found', reason: 'not-granted', reasonCode: 'item-not-found',
+    error: 'agent not allowed to ' + verb + '：当前账户里没有名为「' + name + '」的条目（名字必须与面板完全一致，空格也算）',
+  }
+}
+
+// Admin-only truth behind a not-found answer. The agent never sees this; the
+// two causes stay distinguishable when someone greps the audit.
+async function auditItemMiss(env, { agentName, name, itemId, action, exists, detail }) {
+  await addAudit(env, {
+    event: 'connection.access-deny',
+    agent: agentName,
+    name,
+    itemId,
+    action,
+    reasonCode: exists ? 'connection-item-not-approved' : 'connection-item-not-found',
+    itemExists: exists,
+    detail,
+  })
+}
+
 async function agentAccess(env, { session, agentName, agent, state, name, origin, ctx, consumeRead = true, action = 'secret.read', target = null, createRequest = false, connection = null }) {
   if (agent.account && session.email && String(agent.account).toLowerCase() !== String(session.email).toLowerCase()) return { status: createRequest ? 'outside_scope' : 'forbidden', code: 'outside_scope', error: 'agent is bound to another vault account' }
   if (agent.muted) return { status: 'muted', code: 'muted', error: 'this agent is muted by the operator' }
@@ -5022,22 +5050,23 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
     if (resolved) { state.itemIds ??= {}; state.itemIds[name] = resolved }
   }
   const itemId = state.itemIds?.[name] ?? ''
-  if (createRequest && !itemId) return { status: 'not_found', code: 'not_found', error: 'no item named "' + name + '" in this account' }
-  // Connection admission is the outermost gate for reads: it narrows which
-  // items this device may read and whether it may see values, before any
-  // capability / action grant is consulted. It never adds access.
-  if (connection) {
-    // Applying for an item you cannot see would only distract the operator, so
-    // a request outside the admitted scope is refused before anything is
-    // queued. Reads are narrowed by scope as well.
-    if ((action === 'secret.read' || createRequest) && !connectionAllowsItem(connection, itemId)) {
-      await addAudit(env, { event: 'connection.access-deny', agent: agentName, name, itemId, action, reasonCode: 'connection-item-not-approved' })
-      return { status: 'forbidden', code: 'connection-item-not-approved', reason: 'connection-item-not-approved', reasonCode: 'connection-item-not-approved', error: connectionMessage('connection-item-not-approved') }
-    }
-    if (action === 'secret.read' && connection.plaintextAllowed !== true) {
-      await addAudit(env, { event: 'connection.access-deny', agent: agentName, name, itemId, action, reasonCode: 'connection-plaintext-denied' })
-      return { status: 'forbidden', code: 'connection-plaintext-denied', reason: 'connection-plaintext-denied', reasonCode: 'connection-plaintext-denied', error: connectionMessage('connection-plaintext-denied') }
-    }
+  if (createRequest && !itemId) {
+    // A name the vault does not hold and a name this device may not see are the
+    // same answer to the agent; the audit keeps them apart.
+    if (connection) await auditItemMiss(env, { agentName, name, itemId: '', action, exists: false, detail: 'name-not-in-vault' })
+    return itemNotFoundFor(action, true, name)
+  }
+  // Connection admission is the outermost gate for name lookups: it narrows
+  // which items this device may touch before any capability / action grant is
+  // consulted. It never adds access. An admitted-scope miss answers exactly as
+  // a missing name would, so the response cannot confirm that the item exists.
+  if (connection && itemId && !connectionAllowsItem(connection, itemId)) {
+    await auditItemMiss(env, { agentName, name, itemId, action, exists: true, detail: 'outside-admitted-scope' })
+    return itemNotFoundFor(action, createRequest, name)
+  }
+  if (connection && action === 'secret.read' && connection.plaintextAllowed !== true) {
+    await addAudit(env, { event: 'connection.access-deny', agent: agentName, name, itemId, action, reasonCode: 'connection-plaintext-denied' })
+    return { status: 'forbidden', code: 'connection-plaintext-denied', reason: 'connection-plaintext-denied', reasonCode: 'connection-plaintext-denied', error: connectionMessage('connection-plaintext-denied') }
   }
   const decision = authorizeSecretAction(state, { agent, agentName, itemId, itemName: name, action, target, accountId: session.email })
   await shadowAudit(env, state, action, agentName, name, itemId, decision.ok, decision.legacy)
