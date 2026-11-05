@@ -3,8 +3,11 @@
 // memory. It is now mirrored into DO storage wrapped with SESSION_KEK. These
 // checks restart the object (a new instance over the same storage) and require
 // the unlock to still be there, isolated per session and bounded by its TTL.
+import { createHmac } from 'node:crypto'
 import { BrokerState } from './src/index.js'
-import { HARNESS, makeReporter, makeEnv, seedState, login, call as workerCall } from './test-support/broker-harness.mjs'
+import { wrapWithKek } from './src/crypto.js'
+import { wrapDekPassword } from './src/envelope.js'
+import { HARNESS, makeReporter, makeEnv, seedState, login, call as workerCall, FakeD1 } from './test-support/broker-harness.mjs'
 
 const { pass, fail, finish } = makeReporter()
 const SESSION = 'session-a'
@@ -142,6 +145,128 @@ async function call(durable, path, method = 'GET', body) {
   else fail('6b extend after v2 unlock', `status=${unlocked.status} body=${await unlocked.text().catch(() => '')}`)
   if (legacySession === null) pass('6c the unlock wrote no legacy session, which is why the old gate failed')
   else fail('6c legacy session should be absent', JSON.stringify(legacySession))
+}
+
+// ============ 7. One unlock is enough when the account has a second factor ============
+// The panel used to ask for the code a second time on the first plaintext
+// listing, right after the unlock, which read as "my unlock did not count".
+// /api/v2/unlock now takes the same code and grants both in one request; a
+// client that sends no code keeps the old two-step behaviour.
+{
+  const LIVE = 'agent@otscup.com'
+  const MASTER = 'correct horse battery staple'
+  // A fixed RFC 4648 secret so the code is derived, not hard-coded.
+  const SECRET = 'JBSWY3DPEHPK3PXP'
+  const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  const base32 = (text) => {
+    let bits = 0
+    let value = 0
+    const bytes = []
+    for (const char of String(text).replace(/=+$/, '').toUpperCase()) {
+      const index = B32.indexOf(char)
+      if (index < 0) continue
+      value = (value << 5) | index
+      bits += 5
+      if (bits >= 8) { bytes.push((value >>> (bits - 8)) & 0xff); bits -= 8 }
+    }
+    return Buffer.from(bytes)
+  }
+  const totp = (secret, at = Date.now()) => {
+    const counter = Math.floor(at / 30000)
+    const buf = Buffer.alloc(8)
+    buf.writeUInt32BE(Math.floor(counter / 2 ** 32), 0)
+    buf.writeUInt32BE(counter >>> 0, 4)
+    const mac = createHmac('sha1', base32(secret)).update(buf).digest()
+    const offset = mac[mac.length - 1] & 15
+    const binary = ((mac[offset] & 0x7f) << 24) | (mac[offset + 1] << 16) | (mac[offset + 2] << 8) | mac[offset + 3]
+    return String(binary % 1e6).padStart(6, '0')
+  }
+  // The live vault never ran migrate: the only keyring is the legacy password
+  // one, so this fake answers that row and reports no account keyring.
+  const keyringD1 = (inner, envelope) => ({
+    prepare(sql) {
+      if (/FROM keyrings/.test(sql) && /SELECT/i.test(sql)) {
+        return {
+          params: [],
+          bind(...params) { this.params = params; return this },
+          async first() {
+            return /WHERE id = \?/.test(sql) && this.params[0] === 'password' ? { envelope } : null
+          },
+          async all() { return { results: [] } },
+          async run() { return { success: true } },
+        }
+      }
+      return inner.prepare(sql)
+    },
+    batch: (statements) => inner.batch(statements),
+  })
+
+  const envelope = await wrapDekPassword(Uint8Array.from(DEK), MASTER)
+  const mount = async (enrolled) => {
+    const web = makeEnv({ vault: keyringD1(new FakeD1(), envelope), extra: { VAULT_EMAIL: LIVE } })
+    const security = enrolled
+      ? { totpEnabled: true, totpSecretWrapped: await wrapWithKek(new TextEncoder().encode(SECRET), Buffer.from(HARNESS.KEK, 'base64')) }
+      : {}
+    await seedState(web, { settings: { vaultEmail: LIVE }, security })
+    return web
+  }
+  const signIn = async (web, code) => {
+    const response = await workerCall(web, '/api/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(code ? { password: 'p', code } : { password: 'p' }),
+    })
+    return String(response.headers.get('set-cookie') || '').split(';')[0]
+  }
+  const unlock = (web, cookie, extra = {}) => workerCall(web, '/api/v2/unlock', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ password: MASTER, duration: '12h', ttlMs: 12 * 3600 * 1000, ...extra }),
+  })
+  const plain = (web, cookie) => workerCall(web, '/api/v2/items?plain=1', { headers: { cookie } })
+
+  // 7a/7b: enrolled account, no code. The unlock itself still succeeds, but the
+  // names stay behind the old prompt.
+  const enrolled = await mount(true)
+  const enrolledCookie = await signIn(enrolled, totp(SECRET))
+  const noCode = await unlock(enrolled, enrolledCookie)
+  const noCodeBody = await noCode.json()
+  const noCodePlain = await plain(enrolled, enrolledCookie)
+  if (noCode.status === 200 && noCodeBody.plainOk === false && noCodePlain.status === 428) {
+    pass('7a an enrolled account that sends no code still unlocks, and names still answer 428')
+  } else {
+    fail('7a no-code compatibility', `unlock=${noCode.status} plainOk=${noCodeBody.plainOk} plain=${noCodePlain.status}`)
+  }
+
+  // 7c: a wrong code must not grant the names, and must not unlock either.
+  const wrong = await unlock(enrolled, enrolledCookie, { code: '000000' })
+  const afterWrong = await plain(enrolled, enrolledCookie)
+  if (wrong.status === 401 && afterWrong.status === 428) pass('7c a wrong code grants nothing and reports 401')
+  else fail('7c wrong code', `unlock=${wrong.status} plain=${afterWrong.status}`)
+
+  // 7d/7e: the same code in the unlock request covers the names as well.
+  const oneStep = await unlock(enrolled, enrolledCookie, { code: totp(SECRET) })
+  const oneStepBody = await oneStep.json()
+  const afterOneStep = await plain(enrolled, enrolledCookie)
+  if (oneStep.status === 200 && oneStepBody.plainOk === true && afterOneStep.status === 200) {
+    pass('7d one unlock with the code also opens the plaintext names (no second prompt)')
+  } else {
+    fail('7d one-step unlock', `unlock=${oneStep.status} plainOk=${oneStepBody.plainOk} plain=${afterOneStep.status}`)
+  }
+  if (oneStepBody.plainOk === true) pass('7e the unlock response tells the console the names are already open')
+  else fail('7e plainOk in the unlock response', JSON.stringify(oneStepBody))
+
+  // 7f: an account without a second factor never sees the prompt at all.
+  const open = await mount(false)
+  const openCookie = await signIn(open)
+  const openUnlock = await unlock(open, openCookie)
+  const openBody = await openUnlock.json()
+  const openPlain = await plain(open, openCookie)
+  if (openUnlock.status === 200 && openBody.plainOk === true && openPlain.status === 200) {
+    pass('7f an account with no second factor unlocks straight into the names')
+  } else {
+    fail('7f no second factor', `unlock=${openUnlock.status} plainOk=${openBody.plainOk} plain=${openPlain.status}`)
+  }
 }
 
 finish()

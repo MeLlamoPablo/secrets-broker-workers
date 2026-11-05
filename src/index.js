@@ -264,20 +264,25 @@ export class BrokerState extends DurableObject {
         const ttl = Math.min(30 * 24 * 3600 * 1000, Math.max(60 * 1000, Number(body.ttlMs) || 3600 * 1000))
         // A new unlock starts a new session: the plaintext listing needs its own
         // second factor again instead of inheriting the previous unlock's pass.
+        // An unlock that already checked the code in the same request hands the
+        // pass in here, so the operator proves presence once instead of twice.
         // confirm asks the console for a fresh password/TOTP before dangerous
         // actions; only the longer tiers set it.
-        const entry = { dek, legacyDek, account, expiresAt: Date.now() + ttl, plainOk: false, confirm: body.confirm === true }
+        const entry = { dek, legacyDek, account, expiresAt: Date.now() + ttl, plainOk: body.plainOk === true, confirm: body.confirm === true }
         if (scoped) {
           this.v2Keys.set(keyId, entry)
           await this.writeV2KeySlot(session, account, entry)
         }
         // A copy, not the same object: a plaintext pass granted in one admin
         // session must not be inherited by the helpers or by another session.
+        // The account slot is deliberately written with plainOk off even when
+        // this request carries the pass.
         // When the session id is empty the scoped write above already IS the
         // account slot, so this only adds a second copy for a real session.
         if (account && session) {
-          this.v2Keys.set(accountId, { ...entry })
-          await this.writeV2KeySlot('', account, { ...entry })
+          const shared = { ...entry, plainOk: false }
+          this.v2Keys.set(accountId, shared)
+          await this.writeV2KeySlot('', account, shared)
         }
         this.v2Key = { ...entry }
         // The unscoped slot only matters on a deployment without an account; it
@@ -9570,9 +9575,10 @@ const TOOL_META = {
         if (route === 'unlock' && request.method === 'POST') {
           const body = await request.json().catch(() => ({}))
           const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
+          const state = await loadState(env)
           // Unlock verifies a password with an expensive KDF, so an unthrottled
           // endpoint is both a brute-force target and a CPU amplification lever.
-          if (loginBlocked(await loadState(env), ip)) return fail('尝试次数过多，请 15 分钟后再试', 429)
+          if (loginBlocked(state, ip)) return fail('尝试次数过多，请 15 分钟后再试', 429)
           let opened = null
           try {
             opened = await vault2Unlock(env, String(body.password ?? ''), { account })
@@ -9581,12 +9587,28 @@ const TOOL_META = {
             await addAudit(env, { event: 'vault.unlock-deny', agent: 'admin', reason: 'wrong-password' })
             return fail('wrong password', 401)
           }
+          // Showing item names in the clear is the same disclosure as one stored
+          // password, so an account with a second factor has to prove presence
+          // once. It used to be asked a second time on the first plaintext
+          // listing, right after this unlock, which read as "unlock was not
+          // enough". The code is optional here so a client that does not send it
+          // keeps the old two-step behaviour, and an account without a second
+          // factor never sees the prompt at all.
+          const totpEnabled = state.security?.totpEnabled === true
+          const code = String(body.code ?? '').replace(/\s+/g, '')
+          let plainOk = !totpEnabled
+          if (totpEnabled && code) {
+            const refused = await secondFactorWall(request, env, 'vault.plain', code)
+            if (refused) return refused
+            await addAudit(env, { event: 'vault.plain', via: 'unlock' })
+            plainOk = true
+          }
           const duration = ['12h', '7d', '30d', 'device'].includes(body.duration) ? body.duration : '12h'
-          await keyCall('PUT', { dek: [...opened.dek], legacyDek: opened.legacyDek ? [...opened.legacyDek] : null, ttlMs: body.ttlMs, confirm: body.confirm === true })
+          await keyCall('PUT', { dek: [...opened.dek], legacyDek: opened.legacyDek ? [...opened.legacyDek] : null, ttlMs: body.ttlMs, confirm: body.confirm === true, plainOk })
           // The tier is part of the audit record: "unlocked for 30 days" is a
           // different risk decision from "unlocked for the default 12 hours".
           await addAudit(env, { event: 'vault.unlock', agent: 'admin', name: opened.fingerprint, via: 'password', duration })
-          return json({ ok: true, fingerprint: opened.fingerprint, account: account || null, legacy: opened.legacyOnly === true, duration })
+          return json({ ok: true, fingerprint: opened.fingerprint, account: account || null, legacy: opened.legacyOnly === true, duration, plainOk })
         }
         // Long-term tier, step 2: the console has unwrapped the device envelope in
         // the browser and presents the DEK. The DEK itself is checked against the
@@ -9743,7 +9765,7 @@ const TOOL_META = {
               const security = (await loadState(env)).security ?? {}
               if (security.totpEnabled === true) {
                 const code = String(url.searchParams.get('code') ?? request.headers.get('x-totp-code') ?? '').trim()
-                if (!code) return fail('plaintext-needs-totp', 428)
+                if (!code) return fail('需要验证码才能显示条目名称', 428)
                 const refused = await secondFactorWall(request, env, 'vault.plain', code)
                 if (refused) return refused
                 await addAudit(env, { event: 'vault.plain', via: 'web' }).catch(() => {})

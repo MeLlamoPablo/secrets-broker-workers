@@ -358,7 +358,7 @@ const TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
   await call('/api/v2/lock', { method: 'POST' })
   await call('/api/v2/unlock', { method: 'POST', body: { password: MASTER } })
   const refused = await call('/api/v2/items?plain=1')
-  const ok = refused.status === 428 && String(refused.body.error || '').includes('plaintext-needs-totp')
+  const ok = refused.status === 428 && String(refused.body.error || '').includes('验证码')
   if (ok) pass('H1 plain=1 without a code refuses with 428 when TOTP is enrolled')
   else fail('H1', JSON.stringify({ status: refused.status, body: refused.body }))
 }
