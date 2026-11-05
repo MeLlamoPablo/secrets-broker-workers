@@ -9,6 +9,7 @@ import {
   HARNESS, makeEnv, seedState, putSession, call, login, makeReporter,
   FakeD1, legacyCipherRow, tokenHash, mcpCall, mcpText,
 } from './test-support/broker-harness.mjs'
+import { createBridge } from './cli/bridge.mjs'
 
 const ITEM2 = 'other-item'
 const ITEM2_ID = 'item-other'
@@ -23,6 +24,35 @@ function ok(name, condition, detail = '') {
 }
 
 function iso(offsetMs = 0) { return new Date(Date.now() + offsetMs).toISOString() }
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+function statusCall(env, wait = '') {
+  return call(env, '/api/connection/status' + (wait ? '?wait=' + wait : ''), {
+    headers: { authorization: 'Bearer ' + HARNESS.AUTH },
+  })
+}
+
+// Point the CLI bridge's fetch at the worker under test, so the real bridge
+// code (parsing the 202, polling, replaying) is what the suite exercises.
+function fetchTo(env) {
+  return async (url, init = {}) => {
+    const target = new URL(String(url))
+    return call(env, target.pathname + target.search, init)
+  }
+}
+
+// Wait until the first pending connection row exists, then return its id: the
+// request id is inside the body the bridge consumes, so a test reads it from
+// the state instead of racing the client.
+async function pendingId(env) {
+  for (let i = 0; i < 100; i++) {
+    const state = await readState(env)
+    const found = Object.values(state.connections ?? {}).find((entry) => entry.state === 'pending')
+    if (found) return found.id
+    await pause(25)
+  }
+  return ''
+}
 
 async function readState(env) {
   const response = await env.BROKER_STATE.get().fetch('https://state/state')
@@ -92,6 +122,8 @@ async function main() {
       JSON.stringify(body))
     ok('pending 响应带 requestId 与批准链接',
       Boolean(body.requestId) && String(body.approvalUrl).endsWith('/#connections'), JSON.stringify(body))
+    ok('pending 响应告诉客户端该等多久、窗口何时结束',
+      body.retryAfterMs === 2000 && body.waitUntil === body.expiresAt, JSON.stringify(body))
 
     const state = await readState(env)
     ok('只生成一条待批连接', Object.values(state.connections ?? {}).length === 1
@@ -257,6 +289,137 @@ async function main() {
     })
     ok('过短的授权时间被拒',
       badTtl.status === 400 && badTtl.body.reasonCode === 'connection-ttl-invalid', JSON.stringify(badTtl.body))
+  }
+
+  // 10: a long poll that is approved in-flight answers "approved" in the same
+  // call, so the client never has to resubmit.
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const pending = await first.json()
+    const cookie = await login(env)
+    const approval = (async () => {
+      await pause(600)
+      return decide(env, cookie, {
+        id: pending.requestId, decision: 'approve', all: true, plaintextAllowed: true, duration: '1h',
+      })
+    })()
+    const response = await statusCall(env, '3')
+    const body = await response.json()
+    const approved = await approval
+    ok('长轮询在批准后返回 approved',
+      response.status === 200 && body.state === 'approved' && body.reasonCode === null && body.retryAfterMs === 0,
+      JSON.stringify(body))
+    ok('长轮询返回的范围与批准时选定的一致',
+      approved.status === 200 && body.scope?.all === true && body.plaintextAllowed === true, JSON.stringify(body))
+    ok('批准后没有产生第二次连接申请',
+      env._vault.auditRows.filter((entry) => entry.event === 'connection.request').length === 1)
+  }
+
+  // 11: the poll honours `wait` and, when the decision has not arrived, still
+  // tells the client to keep polling.
+  {
+    const live = record({ id: 'conn-live', createdAt: iso(-30 * 1000), expiresAt: iso(9 * 60 * 1000), state: 'pending' })
+    const env = await freshEnv({ connections: { [live.id]: live } })
+    const started = Date.now()
+    const response = await statusCall(env, '1')
+    const elapsed = Date.now() - started
+    const body = await response.json()
+    ok('长轮询到点未决时返回 pending + retryAfterMs',
+      response.status === 200 && body.state === 'pending' && body.reasonCode === 'connection-pending'
+      && body.retryAfterMs === 2000 && body.waitUntil === live.expiresAt,
+      JSON.stringify(body))
+    ok('长轮询确实按 wait 挂起，而不是立即返回', elapsed >= 900, String(elapsed))
+  }
+
+  // 12: the CLI waits instead of giving up. Real bridge code, real Worker.
+  {
+    const env = await freshEnv()
+    const cookie = await login(env)
+    const originalFetch = globalThis.fetch
+    const bridge = createBridge({ brokerUrl: 'https://broker.test', staticToken: HARNESS.AUTH, opener: () => true })
+    globalThis.fetch = fetchTo(env)
+    try {
+      const pending = bridge.request({
+        jsonrpc: '2.0', id: 1, method: 'tools/call',
+        params: { name: 'get_secret', arguments: { name: HARNESS.ITEM } },
+      })
+      const id = await pendingId(env)
+      ok('CLI 首次调用产生了连接待批', Boolean(id))
+      await pause(300)
+      const approved = await decide(env, cookie, { id, decision: 'approve', all: true, plaintextAllowed: true, duration: '1h' })
+      const text = await pending
+      const value = JSON.parse(text)?.result?.content?.[0]?.text ?? ''
+      ok('CLI 在批准后继续原请求并拿到值',
+        approved.status === 200 && String(value).includes(HARNESS.PASSWORD), String(value).slice(0, 200))
+      ok('CLI 等待没有重复提交连接申请',
+        env._vault.auditRows.filter((entry) => entry.event === 'connection.request').length === 1)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  }
+
+  // 13: a denial ends the wait with the broker's reasonCode, verbatim.
+  {
+    const env = await freshEnv()
+    const cookie = await login(env)
+    const originalFetch = globalThis.fetch
+    const bridge = createBridge({ brokerUrl: 'https://broker.test', staticToken: HARNESS.AUTH, opener: () => true })
+    globalThis.fetch = fetchTo(env)
+    try {
+      const pending = bridge.request({
+        jsonrpc: '2.0', id: 1, method: 'tools/call',
+        params: { name: 'get_secret', arguments: { name: HARNESS.ITEM } },
+      })
+      const id = await pendingId(env)
+      await pause(300)
+      await decide(env, cookie, { id, decision: 'deny', reason: 'not mine' })
+      let error = null
+      try { await pending } catch (caught) { error = caught }
+      ok('CLI 在拒绝时失败，并原样显示 reasonCode',
+        Boolean(error) && error.reasonCode === 'admin-denied' && /admin-denied/.test(String(error.message)),
+        String(error?.message ?? error))
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  }
+
+  // 14: visibility — hidden items are counted, never named, and cannot be
+  // applied for.
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const pending = await first.json()
+    const cookie = await login(env)
+    await decide(env, cookie, {
+      id: pending.requestId, decision: 'approve', itemIds: [HARNESS.ITEM_ID], plaintextAllowed: true, duration: '1h',
+    })
+
+    const listed = await mcpCall(env, 'list_secrets', {})
+    const listText = mcpText(listed)
+    const payload = JSON.parse(listText)
+    ok('list_secrets 返回可见条目、计数与不可见数量',
+      Array.isArray(payload.items) && payload.items.length === 1
+      && payload.items[0].id === HARNESS.ITEM_ID
+      && payload.items[0].requestable === true
+      && payload.count === 1 && payload.hiddenCount === 1 && payload.totalCount === 2 && payload.hidden === true,
+      listText)
+    ok('list_secrets 不泄露不可见条目的名称', !listText.includes(ITEM2), listText)
+
+    const apply = await mcpCall(env, 'request_access', { name: ITEM2 })
+    const applyPayload = JSON.parse(mcpText(apply))
+    ok('对不可见条目发起申请直接 403 / forbidden',
+      applyPayload.status === 'forbidden'
+      && applyPayload.reasonCode === 'connection-item-not-approved'
+      && applyPayload.code === 'connection-item-not-approved',
+      mcpText(apply))
+    const state = await readState(env)
+    ok('范围外申请不生成待审批记录',
+      Object.keys(state.pending ?? {}).length === 0
+      && !env._vault.auditRows.some((entry) => entry.event === 'request.create'))
+    ok('范围外申请写入 connection.access-deny 审计',
+      env._vault.auditRows.some((entry) => entry.event === 'connection.access-deny'
+        && entry.reasonCode === 'connection-item-not-approved'))
   }
 
   report.finish()
