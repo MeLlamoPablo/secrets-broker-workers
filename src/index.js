@@ -111,6 +111,28 @@ export class BrokerState extends DurableObject {
       })
       return json(result)
     }
+    // Claim the legacy-audit migration. Two admin requests that both see the
+    // same entries in state.audit must not copy them into audit_v2 twice, so the
+    // marker is checked and set inside one transaction: exactly one caller wins.
+    // A marker older than the stale window is treated as abandoned (the previous
+    // migrator crashed or lost its request) and may be claimed again, so a
+    // failure cannot leave migration disabled forever.
+    if (url.pathname === '/legacy-audit/claim' && request.method === 'POST') {
+      const body = await request.json().catch(() => ({}))
+      const staleMs = Math.max(0, Number(body.staleMs) || LEGACY_AUDIT_CLAIM_MS)
+      const result = await this.ctx.storage.transaction(async (txn) => {
+        const store = (await txn.get('state')) ?? {}
+        store.settings ??= {}
+        const startedAt = Number(store.settings.legacyAuditMigratingAt ?? 0)
+        if (startedAt && Date.now() - startedAt < staleMs) return { ok: false, reason: 'in-progress' }
+        const pending = Array.isArray(store.audit) ? store.audit : []
+        if (!pending.length) return { ok: false, reason: 'empty' }
+        store.settings.legacyAuditMigratingAt = Date.now()
+        await putStateVersioned(txn, store)
+        return { ok: true, pending: pending.length }
+      })
+      return json(result)
+    }
     // The v2 data key, cached in memory only. Unlocking again after the object is
     // evicted costs one PBKDF2 run; a key that never reaches storage cannot leak
     // out of it. Transported as 32 plain numbers so no encoder can disagree.
@@ -1234,24 +1256,57 @@ async function auditEntriesSince(env, state, sinceMs) {
   }
 }
 
+// How long a claim may sit before another request treats it as abandoned. Long
+// enough for a slow D1 batch, short enough that a crash does not disable the
+// migration until the next deploy.
+const LEGACY_AUDIT_CLAIM_MS = 5 * 60 * 1000
+// Retries after a partial batch failure must not duplicate the rows that were
+// already written. Matching on the whole record makes this idempotent without a
+// new unique index: an identical legacy entry is the same log line, so skipping
+// it loses nothing.
+const AUDIT_INSERT_LEGACY = 'INSERT INTO audit_v2 (at, event, subject, detail) SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM audit_v2 WHERE at = ? AND event = ? AND coalesce(subject, \'\') = coalesce(?, \'\') AND detail = ?)'
+
 // The entries in state.audit predate the table. Move them once, oldest first,
 // so the id order still matches the time order; clear only what was inserted.
+// The claim in the DO makes concurrent first requests safe: one migrates, the
+// rest skip instead of writing the same rows again.
 async function migrateLegacyAudit(env, state) {
   if (!env.VAULT_DB || typeof env.VAULT_DB.batch !== 'function') return
   const pending = Array.isArray(state?.audit) ? state.audit.slice() : []
   if (!pending.length) return
+  const claimed = await stateStub(env).fetch('https://state/legacy-audit/claim', {
+    method: 'POST',
+    body: JSON.stringify({ staleMs: LEGACY_AUDIT_CLAIM_MS }),
+  }).then((response) => response.json()).catch(() => null)
+  if (!claimed?.ok) return
   const key = (entry) => String(entry?.time ?? '') + '\u0000' + String(entry?.event ?? '') + '\u0000' + String(entry?.name ?? '')
   try {
-    await env.VAULT_DB.batch(pending.slice().reverse().map((entry) => env.VAULT_DB.prepare(AUDIT_INSERT).bind(...auditParams(entry))))
-    const claimed = new Set(pending.map(key))
+    await env.VAULT_DB.batch(pending.slice().reverse().map((entry) => {
+      const params = auditParams(entry)
+      return env.VAULT_DB.prepare(AUDIT_INSERT_LEGACY).bind(...params, ...params)
+    }))
+    const inserted = new Set(pending.map(key))
     await updateState(env, (next) => {
-      next.audit = (next.audit ?? []).filter((entry) => !claimed.has(key(entry)))
+      next.audit = (next.audit ?? []).filter((entry) => !inserted.has(key(entry)))
       next.settings ??= {}
       next.settings.legacyAuditMigratedAt = nowIso()
+      delete next.settings.legacyAuditMigratingAt
       return next
     })
   } catch (error) {
     console.error('legacy audit migration failed: ' + String(error?.message ?? error))
+    // Release the claim so the next request can retry immediately instead of
+    // waiting for the stale window. The inserts above are idempotent, so a
+    // partial batch is safe to replay.
+    try {
+      await updateState(env, (next) => {
+        next.settings ??= {}
+        delete next.settings.legacyAuditMigratingAt
+        return next
+      })
+    } catch (releaseError) {
+      console.error('legacy audit claim release failed: ' + String(releaseError?.message ?? releaseError))
+    }
   }
 }
 
