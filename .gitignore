@@ -29,6 +29,10 @@ test-*.mjs
 !test-mf-*.mjs
 !test-oidc.mjs
 !test-r1-r6.mjs
+!test-audit-d1.mjs
+!test-fill-task-lifecycle.mjs
+!test-approval-grant-scope.mjs
+!test-secret-read-by-id.mjs
 !test-cli.mjs
 !test-cli-backup.mjs
 !test-cli-backup-scheduler.mjs

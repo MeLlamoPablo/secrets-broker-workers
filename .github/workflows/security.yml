@@ -300,6 +300,22 @@ jobs:
       - name: R1/R6 atomic + scope predicate
         shell: bash
         run: npm run test:r1-r6 2>&1 | tee "$RUNNER_TEMP/ci-logs/r1-r6.log"
+      # Regression suites for audit storage, fill task lifecycle, approval
+      # grant scope and id-addressed reads. They import src/index.js under the
+      # Node loader shim (same model as test-r1-r6), so they belong with the
+      # pure unit steps rather than the workerd/Miniflare job.
+      - name: Audit storage in D1 (no runtime)
+        shell: bash
+        run: npm run test:audit-d1 2>&1 | tee "$RUNNER_TEMP/ci-logs/audit-d1.log"
+      - name: Fill task lifecycle and sweep (no runtime)
+        shell: bash
+        run: npm run test:fill-task-lifecycle 2>&1 | tee "$RUNNER_TEMP/ci-logs/fill-task-lifecycle.log"
+      - name: Approval grant scope (no runtime)
+        shell: bash
+        run: npm run test:approval-grant-scope 2>&1 | tee "$RUNNER_TEMP/ci-logs/approval-grant-scope.log"
+      - name: Id-addressed secret reads (no runtime)
+        shell: bash
+        run: npm run test:secret-read-by-id 2>&1 | tee "$RUNNER_TEMP/ci-logs/secret-read-by-id.log"
       - name: Plaintext credential scan (no runtime)
         shell: bash
         run: npm run test:scan 2>&1 | tee "$RUNNER_TEMP/ci-logs/scan.log"
