@@ -2542,18 +2542,27 @@ async function testWebPush() {
 }
 async function checkPendingNotifications() {
   try {
-    const data = await api('/api/state'); const pending = data.pending || []; const ids = new Set(pending.map((entry) => entry.id))
-    const fresh = pendingInitialized ? pending.filter((entry) => !knownPending.has(entry.id)) : []
+    const data = await api('/api/state'); const pending = data.pending || []; const connections = (data.connections && data.connections.pending) || []
+    // One waiting set: a first connection is an approval, so it counts toward
+    // the same badge and raises the same notification as a read request.
+    const ids = new Set(pending.map((entry) => entry.id).concat(connections.map((entry) => 'connection:' + entry.id)))
+    const fresh = pendingInitialized
+      ? pending.filter((entry) => !knownPending.has(entry.id)).concat(connections.filter((entry) => !knownPending.has('connection:' + entry.id)))
+      : []
     // Only a change in the waiting set needs a new banner; a 30s re-render
     // would restart the rotation timer and rebuild the same DOM for nothing.
     const pendingMoved = fresh.length > 0 || ids.size !== knownPending.size
-    for (const entry of fresh) showBrowserNotification('Secrets Broker 授权请求', (pendingAgentLabel(entry)) + ' 请求读取「' + entry.name + '」', entry.id)
+    for (const entry of fresh) {
+      if (entry.name) showBrowserNotification('Secrets Broker 授权请求', (pendingAgentLabel(entry)) + ' 请求读取「' + entry.name + '」', entry.id)
+      else showBrowserNotification('Secrets Broker 连接请求', (entry.agent || 'Agent') + ' 请求首次连接', 'connection:' + entry.id)
+    }
     knownPending = ids; pendingInitialized = true
     // The tab already has a browser notification path for the background case,
     // so the in-page toast is only for someone actually looking at the page.
     if (fresh.length && !document.hidden) {
-      const first = pendingAgentLabel(fresh[0])
-      toast(fresh.length === 1 ? first + ' 请求读取「' + fresh[0].name + '」' : first + ' 等 ' + fresh.length + ' 条新审批请求')
+      const first = fresh[0]
+      const label = first.name ? pendingAgentLabel(first) + ' 请求读取「' + first.name + '」' : (first.agent || 'Agent') + ' 请求首次连接'
+      toast(fresh.length === 1 ? label : label + '，等 ' + fresh.length + ' 条新审批请求')
     }
     if (app.data) {
       // Re-render only what moved: rebuilding the log list every 30s would throw
@@ -3147,7 +3156,7 @@ function renderStats() {
   // The third card is the approvals count. Whatever else is waiting is printed
   // as its own labelled number, never added into the value: the old card showed
   // pending + reminders as one figure, which is how "3 / 4 / 3" happened.
-  const pendingCount = ((app.data && app.data.pending) || []).length
+  const pendingCount = ((app.data && app.data.pending) || []).length + pendingConnections().length
   const reminderCount = ((app.data && app.data.reminders) || []).length
   const cards = [{ l: '读取次数', v: stats.totalReads, sub: '当前区间 · 点开查看', view: 'reads' }, { l: '活跃 Agent', v: stats.activeAgents, sub: '有读取记录', view: 'agents' }, { l: '待审批', v: pendingCount, sub: reminderCount ? '提醒 ' + reminderCount + ' 条 · 点开处理' : '点开处理', warn: pendingCount > 0, view: 'pending' }, { l: '有效授权', v: stats.activeGrants, sub: '含免审批', view: 'grants' }]
   // No sparkline in the KPI: its series is the same one the trend card draws
@@ -3910,6 +3919,17 @@ function noticeItems() {
     kind: 'pending',
     entry,
   }))
+  // First connections are approvals, not reminders: they join the pending
+  // queue so one banner count and one sheet cover both kinds.
+  const connections = ((data.connections && data.connections.pending) || []).map((entry) => ({
+    id: 'connection:' + (entry.id || ''),
+    tone: 'warn',
+    level: 'pending',
+    text: (entry.agent || 'Agent') + '：请求首次连接' + (entry.requestedPlaintext ? '（索要明文）' : ''),
+    kind: 'pending',
+    variant: 'connection',
+    entry,
+  }))
   const reminders = (data.reminders || []).map((item) => ({
     id: 'reminder:' + item.kind + ':' + (item.agent || ''),
     tone: item.severity === 'critical' ? 'bad' : (item.severity === 'warning' ? 'warn' : 'plain'),
@@ -3918,7 +3938,7 @@ function noticeItems() {
     kind: item.kind,
     entry: item,
   }))
-  return pending.concat(reminders)
+  return pending.concat(connections, reminders)
 }
 function noticeCounts() {
   // The pill numbers follow what is still worth nagging about, so dismissing a
@@ -3933,7 +3953,9 @@ const BASE_TITLE = document.title || 'Secrets Broker · Cloudflare Workers'
 // browser prompt the button never comes back, so the bar cannot nag.
 const NOTIFY_ASK_KEY = 'sb.notify.asked.v1'
 function syncPendingTitle() {
-  const n = ((app.data && app.data.pending) || []).length
+  // Connection requests wait in the same queue, so the same title count answers
+  // "is anyone waiting on me" from a background tab.
+  const n = ((app.data && app.data.pending) || []).length + pendingConnections().length
   document.title = n ? '(' + n + ') ' + BASE_TITLE : BASE_TITLE
 }
 function waitedLabel(createdAt) {
@@ -3956,17 +3978,24 @@ function notifyOptInHtml() {
 function noticeApproveHtml(pendingUnread) {
   const rows = pendingUnread.slice(0, 2).map((item) => {
     const entry = item.entry || {}
-    const who = pendingAgentLabel(entry)
-    const action = pendingActionLabel(entry)
-    const name = String(entry.name || '')
-    const blocked = String(entry.action || '') === 'secret.fill' && /^目标无效/.test(pendingOriginLabel(entry))
-    const age = entry.createdAt ? ' · 等了 ' + waitedLabel(entry.createdAt) : ''
-    const button = (decision, label, aria) => '<button type="button" data-quick-decide="' + decision + '" data-quick-id="' + esc(entry.id || '') + '" aria-label="' + esc(aria + '：' + who + ' ' + action + ' ' + name) + '">' + label + '</button>'
+    const isConnection = item.variant === 'connection'
+    const who = isConnection ? (entry.agent || 'Agent') : pendingAgentLabel(entry)
+    const action = isConnection ? '请求首次连接' : pendingActionLabel(entry)
+    const name = isConnection ? (entry.requestedPlaintext ? '索要明文' : '不读明文') : String(entry.name || '')
+    const blocked = !isConnection && String(entry.action || '') === 'secret.fill' && /^目标无效/.test(pendingOriginLabel(entry))
+    // A connection may only take the one-click duration when the agent asked
+    // for everything: narrowing the scope silently would grant more than the
+    // request spelled out, so that path opens the form instead.
+    const quick = !isConnection || (entry.requestedScope || {}).all === true
+    const age = entry.createdAt ? ' · 等了 ' + waitedLabel(entry.createdAt) + (isConnection ? ' · ' + connRemainingLabel(entry) : '') : ''
+    const button = (decision, label, aria) => '<button type="button" data-quick-decide="' + decision + '" data-quick-kind="' + (isConnection ? 'connection' : '') + '" data-quick-id="' + esc(entry.id || '') + '" aria-label="' + esc(aria + '：' + who + ' ' + action + ' ' + name) + '">' + label + '</button>'
     return '<div class="na-row">'
       + '<span class="na-who" title="' + esc(who) + '">' + esc(who) + '</span>'
       + '<span class="na-what">' + esc(action) + ' <b>' + esc(name) + '</b>' + esc(age) + '</span>'
       + (blocked ? '<span class="na-blocked">目标无效，无法批准</span>'
-        : '<span class="na-actions">' + button('1h', '批准 1 小时', '批准 1 小时') + button('7d', '批准 7 天', '批准 7 天') + button('deny', '拒绝', '拒绝') + '</span>')
+        : '<span class="na-actions">' + (isConnection
+          ? (quick ? button('1h', '批准 1 小时', '批准 1 小时，范围全部条目，不含明文') : button('form', '选择范围', '选择条目后批准')) + button('deny', '拒绝', '拒绝')
+          : button('1h', '批准 1 小时', '批准 1 小时') + button('7d', '批准 7 天', '批准 7 天') + button('deny', '拒绝', '拒绝')) + '</span>')
       + '</div>'
   }).join('')
   const more = pendingUnread.length > 2 ? '<button type="button" class="na-more" data-notice-approve-more aria-label="查看全部 ' + pendingUnread.length + ' 条待审批">还有 ' + (pendingUnread.length - 2) + ' 条 ›</button>' : ''
@@ -3977,17 +4006,36 @@ function noticeApproveHtml(pendingUnread) {
 async function decideQuickApproval(button) {
   const id = button.dataset.quickId
   const decision = button.dataset.quickDecide
+  const connection = button.dataset.quickKind === 'connection'
   if (!id || button.disabled) return
+  // Narrowing scope needs the checkbox list, so that click opens the sheet.
+  if (connection && decision === 'form') { openPendingSheet(); return }
+  // Denial never touches the vault key; approval does.
+  if (connection && decision !== 'deny' && !vaultUnlocked()) {
+    toast('批准连接需要先解锁 Vault；拒绝不需要。', true)
+    openPendingSheet()
+    return
+  }
   button.disabled = true
   button.setAttribute('aria-busy', 'true')
   try {
-    await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id, decision }) })
-    toast(decision === 'deny' ? '已拒绝' : decision === '7d' ? '已批准 7 天' : '已批准 1 小时')
+    if (connection) {
+      const body = decision === 'deny'
+        ? { id, decision: 'deny' }
+        : { id, decision: 'approve', all: true, plaintextAllowed: false, duration: '1h' }
+      await api('/api/connections/decide', { method: 'POST', body: JSON.stringify(body) })
+      toast(decision === 'deny' ? '已拒绝连接申请' : '已批准连接 · 1 小时（不含明文）')
+    } else {
+      await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id, decision }) })
+      toast(decision === 'deny' ? '已拒绝' : decision === '7d' ? '已批准 7 天' : '已批准 1 小时')
+    }
     await Promise.all([loadState(), loadStats(), loadItems()])
   } catch (error) {
     button.disabled = false
     button.removeAttribute('aria-busy')
-    toast('审批失败：' + error.message, true)
+    const stale = /not-pending|已处理|不存在|not-found/i.test((error.reason || '') + ' ' + (error.message || ''))
+    toast(stale ? '这条申请已处理或已过期，队列已刷新。' : '审批失败：' + error.message, true)
+    if (stale) await loadState()
   }
 }
 async function askNotifyFromBar() {
