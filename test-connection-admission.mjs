@@ -1,0 +1,265 @@
+/**
+ * Connection admission: a new device asks the operator once, the operator picks
+ * what that connection may read and for how long, and repeated probes from the
+ * same source never add rows to the approval list.
+ *
+ * Run: node --import ./test-support/register.mjs test-connection-admission.mjs
+ */
+import {
+  HARNESS, makeEnv, seedState, putSession, call, login, makeReporter,
+  FakeD1, legacyCipherRow, tokenHash, mcpCall, mcpText,
+} from './test-support/broker-harness.mjs'
+
+const ITEM2 = 'other-item'
+const ITEM2_ID = 'item-other'
+// After CONNECTION_ADMISSION_EPOCH, so this agent is NOT grandfathered.
+const NEW_AGENT_AT = '2027-01-01T00:00:00.000Z'
+const OLD_AGENT_AT = '2024-01-01T00:00:00.000Z'
+
+const report = makeReporter()
+function ok(name, condition, detail = '') {
+  if (condition) report.pass(name)
+  else report.fail(name, detail)
+}
+
+function iso(offsetMs = 0) { return new Date(Date.now() + offsetMs).toISOString() }
+
+async function readState(env) {
+  const response = await env.BROKER_STATE.get().fetch('https://state/state')
+  return (await response.json()).state ?? {}
+}
+
+function getSecret(env, name = HARNESS.ITEM) {
+  return call(env, '/secret?name=' + encodeURIComponent(name), { headers: { authorization: 'Bearer ' + HARNESS.AUTH } })
+}
+
+async function decide(env, cookie, body) {
+  const response = await call(env, '/api/connections/decide', {
+    method: 'POST',
+    headers: { cookie, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return { status: response.status, body: await response.json() }
+}
+
+function agentRecord(createdAt) {
+  return {
+    hash: null, allow: [HARNESS.ITEM, ITEM2], groups: [], allowAll: false,
+    write: true, legacy: true, account: HARNESS.ACCT, createdAt,
+  }
+}
+
+async function freshEnv({ connections = {}, policy = { required: true }, createdAt = NEW_AGENT_AT, extra = {} } = {}) {
+  const legacy = new FakeD1({ cipherRows: [
+    await legacyCipherRow(),
+    await legacyCipherRow({ id: ITEM2_ID, name: ITEM2 }),
+  ] })
+  const env = makeEnv({ legacy })
+  const agent = agentRecord(createdAt)
+  agent.hash = await tokenHash()
+  await seedState(env, {
+    connectionPolicy: policy,
+    connections,
+    agents: { [HARNESS.AGENT]: agent },
+    policies: { [HARNESS.ITEM]: { noApproval: true }, [ITEM2]: { noApproval: true } },
+    itemIds: { [HARNESS.ITEM]: HARNESS.ITEM_ID, [ITEM2]: ITEM2_ID },
+    credentialKinds: { [HARNESS.ITEM_ID]: 'api', [ITEM2_ID]: 'api' },
+    ...extra,
+  })
+  await putSession(env)
+  return env
+}
+
+function record(overrides = {}) {
+  return {
+    id: 'conn-seeded', agent: HARNESS.AGENT, account: HARNESS.ACCT,
+    source: { ipHash: 'ip:unknown' }, origin: 'https://broker.test',
+    createdAt: iso(-11 * 60 * 1000), expiresAt: iso(-60 * 1000),
+    state: 'pending', requestedScope: { all: true, itemIds: [] }, requestedPlaintext: false,
+    scope: null, plaintextAllowed: null, ttlMs: null, decidedAt: null, decidedBy: null, reasonCode: null,
+    ...overrides,
+  }
+}
+
+async function main() {
+  // 1 + 2: first contact is refused, and a repeat does not flood the list.
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const body = await first.json()
+    ok('首次连接未批准时被拒，并返回 pending-connection',
+      first.status === 202 && body.status === 'pending-connection' && body.reasonCode === 'connection-pending',
+      JSON.stringify(body))
+    ok('pending 响应带 requestId 与批准链接',
+      Boolean(body.requestId) && String(body.approvalUrl).endsWith('/#connections'), JSON.stringify(body))
+
+    const state = await readState(env)
+    ok('只生成一条待批连接', Object.values(state.connections ?? {}).length === 1
+      && Object.values(state.connections)[0].state === 'pending')
+    ok('未批准时不写任何授权或能力',
+      Object.keys(state.grants ?? {}).length === 0 && Object.keys(state.capabilities ?? {}).length === 0)
+
+    const repeat = await getSecret(env)
+    const repeatBody = await repeat.json()
+    ok('同一来源重复请求复用同一个 requestId', repeatBody.requestId === body.requestId, JSON.stringify(repeatBody))
+    const state2 = await readState(env)
+    ok('重复请求没有新增待批项', Object.values(state2.connections ?? {}).length === 1)
+    ok('重复请求只写一条 connection.request 审计',
+      env._vault.auditRows.filter((entry) => entry.event === 'connection.request').length === 1)
+
+    const cookie = await login(env)
+    const approved = await decide(env, cookie, {
+      id: body.requestId, decision: 'approve', itemIds: [HARNESS.ITEM_ID],
+      plaintextAllowed: true, ttlMs: 3600e3,
+    })
+    ok('批准返回 200 与选定的条目范围',
+      approved.status === 200 && approved.body.ok === true
+      && approved.body.connection.scope.all === false
+      && JSON.stringify(approved.body.connection.scope.itemIds) === JSON.stringify([HARNESS.ITEM_ID]),
+      JSON.stringify(approved.body))
+
+    const read = await getSecret(env)
+    const readBody = await read.json()
+    ok('批准后能读到选中的条目', read.status === 200 && readBody.value === HARNESS.PASSWORD, JSON.stringify(readBody))
+
+    const other = await getSecret(env, ITEM2)
+    const otherBody = await other.json()
+    ok('未选中的条目读不到', other.status === 403 && otherBody.reasonCode === 'connection-item-not-approved',
+      JSON.stringify(otherBody))
+  }
+
+  // 3: plaintextAllowed=false is enforced before the capability decision.
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const pending = await first.json()
+    const cookie = await login(env)
+    const approved = await decide(env, cookie, {
+      id: pending.requestId, decision: 'approve', itemIds: [HARNESS.ITEM_ID],
+      plaintextAllowed: false, duration: '1h',
+    })
+    ok('批准可以用 duration 代替 ttlMs', approved.status === 200 && approved.body.connection.ttlMs === 3600e3,
+      JSON.stringify(approved.body))
+
+    const read = await getSecret(env)
+    const body = await read.json()
+    ok('plaintextAllowed=false 时读明文被拒',
+      read.status === 403 && body.reasonCode === 'connection-plaintext-denied', JSON.stringify(body))
+
+    const listed = await mcpCall(env, 'list_secrets', {})
+    const text = mcpText(listed)
+    ok('不读明文时仍能看到许可范围内的名称', text.includes(HARNESS.ITEM) && !text.includes(ITEM2), text)
+  }
+
+  // 4: an approved admission that ran out of time stops working.
+  {
+    const expired = record({
+      id: 'conn-approved-expired', state: 'approved',
+      scope: { all: false, itemIds: [HARNESS.ITEM_ID] },
+      plaintextAllowed: true, decidedAt: iso(-2 * 60 * 1000), expiresAt: iso(-60 * 1000),
+    })
+    const env = await freshEnv({ connections: { [expired.id]: expired } })
+    const read = await getSecret(env)
+    const body = await read.json()
+    ok('到期的连接许可失效', read.status === 403 && body.status === 'connection-expired' && body.reasonCode === 'ttl-elapsed', JSON.stringify(body))
+    const state = await readState(env)
+    ok('到期记录被标记为 expired', state.connections[expired.id].state === 'expired')
+    ok('到期写入 connection.expire 审计',
+      env._vault.auditRows.some((entry) => entry.event === 'connection.expire' && entry.reasonCode === 'ttl-elapsed'))
+  }
+
+  // 5: 10 minutes without a decision -> expired, gone from the pending list.
+  {
+    const stale = record()
+    const env = await freshEnv({ connections: { [stale.id]: stale } })
+    const cookie = await login(env)
+    const listed = await call(env, '/api/connections', { headers: { cookie } })
+    const body = await listed.json()
+    ok('超时未批的申请不再出现在待审批列表',
+      listed.status === 200 && body.pending.length === 0 && body.count === 0, JSON.stringify(body))
+    ok('超时记录以 expired 出现在历史里',
+      body.recent.some((entry) => entry.id === stale.id && entry.state === 'expired'))
+    const state = await readState(env)
+    ok('超时记录状态变为 expired', state.connections[stale.id].state === 'expired')
+    ok('超时写入带 reasonCode 的审计',
+      env._vault.auditRows.some((entry) => entry.event === 'connection.expire'
+        && entry.reasonCode === 'not-decided-in-10m'
+        && entry.requestId === stale.id))
+  }
+
+  // 6: an agent that predates the gate is already admitted.
+  {
+    const env = await freshEnv({ createdAt: OLD_AGENT_AT })
+    const read = await getSecret(env)
+    ok('上线前已存在的 agent 不被要求重新批准', read.status === 200)
+    const state = await readState(env)
+    ok('老 agent 不产生连接记录', Object.keys(state.connections ?? {}).length === 0)
+  }
+
+  // 7: deny is sticky and does not spawn a new pending row.
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const pending = await first.json()
+    const cookie = await login(env)
+    const denied = await decide(env, cookie, { id: pending.requestId, decision: 'deny', reason: 'not mine' })
+    ok('拒绝返回 200', denied.status === 200 && denied.body.ok === true, JSON.stringify(denied.body))
+
+    const read = await getSecret(env)
+    const body = await read.json()
+    ok('被拒绝的连接继续被拒', read.status === 403 && body.status === 'connection-denied', JSON.stringify(body))
+    const state = await readState(env)
+    ok('拒绝不会生成新的待批项', Object.values(state.connections ?? {}).length === 1
+      && Object.values(state.connections)[0].state === 'denied')
+    ok('拒绝写入 connection.deny 审计',
+      env._vault.auditRows.some((entry) => entry.event === 'connection.deny'
+        && entry.reasonCode === 'admin-denied'))
+  }
+
+  // 8: the kill switch, and the MCP surface.
+  {
+    const env = await freshEnv({ policy: { required: false } })
+    const read = await getSecret(env)
+    ok('connectionPolicy.required=false 时不启用准入', read.status === 200)
+  }
+
+  {
+    const env = await freshEnv()
+    const blocked = await mcpCall(env, 'get_secret', { name: HARNESS.ITEM })
+    const text = mcpText(blocked)
+    ok('MCP 首次调用返回连接待批',
+      blocked.status === 200 && text.includes('pending-connection') && text.includes('connection-pending'), text)
+    const pending = JSON.parse(text)
+    const cookie = await login(env)
+    const approved = await decide(env, cookie, {
+      id: pending.requestId, decision: 'approve', itemIds: [HARNESS.ITEM_ID],
+      plaintextAllowed: true, duration: '24h',
+    })
+    ok('MCP 待批项可以批准', approved.status === 200 && approved.body.ok === true, JSON.stringify(approved.body))
+    const listed = await mcpCall(env, 'list_secrets', {})
+    const listText = mcpText(listed)
+    ok('MCP 列表只显示许可范围内的条目', listText.includes(HARNESS.ITEM) && !listText.includes(ITEM2), listText)
+  }
+
+  // 9: approval input validation, so a bad click cannot create a broad grant.
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const pending = await first.json()
+    const cookie = await login(env)
+    const empty = await decide(env, cookie, {
+      id: pending.requestId, decision: 'approve', plaintextAllowed: true, duration: '24h',
+    })
+    ok('批准时必须选条目或选全部',
+      empty.status === 400 && empty.body.reasonCode === 'connection-scope-empty', JSON.stringify(empty.body))
+    const badTtl = await decide(env, cookie, {
+      id: pending.requestId, decision: 'approve', all: true, plaintextAllowed: true, ttlMs: 30_000,
+    })
+    ok('过短的授权时间被拒',
+      badTtl.status === 400 && badTtl.body.reasonCode === 'connection-ttl-invalid', JSON.stringify(badTtl.body))
+  }
+
+  report.finish()
+}
+
+await main()

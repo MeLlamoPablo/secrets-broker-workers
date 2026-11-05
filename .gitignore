@@ -32,6 +32,7 @@ test-*.mjs
 !test-audit-d1.mjs
 !test-fill-task-lifecycle.mjs
 !test-approval-grant-scope.mjs
+!test-connection-admission.mjs
 !test-secret-read-by-id.mjs
 !test-v2-unlock-persist.mjs
 !test-version-endpoint.mjs
