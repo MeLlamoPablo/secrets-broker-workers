@@ -5631,6 +5631,11 @@ export default {
     if (url.pathname === '/api/logout' && request.method === 'POST') {
       const sessionId = cookieSessionId(request)
       if (sessionId) await updateState(env, (state) => { if (state.adminSessions?.[sessionId]) delete state.adminSessions[sessionId]; return state })
+      // The unlock key is durable now, so logging out must clear it explicitly:
+      // otherwise the next login in this browser would inherit an unlocked
+      // vault until the TTL ran out. Logging out locks the vault, like the
+      // lock button does.
+      await stateStub(env).fetch('https://state/v2-key', { method: 'DELETE' }).catch(() => {})
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: [
