@@ -73,6 +73,30 @@ html[data-theme="dark"] .notice-bar .notice-more:hover{background:rgba(255,255,2
 .notice-bar .notice-more{min-width:40px;min-height:40px;padding:8px 10px}
 .notice-dismiss{min-width:40px;min-height:40px;padding:8px 10px}
 }
+/* A first connection is approved in the same queue as a read request, so its
+   card lives in the pending sheet. The form caps its own height and scrolls: a
+   long item list must never stretch the modal past the viewport. */
+.conn-card{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px}
+.conn-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.conn-name{font-weight:600}
+.conn-meta{font-size:12px;line-height:18px;color:var(--muted)}
+.conn-form{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:8px}
+.conn-scope{display:flex;gap:12px;flex-wrap:wrap;font-size:13px}
+.conn-scope label,.conn-items label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+/* The global input rule is width:100%, which would squeeze a radio's label to
+   one character per line; give the control its natural size back. */
+.conn-scope input,.conn-items input{width:auto;flex:0 0 auto}
+.conn-items{display:flex;flex-direction:column;border:1px solid var(--hair);border-radius:8px;padding:4px 8px;max-height:150px;overflow-y:auto}
+.conn-items label{min-height:28px;font-size:12px}
+.conn-items input{flex:0 0 auto}
+.conn-actions{display:flex;gap:8px;flex-wrap:wrap}
+.conn-actions button{min-height:32px;padding:4px 12px}
+.conn-hint{font-size:12px;line-height:18px}
+.conn-hint[data-state="error"]{color:var(--danger)}
+@media(max-width:720px){
+.conn-items label{min-height:40px}
+.conn-actions button{min-height:40px}
+}
 .notice-bar[data-tone="red"]{background:#fdecec;border-color:#f5c2c2;color:#a12b2b}
 .notice-bar[data-tone="red"] .notice-dot{background:var(--red)}
 .notice-bar[data-tone="orange"]{background:#fff4e5;border-color:#f5d9ae;color:#8a5a00}
@@ -2383,6 +2407,18 @@ document.addEventListener('click', async (event) => {
   try { await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id: button.dataset.id, decision: button.dataset.decision }) }); show('modal', false); await loadAll(); toast('已处理') } catch (error) { toast(error.message, true) }
 })
 $('pending-box').addEventListener('click', async (event) => { const button = event.target.closest('[data-decide]'); if (!button) return; try { await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id: button.dataset.id, decision: button.dataset.decide }) }); await Promise.all([loadState(), loadStats(), loadItems()]); toast('已处理') } catch (error) { toast(error.message, true) } })
+// Connection controls live in the overview queue, the pending sheet and the
+// banner, so they are delegated once on the document.
+document.addEventListener('click', (event) => {
+  const quick = event.target.closest('[data-conn-quick]')
+  if (quick) { event.preventDefault(); decideConnectionQuick(quick); return }
+  const open = event.target.closest('[data-conn-open]')
+  if (open) { event.preventDefault(); openPendingSheet(); return }
+  const approve = event.target.closest('[data-conn-approve]')
+  if (approve) { event.preventDefault(); submitConnectionForm(approve.closest('[data-conn-card]'), 'approve'); return }
+  const deny = event.target.closest('[data-conn-deny]')
+  if (deny) { event.preventDefault(); submitConnectionForm(deny.closest('[data-conn-card]'), 'deny') }
+})
 $('grants-box').addEventListener('click', (event) => {
   // While selecting, a tap on a row is a tick. It used to fall through to the
   // grant sheet, which also wiped the selection the user had just made.
@@ -4035,16 +4071,44 @@ function renderNoticeBar() {
 // every 查看全部 row. It is the detail view of the count, not a second listing
 // on the page.
 function openNotices() {
-  if (((app.data && app.data.pending) || []).length) openPendingSheet()
+  if (((app.data && app.data.pending) || []).length || pendingConnections().length) openPendingSheet()
   else openNoticeModal()
 }
 function openPendingSheet() {
   const pending = (app.data && app.data.pending) || []
-  const body = pending.length ? pending.map((entry) => '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">'
+  const connections = pendingConnections()
+  const secretBody = pending.map((entry) => '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">'
     + pendingDetailHtml(entry)
     + '<div class="row" style="margin-top:8px"><button class="small primary" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="once">仅本次</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="24h">24 小时</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="always">永久</button><button class="small danger" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="deny">拒绝</button></div></div>').join('')
+  const body = (connections.length || pending.length)
+    ? connections.map(connectionApprovalHtml).join('') + secretBody
     : '<div class="hint">暂无待审批请求</div>'
   openModal('待审批队列', body)
+  wirePendingSheet()
+}
+// The form in the sheet is plain DOM: scope radios toggle the item list, the
+// search filters it, and approve/deny are handled on the document so a
+// re-render never leaves a stale handler behind.
+function wirePendingSheet() {
+  const cards = document.querySelectorAll('#modal-body [data-conn-card]')
+  cards.forEach((card) => {
+    if (!card.querySelector('[data-conn-duration]')) return
+    const wrap = card.querySelector('[data-conn-items-wrap]')
+    card.querySelectorAll('[data-conn-scope]').forEach((radio) => {
+      radio.onchange = () => {
+        const all = (card.querySelector('[data-conn-scope]:checked') || {}).value === 'all'
+        if (wrap) wrap.classList.toggle('hidden', all)
+      }
+    })
+    const search = card.querySelector('[data-conn-search]')
+    if (search) search.oninput = () => {
+      const query = search.value.trim().toLowerCase()
+      card.querySelectorAll('[data-conn-item]').forEach((box) => {
+        const label = box.closest('label')
+        if (label) label.classList.toggle('hidden', Boolean(query) && !label.textContent.toLowerCase().includes(query))
+      })
+    }
+  })
 }
 function openNoticeModal() {
   const read = noticeReadIds()
@@ -4222,7 +4286,8 @@ function pendingAgentLabel(request) {
 
 function renderPending() {
   const pending = app.data.pending || []
-  const body = pending.map((request) => {
+  startConnectionTicker()
+  const body = pendingConnectionRowsHtml() + pending.map((request) => {
     const origin = pendingOriginLabel(request)
     const isFill = String(request.action || '') === 'secret.fill'
     const originLine = !origin ? '' : /^目标无效/.test(origin) ? origin : '目标 ' + origin
@@ -4240,8 +4305,9 @@ function renderPending() {
       '<div class="ios-sub">' + esc(new Date(request.createdAt).toLocaleTimeString('zh-CN', { hour12: false })) + '</div>' +
       '<div class="ios-actions">' + chips + '</div></div></div>'
   }).join('')
-  $('pending-box').innerHTML = pending.length
-    ? '<div class="ios-group"><div class="ios-group-head"><span>等待你决定 · ' + pending.length + '</span></div><div class="ios-card">' + body + '</div></div>'
+  const total = pending.length + pendingConnections().length
+  $('pending-box').innerHTML = total
+    ? '<div class="ios-group"><div class="ios-group-head"><span>等待你决定 · ' + total + '</span></div><div class="ios-card">' + body + '</div></div>'
     : '<div class="hint">暂无待批准请求</div>'
 }
 
@@ -4264,6 +4330,189 @@ function pendingDetailHtml(entry) {
     + (entry.nameMasked ? ' <button class="small" data-inline-unlock type="button">查看完整内容需要解锁</button>' : '')
     + '</div>' + target
     + '<div class="hint">' + esc(entry.createdAt ? new Date(entry.createdAt).toLocaleString('zh-CN', { hour12: false }) : '') + '</div>'
+}
+
+// -- Connection admission -----------------------------------------------------
+// A first connection is an approval like any other: it shares the pending
+// queue, the banner count and the KPI card, so there is no second listing and
+// no new nav. The contract is /api/connections/decide; requestedScope is what
+// the agent asked for, scope is what was actually granted.
+function pendingConnections() {
+  const data = app.data || {}
+  return (data.connections && data.connections.pending) || []
+}
+// Approval needs the vault key; denial never does. v2 is authoritative when the
+// account has migrated, otherwise fall back to the legacy unlock flag.
+function vaultUnlocked() {
+  if (app.v2 && app.v2.initialized === true) return app.v2.unlocked === true
+  return app.me ? app.me.unlocked === true : false
+}
+function connExpiresAt(entry) {
+  const ms = new Date((entry && entry.expiresAt) || 0).getTime()
+  return Number.isFinite(ms) ? ms : 0
+}
+function connRemainingLabel(entry) {
+  const left = connExpiresAt(entry) - Date.now()
+  if (!left || left <= 0) return '已到期'
+  const seconds = Math.floor(left / 1000)
+  return '剩余 ' + Math.floor(seconds / 60) + ' 分 ' + String(seconds % 60).padStart(2, '0') + ' 秒'
+}
+function connSourceLabel(entry) {
+  const hash = entry && entry.source && entry.source.ipHash ? String(entry.source.ipHash) : ''
+  return hash ? '来源 ' + hash : '来源未知'
+}
+function connScopeText(entry) {
+  const scope = (entry && entry.requestedScope) || {}
+  if (scope.all === true) return '请求范围：全部条目'
+  return '请求范围：指定 ' + ((scope.itemIds || []).length) + ' 条'
+}
+function connPlaintextText(entry) {
+  return entry && entry.requestedPlaintext === true ? '请求时索要明文' : '未索要明文'
+}
+function connWaitingText(entry) {
+  if (!entry || !entry.createdAt) return ''
+  return '请求于 ' + new Date(entry.createdAt).toLocaleString('zh-CN', { hour12: false }) + ' · 等了 ' + waitedLabel(entry.createdAt)
+}
+function connItemChoicesHtml(entry) {
+  const locked = !vaultUnlocked()
+  const items = app.items || []
+  const requested = new Set(((entry && entry.requestedScope && entry.requestedScope.itemIds) || []).map(String))
+  const list = items.length
+    ? items.map((item) => '<label><input type="checkbox" data-conn-item value="' + esc(item.id) + '"' + (requested.has(String(item.id)) ? ' checked' : '') + '><span>' + esc(item.name || item.id) + '</span></label>').join('')
+    : '<div class="hint">还没有可选的条目</div>'
+  return '<div class="conn-items" data-conn-items role="group" aria-label="选择批准范围里的条目">' + list + '</div>'
+    + (locked ? '<div class="conn-meta">名称已脱敏，解锁后可看名称。</div>' : '')
+}
+// The approval form collects the three things the contract needs in one submit:
+// scope, plaintext and lifetime. Scope defaults to what the agent asked for.
+function connectionApprovalHtml(entry) {
+  const id = esc(entry.id || '')
+  const all = (entry.requestedScope || {}).all === true
+  const locked = !vaultUnlocked()
+  return '<div class="conn-card" data-conn-card="' + id + '" data-conn-expires="' + connExpiresAt(entry) + '">'
+    + '<div class="conn-head"><span class="conn-name">' + esc(entry.agent || 'Agent') + '</span><span class="ios-tag">首次连接</span>'
+    + '<span class="ios-pill ' + (entry.requestedPlaintext ? 'warn' : 'plain') + '">' + (entry.requestedPlaintext ? '索要明文' : '不读明文') + '</span></div>'
+    + '<div class="conn-meta">' + esc(connSourceLabel(entry)) + (entry.origin ? ' · ' + esc(entry.origin) : '') + '</div>'
+    + '<div class="conn-meta">' + esc(connScopeText(entry)) + ' · ' + connPlaintextText(entry) + '</div>'
+    + '<div class="conn-meta">' + esc(connWaitingText(entry)) + ' · <span data-conn-expire>' + esc(connRemainingLabel(entry)) + '</span></div>'
+    + '<div class="conn-form">'
+    + '<div class="conn-scope" role="radiogroup" aria-label="批准范围"><label><input type="radio" data-conn-scope value="all"' + (all ? ' checked' : '') + '> 全部条目</label>'
+    + '<label><input type="radio" data-conn-scope value="items"' + (all ? '' : ' checked') + '> 指定条目</label></div>'
+    + '<div data-conn-items-wrap class="' + (all ? 'hidden' : '') + '"><input type="search" data-conn-search placeholder="搜索条目" aria-label="搜索条目">'
+    + connItemChoicesHtml(entry) + '</div>'
+    + '<label class="chk"><input type="checkbox" data-conn-plaintext> 允许它读出网站登录密码原文</label>'
+    + '<div class="conn-meta">默认关闭；开启后，这次授权会允许 Agent 读取明文密码。</div>'
+    + '<label class="field" for="conn-ttl-' + id + '">授权时长</label><select id="conn-ttl-' + id + '" data-conn-duration aria-label="授权时长">'
+    + '<option value="1h">1 小时</option><option value="24h">24 小时</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="always">永久（直到撤销）</option></select>'
+    + '<div class="conn-hint" data-conn-status role="status" aria-live="polite">' + (locked ? '批准需要先解锁 Vault；拒绝不需要。 <button type="button" class="small" data-inline-unlock>先解锁</button>' : '') + '</div>'
+    + '<div class="conn-actions"><button type="button" class="primary" data-conn-approve="' + id + '" aria-label="批准连接：' + esc(entry.agent || '') + '">批准</button>'
+    + '<button type="button" class="danger" data-conn-deny="' + id + '" aria-label="拒绝连接：' + esc(entry.agent || '') + '">拒绝</button></div>'
+    + '</div></div>'
+}
+function pendingConnectionRowsHtml() {
+  return pendingConnections().map((entry) => {
+    const id = esc(entry.id || '')
+    const all = (entry.requestedScope || {}).all === true
+    return '<div class="ios-row ios-row--stack" data-conn-card="' + id + '" data-conn-expires="' + connExpiresAt(entry) + '">'
+      + '<span class="ios-ico" data-kind="api">' + IOS_PERSON + '</span>'
+      + '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(entry.agent || 'Agent') + '</span><span class="ios-tag">首次连接</span></div>'
+      + '<div class="ios-sub">' + esc(connSourceLabel(entry)) + ' · ' + connPlaintextText(entry) + ' · ' + esc(connScopeText(entry)) + '</div>'
+      + '<div class="ios-sub">' + esc(connWaitingText(entry)) + ' · <span data-conn-expire>' + esc(connRemainingLabel(entry)) + '</span></div>'
+      + '<div class="conn-hint" data-conn-status role="status" aria-live="polite"></div>'
+      + '<div class="ios-actions">'
+      + (all ? '<button class="ios-chip primary" data-conn-quick="' + id + '" aria-label="批准 1 小时：' + esc(entry.agent || '') + ' 首次连接，范围全部条目，不含明文">批准 1 小时</button>' : '')
+      + '<button class="ios-chip" data-conn-open="' + id + '" aria-label="' + (all ? '展开连接审批表单' : '为 ' + esc(entry.agent || '') + ' 选择条目后批准') + '">' + (all ? '展开审批' : '选择条目后批准') + '</button>'
+      + '<button class="ios-chip danger" data-conn-deny="' + id + '" aria-label="拒绝连接：' + esc(entry.agent || '') + '">拒绝</button>'
+      + '</div></div></div>'
+  }).join('')
+}
+function connectionDurationLabel(duration) {
+  return ({ '1h': '1 小时', '24h': '24 小时', '7d': '7 天', '30d': '30 天', always: '永久' })[duration] || duration
+}
+// Expiry is client-observed too: the row leaves the queue the moment its window
+// closes even before the next poll answers, so an expired ticket never sits
+// there looking actionable.
+let connExpireTimer = null
+function startConnectionTicker() {
+  if (connExpireTimer) return
+  connExpireTimer = setInterval(() => {
+    let expired = false
+    document.querySelectorAll('[data-conn-expires]').forEach((node) => {
+      const at = Number(node.dataset.connExpires || 0)
+      if (!at) return
+      if (at - Date.now() <= 0) { node.remove(); expired = true; return }
+      const label = node.querySelector('[data-conn-expire]')
+      if (label) label.textContent = connRemainingLabel({ expiresAt: at })
+    })
+    if (expired) loadState()
+  }, 1000)
+}
+function setConnectionStatus(card, text, isError) {
+  const el = card && card.querySelector('[data-conn-status]')
+  if (!el) return
+  el.textContent = text || ''
+  if (isError) el.dataset.state = 'error'
+  else delete el.dataset.state
+}
+async function decideConnection(button, body, card) {
+  const buttons = card ? Array.from(card.querySelectorAll('button')) : (button ? [button] : [])
+  buttons.forEach((entry) => { entry.disabled = true; entry.setAttribute('aria-busy', 'true') })
+  try {
+    await api('/api/connections/decide', { method: 'POST', body: JSON.stringify(body) })
+    toast(body.decision === 'deny' ? '已拒绝连接申请' : '已批准连接 · ' + connectionDurationLabel(body.duration) + (body.plaintextAllowed ? '（含明文）' : '（不含明文）'))
+    await Promise.all([loadState(), loadStats(), loadItems()])
+    if (card && card.closest('#modal-body')) openPendingSheet()
+  } catch (error) {
+    buttons.forEach((entry) => { entry.disabled = false; entry.removeAttribute('aria-busy') })
+    const stale = [404, 409].includes(error.status) || /not-pending|not-found/i.test(String(error.reason || '') + ' ' + String(error.message || ''))
+    if (stale) {
+      if (card) setConnectionStatus(card, '这条申请已处理或已过期，队列已刷新。', true)
+      toast('这条申请已处理或已过期，队列已刷新。', true)
+      await loadState()
+    } else if (error.status === 423) {
+      if (card) setConnectionStatus(card, '批准需要先解锁 Vault；拒绝不需要。', true)
+      toast('批准连接需要先解锁 Vault；拒绝不需要。', true)
+    } else {
+      if (card) setConnectionStatus(card, error.message, true)
+      toast('审批失败：' + error.message, true)
+    }
+  }
+}
+// Deny needs no vault key and no scope; approve reads the three fields the
+// contract asks for from the card itself.
+async function submitConnectionForm(card, decision) {
+  if (!card) return
+  const id = card.dataset.connCard
+  if (!id) return
+  if (decision === 'deny') return decideConnection(null, { id, decision: 'deny' }, card)
+  if (!vaultUnlocked()) {
+    setConnectionStatus(card, '批准需要先解锁 Vault；拒绝不需要。解锁后可重新打开这张卡。', true)
+    return
+  }
+  const duration = (card.querySelector('[data-conn-duration]') || {}).value || '1h'
+  const plaintextAllowed = Boolean((card.querySelector('[data-conn-plaintext]') || {}).checked)
+  const scope = card.querySelector('[data-conn-scope]:checked')
+  const all = !scope || scope.value === 'all'
+  const itemIds = all ? [] : Array.from(card.querySelectorAll('[data-conn-item]:checked')).map((box) => box.value)
+  if (!all && !itemIds.length) {
+    setConnectionStatus(card, '先选至少一条条目，或改用「全部条目」。', true)
+    return
+  }
+  const body = { id, decision: 'approve', all, plaintextAllowed, duration }
+  if (!all) body.itemIds = itemIds
+  setConnectionStatus(card, '')
+  return decideConnection(null, body, card)
+}
+async function decideConnectionQuick(button) {
+  if (!button || button.disabled) return
+  const id = button.dataset.connQuick
+  if (!vaultUnlocked()) {
+    setConnectionStatus(button.closest('[data-conn-card]'), '批准连接需要先解锁 Vault；拒绝不需要。', true)
+    toast('批准连接需要先解锁 Vault；拒绝不需要。', true)
+    openPendingSheet()
+    return
+  }
+  return decideConnection(button, { id, decision: 'approve', all: true, plaintextAllowed: false, duration: '1h' }, null)
 }
 
 // The web fill policy card. Every call goes through the admin API, which
