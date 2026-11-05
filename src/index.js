@@ -14,6 +14,10 @@ import { publicKeyFingerprint, dekFingerprint } from './envelope.js'
 import { generateVapid, vapidAuthorization } from './webpush.js'
 import { scrubSecret } from './redact.js'
 import { verifyGatewayJwt, federatedAgent } from './federation.js'
+// The worker's version has exactly one source: package.json, inlined by the
+// bundler. /api/version reports it so an operator can match a running deploy to
+// a commit without reading the dashboard.
+import pkg from '../package.json' with { type: 'json' }
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -8768,6 +8772,20 @@ const TOOL_META = {
   http_request: { title: '代调外部 API', readOnlyHint: false, openWorldHint: true },
 }
     if (url.pathname === '/health' && (request.method === 'GET' || request.method === 'HEAD')) return json({ ok: true })
+    // Deployment identity, deliberately unauthenticated: it carries build
+    // metadata only and never a secret, an account id or internal state. It
+    // stays 200 with "unknown" when the optional version_metadata binding is
+    // absent, because a missing deploy metadata must not break the About panel.
+    if (url.pathname === '/api/version' && request.method === 'GET') {
+      const meta = env.CF_VERSION_METADATA ?? {}
+      return json({
+        name: pkg.name,
+        version: pkg.version,
+        commit: meta.tag || 'unknown',
+        deployedAt: meta.timestamp || 'unknown',
+        workerVersion: meta.id || 'unknown',
+      })
+    }
     // A browser-side MCP client (and any Streamable-HTTP probe) sends a CORS
     // preflight first; without this answer the endpoint looked missing.
     if (url.pathname === '/mcp' && request.method === 'OPTIONS') {

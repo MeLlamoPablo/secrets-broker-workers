@@ -3,6 +3,9 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-19",
   "observability": { "enabled": true },
+  // Optional. Without it /api/version still answers 200 with "unknown" for
+  // commit/deployedAt/workerVersion; with it those three describe this deploy.
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // scheduled() expires abandoned fill tasks and dispatches reminders. Without
   // this trigger those only run when an admin happens to open the console.
   "triggers": { "crons": ["*/5 * * * *"] },
