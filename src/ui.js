@@ -38,6 +38,16 @@ button.small{white-space:nowrap}
 .notice-bar .notice-count{flex:0 0 auto;font-family:inherit;font-size:12px;line-height:18px;padding:2px 8px;border:0;border-radius:999px;background:rgba(0,0,0,.06);color:inherit;cursor:pointer}
 .notice-bar .notice-count[data-kind="pending"]{background:color-mix(in srgb,var(--orange) 16%,transparent);color:var(--warn-text)}
 .notice-bar .notice-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%}
+.notice-bar .notice-more{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;font:inherit;font-size:12px;line-height:18px;padding:6px 8px;border-radius:8px;cursor:pointer;opacity:.75;white-space:nowrap}
+.notice-bar .notice-more:hover{opacity:1;background:rgba(0,0,0,.06)}
+.notice-bar [data-notice-dismiss]{font-size:15px;line-height:16px;padding:8px 10px}
+html[data-theme="dark"] .notice-bar .notice-more:hover{background:rgba(255,255,255,.12)}
+.notice-dismiss{flex:0 0 auto}
+@media(max-width:720px){
+.notice-bar{flex-wrap:wrap}
+.notice-bar .notice-more{min-width:40px;min-height:40px;padding:8px 10px}
+.notice-dismiss{min-width:40px;min-height:40px;padding:8px 10px}
+}
 .notice-bar[data-tone="red"]{background:#fdecec;border-color:#f5c2c2;color:#a12b2b}
 .notice-bar[data-tone="red"] .notice-dot{background:var(--red)}
 .notice-bar[data-tone="orange"]{background:#fff4e5;border-color:#f5d9ae;color:#8a5a00}
@@ -3753,12 +3763,27 @@ if (globeOpen) globeOpen.onclick = () => {
 let noticeIndex = 0
 let noticeTimer = null
 const NOTICE_READ_KEY = 'sb-notice-read-v1'
+// Read state is per signed-in account, not per browser: two operators sharing
+// one device must not inherit each other's dismissed notices. No server field
+// exists for this, so it lives in localStorage.
+function noticeReadKey() { return NOTICE_READ_KEY + ':' + String((app.me && (app.me.email || app.me.name)) || 'anon').toLowerCase() }
 function noticeReadIds() {
-  try { const saved = JSON.parse(localStorage.getItem(NOTICE_READ_KEY) || '[]'); return Array.isArray(saved) ? saved : [] } catch (error) { return [] }
+  try {
+    const raw = localStorage.getItem(noticeReadKey()) || localStorage.getItem(NOTICE_READ_KEY) || '[]'
+    const saved = JSON.parse(raw); return Array.isArray(saved) ? saved : []
+  } catch (error) { return [] }
+}
+function saveNoticeReadIds(ids) {
+  try { localStorage.setItem(noticeReadKey(), JSON.stringify(ids.slice(-200))) } catch (error) { /* storage full or blocked: the bar just comes back */ }
 }
 function markNoticeRead(id) {
-  const ids = noticeReadIds(); if (!ids.includes(id)) ids.push(id)
-  try { localStorage.setItem(NOTICE_READ_KEY, JSON.stringify(ids.slice(-200))) } catch (error) { /* storage full or blocked: the bar just comes back */ }
+  const ids = noticeReadIds(); if (!id || ids.includes(id)) return
+  ids.push(id); saveNoticeReadIds(ids)
+}
+function markAllNoticesRead() {
+  const read = noticeReadIds()
+  for (const item of noticeItems()) if (!read.includes(item.id)) read.push(item.id)
+  saveNoticeReadIds(read)
 }
 function noticeItems() {
   const data = app.data || {}
@@ -3785,8 +3810,12 @@ function noticeItems() {
   return pending.concat(reminders)
 }
 function noticeCounts() {
-  const data = app.data || {}
-  return { pending: (data.pending || []).length, reminders: (data.reminders || []).length }
+  // The pill numbers follow what is still worth nagging about, so dismissing a
+  // notice makes the number drop. The approvals queue itself is untouched: the
+  // KPI card and 待审批 sheet still list every waiting request.
+  const read = noticeReadIds()
+  const unread = noticeItems().filter((item) => !read.includes(item.id))
+  return { pending: unread.filter((item) => item.kind === 'pending').length, reminders: unread.filter((item) => item.kind !== 'pending').length }
 }
 function renderNoticeBar() {
   const bar = $('notice-bar')
@@ -3806,16 +3835,24 @@ function renderNoticeBar() {
     bar.innerHTML = '<span class="notice-dot"></span><span class="notice-text">' + esc(item.text) + '</span>'
       + (counts.pending ? '<button type="button" class="notice-count" data-kind="pending" data-notice-open="pending">待审批 ' + counts.pending + '</button>' : '')
       + (counts.reminders ? '<button type="button" class="notice-count" data-kind="reminder" data-notice-open="reminder">提醒 ' + counts.reminders + '</button>' : '')
-      + '<button class="notice-more" data-notice-dismiss="' + esc(item.id) + '" title="标记这条为已读（只隐藏横幅，不改审批状态）">已读</button>'
+      + '<button type="button" class="notice-more" data-notice-dismiss="' + esc(item.id) + '" aria-label="忽略这条提示" title="忽略这条提示（只隐藏提示，不改审批状态）">✕</button>'
+      + '<button type="button" class="notice-more" data-notice-dismiss-all aria-label="全部标为已读" title="全部标为已读（只隐藏提示，不改审批状态）">全部已读</button>'
       + '<span class="notice-more">查看全部 ›</span>'
   }
   render()
   if (noticeTimer) clearInterval(noticeTimer)
   bar.querySelectorAll('[data-notice-dismiss]').forEach((button) => {
     button.onclick = (event) => {
-      // Clicking 已读 must not also open the whole list behind it.
+      // Clicking 忽略 must not also open the whole list behind it.
       event.stopPropagation()
       markNoticeRead(button.dataset.noticeDismiss)
+      renderNoticeBar()
+    }
+  })
+  bar.querySelectorAll('[data-notice-dismiss-all]').forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation()
+      markAllNoticesRead()
       renderNoticeBar()
     }
   })
@@ -3849,14 +3886,23 @@ function openPendingSheet() {
   openModal('待审批队列', body)
 }
 function openNoticeModal() {
-  const reminders = (app.data && app.data.reminders) || []
-  if (!reminders.length) return
+  const read = noticeReadIds()
+  // Ignored reminders disappear from this sheet too; the server keeps computing
+  // them, so they can never be lost, only muted on this account's device.
+  const all = (app.data && app.data.reminders) || []
+  const reminders = all.filter((item) => !read.includes('reminder:' + item.kind + ':' + (item.agent || '')))
+  if (!reminders.length) {
+    openModal('通知提醒', '<div class="hint">' + (all.length ? '这些提醒都已标为已读。新的提醒出现时会重新显示。' : '暂无提醒。') + '</div>')
+    return
+  }
   const reminderBlock = reminders.map((item) => {
     const tone = item.severity === 'critical' ? 'bad' : (item.severity === 'warning' ? 'warn' : 'plain')
     const isSecret = Boolean(item.kind && item.kind.indexOf('secret-') === 0)
-    return '<div class="ios-row ios-row--stack"><div class="ios-main"><div class="ios-title">'
+    const noticeId = 'reminder:' + item.kind + ':' + (item.agent || '')
+    return '<div class="ios-row ios-row--stack" data-notice-row="' + esc(noticeId) + '"><div class="ios-main"><div class="ios-title">'
       + '<span class="ios-name">' + esc((isSecret ? '密钥 ' : '') + (item.agent || '')) + '</span>'
-      + '<span class="ios-pill ' + tone + '">' + esc(item.message || '') + '</span></div>'
+      + '<span class="ios-pill ' + tone + '">' + esc(item.message || '') + '</span>'
+      + '<button type="button" class="ios-chip notice-dismiss" data-notice-dismiss-row="' + esc(noticeId) + '" aria-label="忽略这条提示" title="忽略这条提示（只隐藏提示，不改审批状态）">忽略</button></div>'
       + '<div class="ios-sub">' + esc(item.kind === 'idle' ? '很久没有读取记录' : '到期后会拒绝，需要重新授权') + '</div>'
       + '<div class="ios-actions">'
       + (item.expiresAt && !isSecret ? '<button class="ios-chip" data-notice-extend="' + esc(item.agent || '') + '">延期</button>' : '')
@@ -3864,6 +3910,15 @@ function openNoticeModal() {
       + '</div></div></div>'
   }).join('')
   openModal('通知提醒', reminderBlock)
+  document.querySelectorAll('[data-notice-dismiss-row]').forEach((button) => {
+    button.onclick = () => {
+      markNoticeRead(button.dataset.noticeDismissRow)
+      const row = button.closest('[data-notice-row]')
+      if (row) row.remove()
+      renderNoticeBar()
+      if (!document.querySelector('#modal-body [data-notice-row]')) openNoticeModal()
+    }
+  })
   document.querySelectorAll('[data-notice-extend]').forEach((button) => {
     button.onclick = () => { show('modal', false); openExtendMenu(button.dataset.noticeExtend) }
   })
