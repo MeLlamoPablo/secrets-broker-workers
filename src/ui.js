@@ -928,6 +928,7 @@ nav{grid-area:tabs}
   <section id="unlock-card" class="auth__card card hidden" aria-labelledby="unlock-title">
     <h2 id="unlock-title">解锁 Vault</h2><div class="hint">Vault 主密码是初始化 Vault 时设置的密码，不是管理登录密码。它只在本机做 PBKDF2/HKDF，服务器只收到派生出的会话密钥。</div>
     <label class="field" for="master-password">Vault 主密码</label><input id="master-password" type="password" autocomplete="current-password" enterkeyhint="go">
+    <div id="unlock-totp-row" class="hidden"><label class="field" for="unlock-totp-code">两步验证码</label><input id="unlock-totp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位验证码" aria-label="两步验证码：显示条目名称需要输入手机上 6 位验证码"></div>
     <label class="field" for="ttl">解锁有效期</label><select id="ttl"><option value="12h" selected>12 小时（默认）</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="device">长期（绑定本设备）</option></select>
     <div class="hint" id="ttl-risk">时间越长，别处拿到这个会话就能读得越久。选「长期」时密钥会封存在本设备的浏览器存储里，不再长期留在服务端；只有撤销设备才会让它失效。</div>
     <div class="row"><button class="primary" id="unlock">解锁</button><button id="lock2">锁定</button><button id="unlock-browse">先以锁定状态进入（审批可用）</button></div><div class="status" id="unlock-status" role="status" aria-live="polite"></div>
@@ -1597,6 +1598,17 @@ applyTheme()
 // Sign-in is a screen of its own. Whenever either auth card is visible the
 // shell takes over the viewport; once the dashboard unlocks, it disappears.
 // Watching the existing cards keeps every show()/lock() call site unchanged.
+// An account with a second factor is asked for the code here, next to the
+// password, so the plaintext listing never interrupts with a second prompt
+// right after the password was accepted. Accounts without one never see it.
+function renderUnlockTotp() {
+  const row = $('unlock-totp-row')
+  if (!row) return
+  const shown = app.me?.totpEnabled === true
+  row.classList.toggle('hidden', !shown)
+  const input = $('unlock-totp-code')
+  if (input && !shown) input.value = ''
+}
 function syncAuthSurface() {
   const open = !$('login-card').classList.contains('hidden') || !$('unlock-card').classList.contains('hidden')
   $('auth-shell').classList.toggle('hidden', !open)
@@ -1605,6 +1617,7 @@ function syncAuthSurface() {
     const title = $('site-title').textContent
     if (title) $('auth-site-name').textContent = title
     $('auth-logo').src = $('site-logo').src
+    renderUnlockTotp()
   }
 }
 new MutationObserver(syncAuthSurface).observe($('login-card'), { attributes: true, attributeFilter: ['class'] })
@@ -1648,7 +1661,15 @@ async function unlockV2(password, options = {}) {
     : tier === '30d' ? 30 * 24 * 60 * 60 * 1000
     : tier === 'device' ? 60 * 60 * 1000
     : 12 * 60 * 60 * 1000
-  await api('/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password, ttlMs, duration: tier, confirm: tier !== '12h' }) })
+  const code = String(options.code ?? '').replace(/\s+/g, '')
+  const payload = { password, ttlMs, duration: tier, confirm: tier !== '12h' }
+  // The code rides along with the password so one submit both opens the vault
+  // and clears the plaintext listing, instead of asking again right after.
+  if (/^\d{6}$/.test(code)) payload.code = code
+  const result = await api('/api/v2/unlock', { method: 'POST', body: JSON.stringify(payload) })
+  // The response already says whether the plaintext listing is allowed; use it
+  // instead of waiting for the next /api/v2/status poll to agree.
+  if (typeof result?.plainOk === 'boolean') app.plainOk = result.plainOk
   if (tier === 'device') {
     try { await bindThisDevice() } catch (error) { toast('设备绑定失败：' + error.message, true) }
   }
@@ -1698,9 +1719,13 @@ function inlineUnlockSheet() {
 $('unlock').onclick = async () => {
   const password = $('master-password').value
   const button = $('unlock')
+  const codeField = $('unlock-totp-code')
+  const needsCode = app.me?.totpEnabled === true
+  const code = needsCode ? String(codeField?.value || '').replace(/\s+/g, '') : ''
   // An empty field used to do literally nothing: no message, no focus, no sign
   // that the click was seen. Say what is missing and put the cursor there.
   if (!password) { status('unlock-status', '先输入 Vault 主密码', 'error'); $('master-password').focus(); return }
+  if (needsCode && !/^\d{6}$/.test(code)) { status('unlock-status', '请输入手机上 6 位验证码', 'error'); codeField?.focus(); return }
   button.disabled = true
   button.setAttribute('aria-busy', 'true')
   button.textContent = '解锁中…'
@@ -1710,12 +1735,16 @@ $('unlock').onclick = async () => {
     // directly instead of requiring the legacy NodeWarden KDF metadata.
     const v2 = await api('/api/v2/status').catch(() => null)
     app.v2 = v2
-    if (v2?.initialized) return await unlockV2(password)
+    if (v2?.initialized) return await unlockV2(password, { code })
     await unlockLegacy(password, $('ttl').value)
     $('master-password').value = ''
   } catch (error) {
-    status('unlock-status', error.message, 'error')
-    $('master-password').focus()
+    // A wrong code must not cost the typed password: say what to fix and send
+    // the cursor to the code field instead of the password field.
+    const badCode = needsCode && /验证码/.test(error.message || '')
+    status('unlock-status', badCode ? '验证码错误：请重新输入 6 位验证码（密码不用重填）' : error.message, 'error')
+    if (badCode) codeField?.focus()
+    else $('master-password').focus()
   } finally {
     button.disabled = false
     button.removeAttribute('aria-busy')
@@ -1723,6 +1752,7 @@ $('unlock').onclick = async () => {
   }
 }
 $('master-password').onkeydown = (event) => { if (event.key === 'Enter') $('unlock').click() }
+$('unlock-totp-code').onkeydown = (event) => { if (event.key === 'Enter') $('unlock').click() }
 $('admin-password').onkeydown = (event) => { if (event.key === 'Enter') $('login').click() }
 $('totp-code').onkeydown = (event) => { if (event.key === 'Enter') $('login').click() }
 $('init-v2').onclick = async () => {
@@ -1731,7 +1761,7 @@ $('init-v2').onclick = async () => {
   if (!(await askYes('初始化 Vault 2.0？这会新建一套独立的数据密钥；旧 NodeWarden 条目不会自动迁移。'))) return
   try {
     await api('/api/v2/init', { method: 'POST', body: JSON.stringify({ password }) })
-    await unlockV2(password)
+    await unlockV2(password, { code: $('unlock-totp-code')?.value || '' })
   } catch (error) { status('unlock-status', error.message, 'error') }
 }
 api('/api/v2/status').then((v2) => { if (v2.initialized) $('init-v2').classList.add('hidden') }).catch(() => {})
