@@ -327,6 +327,7 @@ html[data-theme="dark"] .kind-api,html[data-theme="dark"] .kind-web,html[data-th
 .status{font-size:var(--text-sub);color:var(--label-2)}
 .error{color:var(--red)}
 .ok{color:var(--green)}
+.extend-error{margin-top:12px;padding:10px 12px;border-radius:var(--r-md);font-size:var(--text-sub);line-height:18px;color:var(--red);background:color-mix(in srgb,var(--red) 10%,transparent);border:1px solid color-mix(in srgb,var(--red) 30%,transparent)}
 ul.items li{border-bottom:1px solid var(--separator);padding:12px 0}
 ul.items .name{font-weight:600;font-size:var(--text-body-lg)}
 ul.items .type{font-size:var(--text-caption);color:var(--label-2)}
@@ -1149,13 +1150,17 @@ async function api(path, options = {}) {
   const response = await fetch(path, { cache: 'no-store', credentials: 'same-origin', ...options, headers: { 'content-type': 'application/json', ...(options.headers || {}) } })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
-    let message = body.error || ('HTTP ' + response.status)
+    let message = body.error || body.reason || body.detail || body.message || ''
+    if (typeof message !== 'string') message = ''
+    if (!message.trim()) message = 'HTTP ' + response.status
     if (response.status === 401 && message === 'unauthorized') {
       message = '登录状态已失效，或页面域名与接口域名不一致。请重新登录；如果反复出现，确认地址栏是 ' + location.origin + '，而不是别名域名。'
     }
+    if (response.status === 423) message = 'Vault 已锁定，请先在「Vault 2.0」解锁后再操作。' + (body.error && body.error !== 'locked' ? '（' + message + '）' : '')
     const error = new Error(message)
     error.status = response.status
     error.data = body
+    error.reason = body.reason || body.detail || body.error || ''
     if (response.status >= 500) setDbDown(message)
     throw error
   }
@@ -2199,14 +2204,21 @@ async function extendAgent(name, days) {
     show('modal', false)
     await refreshAll()
     toast(result.permanent ? '已设为永久' : '已延长到 ' + new Date(result.expiresAt).toLocaleString('zh-CN', { hour12: false }))
-  } catch (error) { toast(error.message, true) }
+  } catch (error) {
+    // Never leave an empty red banner: if the server sends no usable text,
+    // fall back to the status code so the operator can tell what happened.
+    const message = (error && error.message) || ('延长授权失败（HTTP ' + ((error && error.status) || '未知') + '）')
+    const box = $('extend-error')
+    if (box) { box.textContent = message; box.classList.remove('hidden') }
+    toast(message, true)
+  }
 }
 function openExtendMenu(name) {
   const agent = (app.data.agents || []).find((entry) => entry.name === name)
   if (!agent) return
   const opts = [['1', '1 天'], ['7', '7 天'], ['30', '30 天'], ['90', '90 天'], ['365', '365 天'], ['permanent', '永久']]
   const now = typeof agent.expiresAt === 'number' ? new Date(agent.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久'
-  openModal('延长授权 · ' + name, '<div class="hint">当前到期：' + now + (agent.oauth ? '（OAuth 连接）' : '') + '</div><div class="hint" style="margin-top:6px">从<strong>现在</strong>起算，重新计时。</div><div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">' + opts.map(([value, label]) => '<button class="small" data-extend-days="' + value + '">' + label + '</button>').join('') + '</div>')
+  openModal('延长授权 · ' + name, '<div class="hint">当前到期：' + now + (agent.oauth ? '（OAuth 连接）' : '') + '</div><div class="hint" style="margin-top:6px">从<strong>现在</strong>起算，重新计时。</div><div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">' + opts.map(([value, label]) => '<button class="small" data-extend-days="' + value + '">' + label + '</button>').join('') + '</div><div id="extend-error" class="extend-error hidden" role="alert" aria-live="assertive"></div>')
   document.querySelectorAll('[data-extend-days]').forEach((button) => {
     button.onclick = () => extendAgent(name, button.dataset.extendDays === 'permanent' ? 'permanent' : Number(button.dataset.extendDays))
   })
