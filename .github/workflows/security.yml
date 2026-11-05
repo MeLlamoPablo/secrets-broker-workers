@@ -316,6 +316,9 @@ jobs:
       - name: Id-addressed secret reads (no runtime)
         shell: bash
         run: npm run test:secret-read-by-id 2>&1 | tee "$RUNNER_TEMP/ci-logs/secret-read-by-id.log"
+      - name: Vault unlock survives an object restart (no runtime)
+        shell: bash
+        run: npm run test:v2-unlock-persist 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-unlock-persist.log"
       - name: Plaintext credential scan (no runtime)
         shell: bash
         run: npm run test:scan 2>&1 | tee "$RUNNER_TEMP/ci-logs/scan.log"

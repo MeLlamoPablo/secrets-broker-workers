@@ -75,12 +75,91 @@ async function putStateVersioned(txn, store) {
   await txn.put('stateVersion', ((await txn.get('stateVersion')) ?? 0) + 1)
 }
 
+// Unlock keys used to live only in the Durable Object's memory. A refresh after
+// the object had been evicted (or after any deploy) therefore looked like a
+// lock even though the admin cookie was still valid, and the console asked for
+// the vault password again. The cache is now mirrored into DO storage wrapped
+// with SESSION_KEK: the durable form is ciphertext, and reading it still
+// requires an authenticated admin session.
+const V2_KEY_STORAGE_PREFIX = 'v2key:'
+function v2KeyStorageName(session, account) {
+  return V2_KEY_STORAGE_PREFIX + JSON.stringify([session, account])
+}
+
 export class BrokerState extends DurableObject {
-  // The v2 data key for the current unlock, in memory only.
+  // The v2 data key for the current unlock, cached in memory for the requests
+  // that follow; the durable copy below is what survives an eviction.
   v2Key = null
   // Scoped copies keyed by session + account; v2Key above mirrors the last unlock
   // for the account-agnostic console helpers.
   v2Keys = new Map()
+
+  // Reads the durable copy of one slot and rehydrates it into the in-memory
+  // shape the routes use. A missing SESSION_KEK or an unreadable record means
+  // "locked", never a crash.
+  async readV2KeySlot(session, account) {
+    const name = v2KeyStorageName(session, account)
+    try {
+      const record = await this.ctx.storage.get(name)
+      if (!record) return null
+      if (!record.expiresAt || Number(record.expiresAt) <= Date.now()) {
+        await this.ctx.storage.delete(name)
+        return null
+      }
+      const kek = await kekBytes(this.env)
+      return {
+        dek: new Uint8Array(await unwrapWithKek(record.dek, kek)),
+        legacyDek: record.legacyDek ? new Uint8Array(await unwrapWithKek(record.legacyDek, kek)) : null,
+        account: String(record.account ?? account),
+        expiresAt: Number(record.expiresAt),
+        plainOk: record.plainOk === true,
+        confirm: record.confirm === true,
+      }
+    } catch {
+      return null
+    }
+  }
+
+  // Writes one slot. A deployment without SESSION_KEK keeps the old memory-only
+  // behaviour instead of turning unlock into a 500.
+  async writeV2KeySlot(session, account, entry) {
+    try {
+      const kek = await kekBytes(this.env)
+      await this.ctx.storage.put(v2KeyStorageName(session, account), {
+        dek: await wrapWithKek(entry.dek, kek),
+        legacyDek: entry.legacyDek ? await wrapWithKek(entry.legacyDek, kek) : null,
+        account: String(entry.account ?? account),
+        expiresAt: entry.expiresAt,
+        plainOk: entry.plainOk === true,
+        confirm: entry.confirm === true,
+      })
+    } catch {}
+  }
+
+  async deleteV2KeySlot(session, account) {
+    try {
+      await this.ctx.storage.delete(v2KeyStorageName(session, account))
+    } catch {}
+  }
+
+  // Expired slots would otherwise stay forever; unlock is rare enough that a
+  // sweep there costs nothing.
+  async sweepV2KeySlots() {
+    try {
+      const records = await this.ctx.storage.list({ prefix: V2_KEY_STORAGE_PREFIX })
+      const now = Date.now()
+      const stale = []
+      for (const [name, record] of records) if (!record?.expiresAt || Number(record.expiresAt) <= now) stale.push(name)
+      if (stale.length) await this.ctx.storage.delete(stale)
+    } catch {}
+  }
+
+  async clearV2KeySlots() {
+    try {
+      const records = await this.ctx.storage.list({ prefix: V2_KEY_STORAGE_PREFIX })
+      if (records.size) await this.ctx.storage.delete([...records.keys()])
+    } catch {}
+  }
 
   async fetch(request) {
     const url = new URL(request.url)
@@ -133,9 +212,10 @@ export class BrokerState extends DurableObject {
       })
       return json(result)
     }
-    // The v2 data key, cached in memory only. Unlocking again after the object is
-    // evicted costs one PBKDF2 run; a key that never reaches storage cannot leak
-    // out of it. Transported as 32 plain numbers so no encoder can disagree.
+    // The v2 data key. Kept in memory for the requests that follow and mirrored
+    // into DO storage so a browser refresh, an object eviction or a deploy does
+    // not turn into another password prompt. Transported as 32 plain numbers so
+    // no encoder can disagree.
     //
     // Entries are addressed by account + session. A lookup for an account without
     // a session id (the console and MCP helpers) reads the account slot, which
@@ -155,14 +235,18 @@ export class BrokerState extends DurableObject {
         // session id only that session's own entry may answer: a session never
         // borrows the key another session unlocked.
         if (!entry || entry.expiresAt <= Date.now()) {
-          if (scoped) {
+          entry = await this.readV2KeySlot(scoped ? session : '', account)
+          if (entry) {
+            if (scoped) this.v2Keys.set(keyId, entry)
+            else this.v2Key = entry
+          } else if (scoped) {
             this.v2Keys.delete(keyId)
             // Only drop the shared account slot when that slot was the lookup;
             // a stale session id must not evict the key the helpers rely on.
             if (!session && account) this.v2Keys.delete(accountId)
           } else this.v2Key = null
-          return json({ ok: false, reason: 'locked' }, 401)
         }
+        if (!entry) return json({ ok: false, reason: 'locked' }, 401)
         return json({ ok: true, dek: [...entry.dek], legacyDek: entry.legacyDek ? [...entry.legacyDek] : null, account: entry.account ?? '', expiresAt: entry.expiresAt, plainOk: Boolean(entry.plainOk), confirm: Boolean(entry.confirm) })
       }
       if (request.method === 'PUT') {
@@ -178,18 +262,37 @@ export class BrokerState extends DurableObject {
         // confirm asks the console for a fresh password/TOTP before dangerous
         // actions; only the longer tiers set it.
         const entry = { dek, legacyDek, account, expiresAt: Date.now() + ttl, plainOk: false, confirm: body.confirm === true }
-        if (scoped) this.v2Keys.set(keyId, entry)
+        if (scoped) {
+          this.v2Keys.set(keyId, entry)
+          await this.writeV2KeySlot(session, account, entry)
+        }
         // A copy, not the same object: a plaintext pass granted in one admin
         // session must not be inherited by the helpers or by another session.
-        if (account) this.v2Keys.set(accountId, { ...entry })
+        // When the session id is empty the scoped write above already IS the
+        // account slot, so this only adds a second copy for a real session.
+        if (account && session) {
+          this.v2Keys.set(accountId, { ...entry })
+          await this.writeV2KeySlot('', account, { ...entry })
+        }
         this.v2Key = { ...entry }
+        // The unscoped slot only matters on a deployment without an account; it
+        // costs one more wrapped copy and keeps that case working after eviction.
+        if (!account) await this.writeV2KeySlot('', '', entry)
+        await this.sweepV2KeySlots()
         return json({ ok: true, expiresAt: entry.expiresAt })
       }
       if (request.method === 'DELETE') {
-        if (scoped) this.v2Keys.delete(keyId)
-        else {
+        if (scoped) {
+          this.v2Keys.delete(keyId)
+          await this.deleteV2KeySlot(session, account)
+          if (!session && account) {
+            this.v2Keys.delete(accountId)
+            await this.deleteV2KeySlot('', account)
+          }
+        } else {
           this.v2Keys.clear()
           this.v2Key = null
+          await this.clearV2KeySlots()
         }
         return json({ ok: true })
       }
@@ -202,15 +305,21 @@ export class BrokerState extends DurableObject {
       const session = String(url.searchParams.get('session') ?? '')
       const scoped = Boolean(account || session)
       const accountId = `\u0000${account}`
-      let entry = scoped ? this.v2Keys.get(`${session}\u0000${account}`) : this.v2Key
+      const keyId = `${session}\u0000${account}`
+      let entry = scoped ? this.v2Keys.get(keyId) : this.v2Key
       if (!entry || entry.expiresAt <= Date.now()) {
-        if (scoped) {
-          this.v2Keys.delete(`${session}\u0000${account}`)
+        entry = await this.readV2KeySlot(scoped ? session : '', account)
+        if (entry) {
+          if (scoped) this.v2Keys.set(keyId, entry)
+          else this.v2Key = entry
+        } else if (scoped) {
+          this.v2Keys.delete(keyId)
           if (!session && account) this.v2Keys.delete(accountId)
         } else this.v2Key = null
-        return json({ ok: false, reason: 'locked' }, 401)
       }
+      if (!entry) return json({ ok: false, reason: 'locked' }, 401)
       entry.plainOk = true
+      await this.writeV2KeySlot(scoped ? session : '', account, entry)
       return json({ ok: true })
     }
     if (url.pathname === '/pair' && request.method === 'POST') {
