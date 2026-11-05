@@ -4971,6 +4971,11 @@ function accessStatusLabel(access) {
   if (reason === 'item-expired') {
     return { status: 'expired', message: 'the credential passed its expiry date and this deployment blocks reads after expiry; rotate it or extend the date' }
   }
+  if (reason === 'connection-item-not-approved' || reason === 'connection-plaintext-denied') {
+    // Outside the connection's admitted scope: this is a hard refusal, not
+    // something to queue. Keep the code so the caller can explain it.
+    return { status: 'forbidden', code: reason, reasonCode: reason, message: access.error ?? 'this connection cannot use that item' }
+  }
   return { status: 'forbidden', code: access.code ?? 'no_grant', message: access.error ?? 'access denied' }
 }
 
@@ -5021,12 +5026,15 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
   // Connection admission is the outermost gate for reads: it narrows which
   // items this device may read and whether it may see values, before any
   // capability / action grant is consulted. It never adds access.
-  if (connection && action === 'secret.read') {
-    if (!connectionAllowsItem(connection, itemId)) {
+  if (connection) {
+    // Applying for an item you cannot see would only distract the operator, so
+    // a request outside the admitted scope is refused before anything is
+    // queued. Reads are narrowed by scope as well.
+    if ((action === 'secret.read' || createRequest) && !connectionAllowsItem(connection, itemId)) {
       await addAudit(env, { event: 'connection.access-deny', agent: agentName, name, itemId, action, reasonCode: 'connection-item-not-approved' })
       return { status: 'forbidden', code: 'connection-item-not-approved', reason: 'connection-item-not-approved', reasonCode: 'connection-item-not-approved', error: connectionMessage('connection-item-not-approved') }
     }
-    if (connection.plaintextAllowed !== true) {
+    if (action === 'secret.read' && connection.plaintextAllowed !== true) {
       await addAudit(env, { event: 'connection.access-deny', agent: agentName, name, itemId, action, reasonCode: 'connection-plaintext-denied' })
       return { status: 'forbidden', code: 'connection-plaintext-denied', reason: 'connection-plaintext-denied', reasonCode: 'connection-plaintext-denied', error: connectionMessage('connection-plaintext-denied') }
     }
@@ -9275,8 +9283,8 @@ const TOOL_META = {
       }
       if (body.method === 'tools/list') {
         return result({ tools: [
-          { name: 'list_secrets', description: 'List secret item names in this account (no values), sorted by name. Each entry has kind, requestable, and grant_status (granted/pending/none/muted/not_found) so you know whether to call get_secret or request_access.', inputSchema: { type: 'object', properties: { filter: { type: 'string', description: 'Only names containing this text (case-insensitive)' }, limit: { type: 'number', description: 'Maximum entries, default 200' } }, additionalProperties: false } },
-          { name: 'request_access', description: 'Request approval to read any visible secret by name, even when it is outside the agent allowlist. Returns request_id and approval_url when pending; repeated calls for the same item reuse that request. Statuses: pending, not_found, outside_scope, muted, rate_limited.', inputSchema: { type: 'object', properties: { name: { type: 'string', description: 'Bitwarden item name' } }, required: ['name'] } },
+          { name: 'list_secrets', description: 'List secret item names this connection may read (no values), sorted by name, as {items, count, hiddenCount, totalCount, hidden}. Each entry has id, name, kind, requestable (true when a request_access call is possible) and grant_status (granted/pending/none/muted/not_found). Items outside the connection scope are only counted, never named.', inputSchema: { type: 'object', properties: { filter: { type: 'string', description: 'Only names containing this text (case-insensitive)' }, limit: { type: 'number', description: 'Maximum entries, default 200' } }, additionalProperties: false } },
+          { name: 'request_access', description: 'Request approval to read one of the secrets list_secrets returned, even when it is outside the agent allowlist. Returns request_id and approval_url when pending; repeated calls for the same item reuse that request. A name the connection cannot see is refused with reasonCode connection-item-not-approved and creates nothing to approve. Statuses: pending, not_found, outside_scope, muted, rate_limited, forbidden.', inputSchema: { type: 'object', properties: { name: { type: 'string', description: 'Bitwarden item name' } }, required: ['name'] } },
           { name: 'explain_access', description: 'Explain, without returning any value, why this agent can or cannot use a credential: its kind, the account it belongs to, the grant that exists and the rule that decides. Use it when a tool answers "not allowed" and you need to know whether to request access, ask for a fill, or stop.', inputSchema: { type: 'object', properties: { name: { type: 'string', description: 'Bitwarden item name' }, action: { type: 'string', enum: ['secret.read', 'secret.use', 'secret.fill', 'secret.materialize'], description: 'Action to explain (default secret.read)' }, origin: { type: 'string', description: 'Target origin, for secret.fill' }, url: { type: 'string', description: 'Target URL, for secret.use' } }, required: ['name'], additionalProperties: false } },
           { name: 'get_secret', description: 'Read a secret value after approval. Disabled unless MCP_ALLOW_READ=1.', inputSchema: { type: 'object', properties: { name: { type: 'string', description: 'Bitwarden item name' } }, required: ['name'] } },
           { name: 'get_credential', description: 'Read username, password and TOTP for a login item after approval.', inputSchema: { type: 'object', properties: { name: { type: 'string', description: 'Bitwarden item name' } }, required: ['name'] } },
@@ -9374,9 +9382,11 @@ const TOOL_META = {
             const items = await listCiphers(env, env.NODEWARDEN_DB, session)
             const filter = String(args.filter ?? '').trim().toLowerCase()
             const limit = Math.min(Math.max(Math.floor(Number(args.limit)) || 200, 1), 500)
-            const visible = items
-              // An admitted connection only sees the items the operator chose.
-              .filter((item) => connectionAllowsItem(admission.record, item.id))
+            // Only the admitted scope is listed. Everything else is reduced to a
+            // count, never a name: a name is still a hint about what is stored.
+            const scoped = items.filter((item) => connectionAllowsItem(admission.record, item.id))
+            const hiddenCount = Math.max(items.length - scoped.length, 0)
+            const visible = scoped
               .filter((item) => !filter || String(item.name).toLowerCase().includes(filter))
               .sort((a, b) => String(a.name).localeCompare(String(b.name)))
               .slice(0, limit)
@@ -9385,15 +9395,26 @@ const TOOL_META = {
               .map((item) => {
                 const grantStatus = grantStatusForAgent(resolved.state, resolved.agent, resolved.name, item.name, item.id)
                 return {
+                  id: item.id,
                   name: item.name,
                   kind: credentialKind(resolved.state, item.id) || 'unclassified',
                   noApproval: item.noApproval === true,
                   url: item.url,
-                  requestable: grantStatus === 'none',
+                  // These are the items this connection may apply for; the
+                  // grant_status still says whether it needs to.
+                  requestable: true,
                   grant_status: grantStatus,
                 }
               })
-            return result(text(visible))
+            return result(text({
+              items: visible,
+              count: visible.length,
+              hiddenCount,
+              totalCount: items.length,
+              // Machine-readable hint for clients that use it to decide whether
+              // to offer an application flow at all.
+              hidden: hiddenCount > 0,
+            }))
           }
           if (name === 'request_access') {
             const secretName = argName()
@@ -9416,6 +9437,7 @@ const TOOL_META = {
             return result(text({
               status: label.status,
               code: label.code,
+              ...(label.reasonCode ? { reasonCode: label.reasonCode } : {}),
               error: label.message,
               ...(nextStep ? { next_step: nextStep, docs: 'docs/upgrade-notes.md' } : {}),
               ...(label.retryAfterMs ? { retry_after_ms: label.retryAfterMs } : {}),

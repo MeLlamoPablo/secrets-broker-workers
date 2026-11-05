@@ -33,7 +33,10 @@ const step = (label, value) => console.log(label.padEnd(22), value)
 const list = await rpc('list_secrets', {})
 if (list.isError) { step('list_secrets', 'FAILED: ' + list.text); process.exit(1) }
 let visible = []
-try { visible = JSON.parse(list.text) } catch {}
+try {
+  const payload = JSON.parse(list.text)
+  visible = Array.isArray(payload) ? payload : (payload.items ?? [])
+} catch {}
 step('visible items', visible.length)
 if (!visible.some((entry) => entry.name === item)) {
   step('scope', 'NOT IN SCOPE — grant it on the Agents page first')

@@ -139,7 +139,7 @@ let v2WebId = ''
   const key = AGENT + '\u0000' + v2Id + '\u0000secret.read'
   state.capabilities = { ...(state.capabilities || {}), [key]: { id: key, subjectId: AGENT, accountId: ACCT, itemId: v2Id, itemName: V2_NAME, action: 'secret.read', mode: 'preapproved', createdAt: '2024-01-01', createdBy: 'test', expiresAt: Date.now() + 3600e3, maxUses: null, usedCount: 0, revokedAt: null, policyVersion: 1 } }
   await putState(state)
-  const listed = JSON.parse(toolText(await mcp('list_secrets', {})))
+  const listed = JSON.parse(toolText(await mcp('list_secrets', {}))).items
   const listedName = listed.find((item) => item.name === V2_NAME)
   const outside = listed.find((item) => item.name === 'v2-web')
   const explained = JSON.parse(toolText(await mcp('explain_access', { name: V2_NAME })))
