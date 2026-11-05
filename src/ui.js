@@ -687,15 +687,15 @@ nav button:hover{color:var(--ink-1);background:transparent}
 nav button.active{color:var(--ink-1);background:transparent;box-shadow:none;border-bottom:2px solid var(--brand)}
 html[data-theme="dark"] nav button.active{background:transparent;color:var(--ink-1)}
 @media(min-width:721px){nav button svg{display:none}}
-.card{border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:var(--shadow-1);background:var(--surface);padding:18px 20px;margin-bottom:16px}
-.card>h2,h2{font-size:15px;line-height:22px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;color:var(--ink-1)}
+.card{border:0;border-radius:var(--r-card);box-shadow:var(--shadow-1);background:var(--surface);padding:16px;margin-bottom:16px}
+.card>h2,h2{font-size:17px;line-height:24px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;color:var(--ink-1)}
 .hint{font-size:13px;line-height:18px;color:var(--ink-2)}
 .ov-head{align-items:center;margin-bottom:6px}
-.ov-title{font-size:var(--t-title);line-height:var(--lh-title);font-weight:700;letter-spacing:-.025em;margin:0}
+.ov-title{font-size:var(--t-title);line-height:var(--lh-title);font-weight:600;letter-spacing:-.025em;margin:0}
 .ov-sub{margin-top:4px;font-size:13px;color:var(--ink-2)}
 #updated{color:var(--ink-3);font-size:12px}
 .kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:4px}
-.kpi{min-height:96px;padding:14px 16px;border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:none;background:var(--surface)}
+.kpi{min-height:96px;padding:14px 16px;border:0;border-radius:var(--r-card);box-shadow:var(--shadow-1);background:var(--surface)}
 .kpi .label{font-size:12px;font-weight:500;letter-spacing:.06em;color:var(--ink-2)}
 .kpi .value{font-size:30px;line-height:36px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .kpi .sub{font-size:13px;color:var(--ink-2)}
