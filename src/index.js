@@ -8880,7 +8880,11 @@ const TOOL_META = {
               await addAudit(env, { event: 'materialize.deny', agent: resolved.name, name: job.name, path: job.target?.path ?? '', reason: 'target-not-allowed' })
               return result(text('that target is no longer on the materialize allowlist', true))
             }
-            const found = await readSecretFromRows(env, env.NODEWARDEN_DB, session, job.name)
+            // The job records the item id the operator approved, so redemption
+            // reads that one row instead of scanning the whole vault by name.
+            // A job written before itemId existed has no field: passing
+            // undefined keeps the name lookup as the fallback, not an error.
+            const found = await readSecretFromRows(env, env.NODEWARDEN_DB, session, job.name, { itemId: job.itemId || undefined })
             if (!found) return result(text('not found', true))
             // Writing a password into a file is still a plaintext read, so it
             // passes the same guard: a website login stays fill-only.
