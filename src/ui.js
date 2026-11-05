@@ -850,17 +850,21 @@ body.auth-mode{overflow:auto}
 .auth{position:fixed;inset:0;z-index:55;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:radial-gradient(1200px 600px at 50% -10%,color-mix(in srgb,var(--brand) 8%,transparent),transparent 60%),var(--canvas);overflow-y:auto}
 .auth.hidden{display:none}
 .auth__panel{width:100%;max-width:420px}
-.auth__brand{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.auth__lead{margin:0 0 22px;font-size:13px;line-height:19px;color:var(--ink-2)}
-.auth__brand img{width:40px;height:40px;border-radius:10px;object-fit:cover}
-.auth__name{display:block;font-size:20px;line-height:26px;font-weight:700;letter-spacing:-.01em;color:var(--ink-1)}
-.auth__tag{display:block;font-size:12px;line-height:16px;letter-spacing:.06em;color:var(--ink-3);margin-top:2px}
-.auth__card{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r-card);box-shadow:var(--shadow-2);padding:24px;margin:0}
-.auth__card>h2{font-size:20px;line-height:26px;font-weight:650;letter-spacing:-.01em;margin:0 0 6px}
-.auth__card .hint{font-size:13px;line-height:19px}
-.auth__card .status{min-height:20px;margin-top:10px;font-size:13px}
+.auth__brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;margin-bottom:14px}
+.auth__lead{text-align:center;margin:0 auto 20px;max-width:340px;font-size:13px;line-height:19px;color:var(--ink-2)}
+.auth__brand img{width:64px;height:64px;border-radius:16px;object-fit:cover;box-shadow:var(--shadow-1)}
+.auth__name{display:block;font-size:20px;line-height:26px;font-weight:700;letter-spacing:-.01em;color:var(--ink-1);text-align:center}
+.auth__tag{display:block;font-size:12px;line-height:16px;letter-spacing:.06em;color:var(--ink-3);margin-top:2px;text-align:center}
+.auth__card{background:var(--surface);border:0;border-radius:16px;box-shadow:var(--shadow-2);padding:24px;margin:0}
+.auth__card>h2{font-size:20px;line-height:26px;font-weight:600;letter-spacing:-.01em;margin:0 0 8px;text-align:center}
+.auth__card .hint{font-size:13px;line-height:19px;text-align:center}
+.auth__card .status{min-height:20px;margin-top:10px;font-size:13px;text-align:center}
 .auth__card input{min-height:44px;font-size:15px}
-.auth__card .row>button{width:100%;min-height:46px;font-size:15px;font-weight:600}
+.auth__card .row>button{width:100%;min-height:50px;border-radius:12px;font-size:17px;font-weight:600}
+#login-oidc{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+#login-oidc a{display:block;margin:0 !important}
+#login-oidc button{width:100%;min-height:50px;border-radius:12px;font-size:17px;font-weight:600;background:var(--surface);color:var(--ink-1);border:1px solid var(--hair);box-shadow:0 1px 2px rgba(20,40,80,.04)}
+#login-oidc button:hover{background:var(--surface-2)}
 .auth__card .row{gap:8px;margin-top:16px}
 .auth__card .row>#lock2{flex:0 0 auto;width:auto;background:transparent;border:1px solid var(--hair)}
 .auth__card .row.auth__secondary{margin-top:10px}
