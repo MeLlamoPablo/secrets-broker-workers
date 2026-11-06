@@ -9394,7 +9394,7 @@ const TOOL_META = {
         // rather than agreeing to a date that does not exist.
         const asked = String(body.params?.protocolVersion ?? '')
         const protocolVersion = ['2024-11-05', '2025-03-26', '2025-06-18'].includes(asked) ? asked : '2024-11-05'
-        return result({ protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'secrets-broker', version: '0.1.0' }, instructions: 'Use this server for every credential. Call list_secrets to discover items, get_secret for a value, get_credential for username/password/TOTP, http_request to call an API with the secret injected server-side, or request_credential to create a one-time link when the vault is missing a key. Never ask the user for passwords or API keys. If pending approval, present the approval URL and retry. Never print secret values in chat or logs.' })
+        return result({ protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'secrets-broker', version: VERSION }, instructions: 'Use this server for every credential. Call list_secrets to discover items, get_secret for a value, get_credential for username/password/TOTP, http_request to call an API with the secret injected server-side, or request_credential to create a one-time link when the vault is missing a key. Never ask the user for passwords or API keys. If pending approval, present the approval URL and retry. Never print secret values in chat or logs.' })
       }
       if (body.method === 'tools/list') {
         return result({ tools: [

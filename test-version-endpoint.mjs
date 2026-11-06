@@ -52,5 +52,14 @@ check('3d binding does not change the version', bound.body?.version === VERSION,
 const other = await call({}, 'POST')
 check('4a only GET is served', other.status !== 200, `status ${other.status}`)
 
+// The MCP handshake is the other place a client learns the version. It must
+// report the same VERSION as /api/version; a hardcoded 0.1.0 shipped for a
+// while and made every client see a version the console never showed. The
+// handshake itself needs an agent token, so this suite guards the source line
+// the same way it guards the package/version mirror.
+const workerSource = fs.readFileSync(new URL('./src/index.js', import.meta.url), 'utf8')
+check('5a MCP initialize reports src/version.js VERSION', workerSource.includes("serverInfo: { name: 'secrets-broker', version: VERSION }"))
+check('5b MCP initialize has no hardcoded version', !workerSource.includes("serverInfo: { name: 'secrets-broker', version: '0.1.0' }"))
+
 console.log(`\n==== ${passed}/${passed + failed} assertions passed ====`)
 if (failed) process.exitCode = 1
