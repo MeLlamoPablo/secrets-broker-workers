@@ -6421,6 +6421,14 @@ export default {
       const state = await loadState(env)
       if (!(await verifyAdminPassword(env, state, body.password))) return fail('管理密码错误', 401)
       await stateStub(env).fetch('https://state/session', { method: 'DELETE' })
+      // An explicit lock must also drop the Vault 2.0 key cache. Without this
+      // the same cookie keeps a live DEK (and its plainOk pass), so
+      // /api/v2/items?plain=1 kept returning cleartext after "lock" and a
+      // refresh still looked unlocked. The unscoped DELETE clears every
+      // session slot and the account mirror the console helpers use: a lock
+      // confirmed by the admin password ends all of them, matching the single
+      // v1 session it already deletes.
+      await stateStub(env).fetch('https://state/v2-key', { method: 'DELETE' })
       // An explicit lock must also revoke OIDC auto-unlock; otherwise the next
       // OIDC sign-in would silently reopen the vault the operator just locked.
       await updateState(env, (next) => { next.oidcVault = {}; return next })

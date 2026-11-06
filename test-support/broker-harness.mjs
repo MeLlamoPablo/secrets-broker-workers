@@ -141,7 +141,19 @@ function memoryCtx(store) {
     storage: {
       get: async (key) => store[key] ?? null,
       put: async (key, value) => { store[key] = JSON.parse(JSON.stringify(value)) },
-      delete: async (key) => { delete store[key] },
+      // Durable Objects expose list({prefix}) and delete([...keys]); the v2 key
+      // sweep and clear use both. Without them a lock only dropped the memory
+      // copy and the durable slot resurrected on the next read.
+      list: async ({ prefix = '' } = {}) => {
+        const found = new Map()
+        for (const [key, value] of Object.entries(store)) {
+          if (key.startsWith(prefix)) found.set(key, JSON.parse(JSON.stringify(value)))
+        }
+        return found
+      },
+      delete: async (key) => {
+        for (const name of Array.isArray(key) ? key : [key]) delete store[name]
+      },
     },
   }
 }

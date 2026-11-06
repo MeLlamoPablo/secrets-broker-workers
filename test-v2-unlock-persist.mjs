@@ -262,10 +262,26 @@ async function call(durable, path, method = 'GET', body) {
   const openUnlock = await unlock(open, openCookie)
   const openBody = await openUnlock.json()
   const openPlain = await plain(open, openCookie)
-  if (openUnlock.status === 200 && openBody.plainOk === true && openPlain.status === 200) {
-    pass('7f an account with no second factor unlocks straight into the names')
-  } else {
-    fail('7f no second factor', `unlock=${openUnlock.status} plainOk=${openBody.plainOk} plain=${openPlain.status}`)
+  // 7g: the console's lock button (/api/lock) must also drop the v2 key slot.
+  // Otherwise the same admin cookie keeps reading ?plain=1 after "lock".
+  {
+    const before = await plain(open, openCookie)
+    const meBefore = await (await workerCall(open, '/api/me', { headers: { cookie: openCookie } })).json()
+    const locked = await workerCall(open, '/api/lock', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: openCookie },
+      body: JSON.stringify({ password: 'p' }),
+    })
+    const after = await plain(open, openCookie)
+    const meAfter = await workerCall(open, '/api/me', { headers: { cookie: openCookie } })
+    const meAfterBody = await meAfter.json()
+    // A refresh is another request with the same cookie: the slot must still be
+    // empty, not merely closed for the response that performed the lock.
+    const reload = await plain(open, openCookie)
+    const ok = before.status === 200 && locked.status === 200 &&
+      after.status === 423 && meAfter.status === 200 && meAfterBody.unlocked === false && reload.status === 423
+    if (ok) pass(`7g /api/lock: ?plain=1 ${before.status}→${after.status}, /api/me unlocked ${meBefore.unlocked}→${meAfterBody.unlocked}, reload=${reload.status}`)
+    else fail('7g /api/lock v2', JSON.stringify({ before: before.status, unlockedBefore: meBefore.unlocked, locked: locked.status, after: after.status, me: meAfter.status, unlocked: meAfterBody.unlocked, reload: reload.status }))
   }
 }
 

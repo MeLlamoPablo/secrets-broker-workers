@@ -285,6 +285,27 @@ let createdId = ''
   else fail('A16', JSON.stringify({ refused: refused.status, valid: stillWorks.status }))
 }
 
+// A17: an explicit lock ends Vault 2.0 too. The key slot is what ?plain=1 and
+// the console refresh read, so a lock that only deleted the v1 session used to
+// leave the same cookie able to list cleartext until the slot expired.
+{
+  const before = await call('/api/v2/items?plain=1')
+  const beforeStatus = await call('/api/v2/status')
+  const meBefore = await call('/api/me')
+  const locked = await call('/api/lock', { method: 'POST', body: { password: ADMIN } })
+  const after = await call('/api/v2/items?plain=1')
+  const afterStatus = await call('/api/v2/status')
+  const meAfter = await call('/api/me')
+  // A page refresh is a new request with the same cookie: the slot must still
+  // be empty, not merely hidden from the response that performed the lock.
+  const reload = await call('/api/v2/status')
+  const ok = before.status === 200 && beforeStatus.body.unlocked === true && locked.status === 200 &&
+    after.status === 423 && afterStatus.body.unlocked === false && meAfter.body.unlocked === false &&
+    reload.body.unlocked === false
+  if (ok) pass('A17 /api/lock clears the Vault 2.0 key slot: plain listing is 423 and it stays locked on reload')
+  else fail('A17', JSON.stringify({ before: before.status, beforeUnlocked: beforeStatus.body.unlocked, meBefore: meBefore.body.unlocked, locked: locked.status, after: after.status, afterUnlocked: afterStatus.body.unlocked, meAfter: meAfter.body.unlocked, reload: reload.body.unlocked }))
+}
+
 await mf.dispose()
 const passed = results.filter((r) => r.ok).length
 console.log('\n==== v2 adapter ' + passed + '/' + results.length + ' passed ====')
