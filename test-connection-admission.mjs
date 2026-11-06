@@ -521,6 +521,29 @@ async function main() {
       JSON.stringify(env._vault.auditRows.filter((entry) => entry.event === 'connection.access-deny')))
   }
 
+  // 15: an exhausted capability must not be reported as granted. The status
+  // helper used to read maxReads/reads, which only legacy grants carry, so a
+  // spent capability looked live forever.
+  {
+    const env = await freshEnv({
+      policy: { required: false },
+      extra: {
+        policies: {},
+        capabilities: {
+          [HARNESS.AGENT + '\u0000' + HARNESS.ITEM_ID + '\u0000secret.read']: {
+            id: 'cap-spent', agent: HARNESS.AGENT, itemId: HARNESS.ITEM_ID, action: 'secret.read',
+            accountId: HARNESS.ACCT, createdAt: iso(-60 * 1000), expiresAt: iso(24 * 3600e3),
+            maxUses: 1, usedCount: 1, revokedAt: null, policyVersion: 1,
+          },
+        },
+      },
+    })
+    const listed = await mcpCall(env, 'list_secrets', {})
+    const payload = JSON.parse(mcpText(listed))
+    const item = (payload.items ?? []).find((entry) => entry.id === HARNESS.ITEM_ID)
+    ok('用尽的 capability 在 list_secrets 里不再显示 granted', Boolean(item) && item.grant_status === 'none', mcpText(listed))
+  }
+
   report.finish()
 }
 

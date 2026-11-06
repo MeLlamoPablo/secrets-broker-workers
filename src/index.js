@@ -2003,7 +2003,10 @@ function grantStatusForAgent(state, agent, agentName, name, itemId) {
   if (!itemId) return 'not_found'
   if (findPending(state, agentName, name, 'secret.read')) return 'pending'
   const cap = state.capabilities?.[capabilityKey(agentName, itemId, 'secret.read')]
-  const capLive = cap && !cap.revokedAt && !(cap.expiresAt && cap.expiresAt < Date.now()) && (cap.maxReads == null || (cap.reads ?? 0) < cap.maxReads)
+  // Capabilities count uses (maxUses/usedCount); maxReads/reads belong to the
+  // legacy grant shape. Reading the wrong pair made an exhausted capability
+  // still report "granted" in list_secrets.
+  const capLive = cap && !cap.revokedAt && !(cap.expiresAt && cap.expiresAt < Date.now()) && (cap.maxUses == null || (cap.usedCount ?? 0) < cap.maxUses)
   if (capLive || activeGrant(state, agentName, name) || (agent.federated !== true && state.policies?.[name]?.noApproval === true)) return 'granted'
   return 'none'
 }
