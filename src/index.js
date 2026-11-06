@@ -9454,10 +9454,14 @@ const TOOL_META = {
             const items = await listCiphers(env, env.NODEWARDEN_DB, session)
             const filter = String(args.filter ?? '').trim().toLowerCase()
             const limit = Math.min(Math.max(Math.floor(Number(args.limit)) || 200, 1), 500)
-            // Only the admitted scope is listed. Everything else is reduced to a
-            // count, never a name: a name is still a hint about what is stored.
+            // Only the admitted scope is listed. An out-of-scope item is never
+            // named and never counted: totalCount/hiddenCount would tell a
+            // narrowed connection how much exists outside its window. The
+            // unscoped case (all, or admission disabled) keeps both fields,
+            // where they reveal nothing the caller cannot already list.
+            const scopeAll = !admission.record || admission.record.scope?.all === true
             const scoped = items.filter((item) => connectionAllowsItem(admission.record, item.id))
-            const hiddenCount = Math.max(items.length - scoped.length, 0)
+            const hiddenCount = scopeAll ? 0 : Math.max(items.length - scoped.length, 0)
             const visible = scoped
               .filter((item) => !filter || String(item.name).toLowerCase().includes(filter))
               .sort((a, b) => String(a.name).localeCompare(String(b.name)))
@@ -9481,11 +9485,10 @@ const TOOL_META = {
             return result(text({
               items: visible,
               count: visible.length,
-              hiddenCount,
-              totalCount: items.length,
               // Machine-readable hint for clients that use it to decide whether
               // to offer an application flow at all.
               hidden: hiddenCount > 0,
+              ...(scopeAll ? { hiddenCount, totalCount: items.length } : {}),
             }))
           }
           if (name === 'request_access') {

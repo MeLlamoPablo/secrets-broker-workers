@@ -298,6 +298,11 @@ async function main() {
     const env = await freshEnv({ policy: { required: false } })
     const read = await getSecret(env)
     ok('connectionPolicy.required=false 时不启用准入', read.status === 200)
+    const listed = await mcpCall(env, 'list_secrets', {})
+    const payload = JSON.parse(mcpText(listed))
+    ok('准入关闭时保留 totalCount，hiddenCount 为 0',
+      payload.count === 2 && payload.totalCount === 2 && payload.hiddenCount === 0 && payload.hidden === false,
+      mcpText(listed))
   }
 
   {
@@ -444,11 +449,12 @@ async function main() {
     const listed = await mcpCall(env, 'list_secrets', {})
     const listText = mcpText(listed)
     const payload = JSON.parse(listText)
-    ok('list_secrets 返回可见条目、计数与不可见数量',
+    ok('list_secrets 只给可见条目与布尔 hidden，不泄露范围外总量',
       Array.isArray(payload.items) && payload.items.length === 1
       && payload.items[0].id === HARNESS.ITEM_ID
       && payload.items[0].requestable === true
-      && payload.count === 1 && payload.hiddenCount === 1 && payload.totalCount === 2 && payload.hidden === true,
+      && payload.count === 1 && payload.hidden === true
+      && !('hiddenCount' in payload) && !('totalCount' in payload),
       listText)
     ok('list_secrets 不泄露不可见条目的名称', !listText.includes(ITEM2), listText)
 
