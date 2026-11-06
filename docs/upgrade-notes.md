@@ -116,3 +116,9 @@ do {
 
 - `request_access` 在 `outside_scope` / `not-in-scope` / `no-grant` 时返回 `next_step`（人话的补救动作）与 `docs`。只渲染 `code` 的第三方客户端也能据此提示管理员去「Agents → 权限矩阵」加入可申请范围。
 - 控制台新增 `rotateReminderDays`（默认 180）与 `expiryBlocksReads`（默认 `false`）。后者只有显式打开才会让到期条目的 `secret.read` 被拒绝，默认只提醒、不改变任何授权判定。
+
+## 6. `/api/lock` 会清除本会话所有 Vault 2.0 密钥槽（0.7.3 起，行为收紧，有意为之）
+
+调用 `/api/lock` 现在会删除该会话的全部 v2 密钥槽（含 `plainOk` 明文确认位），以及控制台 helper 使用的 account 镜像槽。锁定后同一个 cookie 再请求 `/api/v2/items?plain=1` 返回 **423**，`/api/me` 的 `unlocked` 为 `false`，刷新页面也保持未解锁；要继续使用必须重新输入主密码解锁。
+
+以前只删除 v1 会话，v2 的 DEK 缓存仍然存活，所以"锁定"后刷新看起来还是已解锁，明文读取也继续可用。依赖"锁定但保持 v2 解锁"的脚本需要改成：锁定后重新走一次 `/api/v2/unlock`。
