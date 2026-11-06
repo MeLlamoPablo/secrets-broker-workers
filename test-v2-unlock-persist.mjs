@@ -203,7 +203,10 @@ async function call(durable, path, method = 'GET', body) {
 
   const envelope = await wrapDekPassword(Uint8Array.from(DEK), MASTER)
   const mount = async (enrolled) => {
-    const web = makeEnv({ vault: keyringD1(new FakeD1(), envelope), extra: { VAULT_EMAIL: LIVE } })
+    const inner = new FakeD1()
+    const web = makeEnv({ vault: keyringD1(inner, envelope), extra: { VAULT_EMAIL: LIVE } })
+    // The wrapper owns the audit sink; keep the raw rows reachable for 7h.
+    web._auditRows = inner.auditRows
     const security = enrolled
       ? { totpEnabled: true, totpSecretWrapped: await wrapWithKek(new TextEncoder().encode(SECRET), Buffer.from(HARNESS.KEK, 'base64')) }
       : {}
@@ -282,6 +285,24 @@ async function call(durable, path, method = 'GET', body) {
       after.status === 423 && meAfter.status === 200 && meAfterBody.unlocked === false && reload.status === 423
     if (ok) pass(`7g /api/lock: ?plain=1 ${before.status}→${after.status}, /api/me unlocked ${meBefore.unlocked}→${meAfterBody.unlocked}, reload=${reload.status}`)
     else fail('7g /api/lock v2', JSON.stringify({ before: before.status, unlockedBefore: meBefore.unlocked, locked: locked.status, after: after.status, me: meAfter.status, unlocked: meAfterBody.unlocked, reload: reload.status }))
+  }
+  // 7h: duration is a real TTL, not just an audit label. A client that sends
+  // only the tier gets the advertised window; an explicit ttlMs still wins.
+  {
+    const before = Date.now()
+    const week = await unlock(open, openCookie, { duration: '7d', ttlMs: null })
+    const weekBody = await week.json()
+    const weekWindow = Number(weekBody.expiresAt) - before
+    const hour = await unlock(open, openCookie, { duration: '7d', ttlMs: 3600e3 })
+    const hourBody = await hour.json()
+    const hourWindow = Number(hourBody.expiresAt) - Date.now()
+    const audits = open._auditRows.filter((entry) => entry.event === 'vault.unlock' && Number(entry.ttlMs) > 0)
+    const ok = week.status === 200 && weekWindow > 6.9 * 86400e3 && weekWindow <= 7 * 86400e3 + 60e3
+      && hour.status === 200 && hourWindow > 3500e3 && hourWindow <= 3600e3 + 60e3
+      && audits.some((entry) => entry.ttlMs > 6.9 * 86400e3)
+      && audits.some((entry) => entry.ttlMs > 3500e3 && entry.ttlMs <= 3600e3 + 60e3)
+    if (ok) pass(`7h duration 7d -> ${Math.round(weekWindow / 3600e3)}h, explicit ttlMs -> ${Math.round(hourWindow / 60e3)}m, audit records both`)
+    else fail('7h duration maps to TTL', JSON.stringify({ week: weekBody, hour: hourBody, audits: audits.slice(-2) }))
   }
 }
 

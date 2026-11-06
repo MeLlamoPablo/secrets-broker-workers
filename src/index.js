@@ -2019,6 +2019,17 @@ const CONNECTION_MAX_TTL_MS = 30 * 86400 * 1000
 const CONNECTION_DENY_TTL_MS = 24 * 3600 * 1000
 const CONNECTION_RETENTION_MS = 24 * 3600 * 1000
 const CONNECTION_TTL_PRESETS = { '1h': 3600e3, '24h': 86400e3, '7d': 7 * 86400e3, '30d': 30 * 86400e3 }
+// The console's unlock tiers. The server used to read only ttlMs, so a client
+// that sent just `duration` got the 1h default while the audit line (and the
+// UI) promised 12h/7d/30d. A preset now maps to a real TTL; `device` stays at
+// one hour by design because it pairs a browser and reopens silently rather
+// than keeping a key cached for weeks.
+const V2_UNLOCK_TTL_MS = { '12h': 12 * 3600e3, '7d': 7 * 86400e3, '30d': 30 * 86400e3, 'device': 3600e3 }
+function v2UnlockTtlMs(duration, explicit) {
+  const asked = Number(explicit)
+  if (Number.isFinite(asked) && asked > 0) return asked
+  return V2_UNLOCK_TTL_MS[duration] ?? V2_UNLOCK_TTL_MS['12h']
+}
 // Agents that existed before connection admission shipped are already admitted:
 // the operator created them, and re-asking would cut every running client off
 // on deploy. Everything created after this point has to be admitted explicitly.
@@ -10116,9 +10127,13 @@ const TOOL_META = {
           const password = String(body.password ?? '')
           if (password.length < 12) return fail('password must be at least 12 characters', 400)
           const { dek, fingerprint } = await vault2Init(env, password, { account })
-          await keyCall('PUT', { dek: [...dek] })
-          await addAudit(env, { event: 'vault.init', agent: 'admin', name: fingerprint })
-          return json({ ok: true, fingerprint })
+          // init is an unlock too: the same tiers apply, or a fresh vault would
+          // silently cache for the one-hour default while every later unlock
+          // honours its tier.
+          const ttlMs = v2UnlockTtlMs(body.duration, body.ttlMs)
+          const stored = await keyCall('PUT', { dek: [...dek], ttlMs })
+          await addAudit(env, { event: 'vault.init', agent: 'admin', name: fingerprint, ttlMs })
+          return json({ ok: true, fingerprint, expiresAt: stored.expiresAt ?? null })
         }
         if (route === 'unlock' && request.method === 'POST') {
           const body = await request.json().catch(() => ({}))
@@ -10152,11 +10167,15 @@ const TOOL_META = {
             plainOk = true
           }
           const duration = ['12h', '7d', '30d', 'device'].includes(body.duration) ? body.duration : '12h'
-          await keyCall('PUT', { dek: [...opened.dek], legacyDek: opened.legacyDek ? [...opened.legacyDek] : null, ttlMs: body.ttlMs, confirm: body.confirm === true, plainOk })
+          const ttlMs = v2UnlockTtlMs(duration, body.ttlMs)
+          const stored = await keyCall('PUT', { dek: [...opened.dek], legacyDek: opened.legacyDek ? [...opened.legacyDek] : null, ttlMs, confirm: body.confirm === true, plainOk })
           // The tier is part of the audit record: "unlocked for 30 days" is a
           // different risk decision from "unlocked for the default 12 hours".
-          await addAudit(env, { event: 'vault.unlock', agent: 'admin', name: opened.fingerprint, via: 'password', duration })
-          return json({ ok: true, fingerprint: opened.fingerprint, account: account || null, legacy: opened.legacyOnly === true, duration, plainOk })
+          // The TTL is the value the Durable Object actually stored (it clamps),
+          // so the audit cannot drift from the live cache again.
+          const actualTtlMs = Number(stored.expiresAt) > 0 ? Number(stored.expiresAt) - Date.now() : ttlMs
+          await addAudit(env, { event: 'vault.unlock', agent: 'admin', name: opened.fingerprint, via: 'password', duration, ttlMs: actualTtlMs })
+          return json({ ok: true, fingerprint: opened.fingerprint, account: account || null, legacy: opened.legacyOnly === true, duration, ttlMs: actualTtlMs, plainOk, expiresAt: stored.expiresAt ?? null })
         }
         // Long-term tier, step 2: the console has unwrapped the device envelope in
         // the browser and presents the DEK. The DEK itself is checked against the
