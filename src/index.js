@@ -3922,17 +3922,23 @@ async function dispatchReminderBatch(env, state, origin, ctx, now = Date.now(), 
       tasks.push(fetch(notifications.wxpush.url, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ title, content: text, token: notifications.wxpush.token }) }))
     }
   }
-  if (!tasks.length) return { sent: 0, reminders: reminders.length }
-  // Only a delivered batch may suppress the next one. The markers used to be
-  // written whatever the channels answered, so a dead token or a 500 hid the
-  // reminder for 20 hours. Now a batch where every channel failed leaves them
-  // unmarked and the next pass retries.
-  const run = Promise.allSettled(tasks)
   const markSent = () => mutateState(env, fresh.map((r) => ({
     op: 'set',
     path: ['reminderSent', reminderSentKey(r)],
     value: now,
   }))).catch(() => {})
+  if (!tasks.length) {
+    // No channel configured is not a delivery failure: there was nothing to
+    // send. Keep the old marker so repeated polling does not rebuild the batch,
+    // and leave the registry keyed by the same threshold the lookup uses.
+    if (fresh.length) await markSent()
+    return { sent: 0, reminders: reminders.length }
+  }
+  // Only a delivered batch may suppress the next one. The markers used to be
+  // written whatever the channels answered, so a dead token or a 500 hid the
+  // reminder for 20 hours. A batch where every channel failed now leaves them
+  // unmarked and the next pass retries.
+  const run = Promise.allSettled(tasks)
   if (ctx?.waitUntil) {
     ctx.waitUntil(run.then((results) => (results.some((result) => result.status === 'fulfilled') ? markSent() : undefined)))
     return { sent: fresh.length, reminders: reminders.length }
