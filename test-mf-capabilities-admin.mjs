@@ -76,7 +76,7 @@ function get(path, headers = {}) {
 const KEY = (a, i, act) => a + '\u0000' + i + '\u0000' + act
 
 await putState({
-  agents: { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: ACCT } },
+  agents: { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: ACCT, createdAt: '2024-01-01' } },
   policies: {}, grants: {}, pending: {}, audit: [], settings: { notifications: {} },
   itemGroups: {}, actionGrants: {}, usePolicies: {}, capabilities: {},
 })

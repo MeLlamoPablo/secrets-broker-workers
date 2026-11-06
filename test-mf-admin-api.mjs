@@ -58,7 +58,7 @@ function post(path, body, headers = {}) {
 }
 
 await putState({
-  agents: { 'admin-agent': { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: 'vault@example.invalid' } },
+  agents: { 'admin-agent': { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: 'vault@example.invalid', createdAt: '2024-01-01' } },
   policies: {}, grants: {}, pending: {}, audit: [], settings: { notifications: {} },
   itemGroups: {}, actionGrants: {}, usePolicies: {},
 })
@@ -114,8 +114,8 @@ await putSession()
 {
   await putState({
     agents: {
-      'admin-agent': { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: 'vault@example.invalid' },
-      'rename-target': { hash: '', allow: [], groups: [], allowAll: false, write: false, legacy: false, account: 'vault@example.invalid' },
+      'admin-agent': { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: 'vault@example.invalid', createdAt: '2024-01-01' },
+      'rename-target': { hash: '', allow: [], groups: [], allowAll: false, write: false, legacy: false, account: 'vault@example.invalid', createdAt: '2024-01-01' },
     },
     policies: {}, grants: {}, pending: {}, audit: [], settings: { notifications: {} },
     itemGroups: {}, usePolicies: {},

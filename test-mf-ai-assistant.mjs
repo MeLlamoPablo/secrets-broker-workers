@@ -17,7 +17,7 @@ const TOTP = 'JBSWY3DPEHPK3PXP'
 const USERNAME = 'alice@example.invalid'
 
 const state = {
-  agents: { muse: { alias: 'Muse', allow: ['tavily-api-key'], groups: [], allowAll: false, expiresAt: Date.now() - 1000 } },
+  agents: { muse: { alias: 'Muse', allow: ['tavily-api-key'], groups: [], allowAll: false, createdAt: '2024-01-01', expiresAt: Date.now() - 1000 } },
   oauthTokens: { h1: { hash: 'h1', agent: 'oauth:abc', clientId: 'abc', account: 'vault@example.invalid', expiresAt: Date.now() - 5000 } },
   itemIds: { 'tavily-api-key': 'i1', 'site-login': 'i2', 'loose': 'i3' },
   credentialKinds: { i1: 'api', i2: 'web' },

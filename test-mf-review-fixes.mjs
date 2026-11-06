@@ -82,7 +82,7 @@ const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
 const CK = (a) => a + '\u0000' + ITEM_ID + '\u0000secret.read'
 const UK = (a) => a + '\u0000' + ITEM_ID + '\u0000secret.use'
 const GK = (a) => a + '\u0000' + ITEM
-const AG = { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: true, account: ACCT } }
+const AG = { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: true, account: ACCT, createdAt: '2024-01-01' } }
 function base(extra = {}) {
   return { agents: structuredClone(AG), policies: {}, grants: {}, pending: {}, audit: [], settings: { requireClassification: false, notifications: {} }, itemGroups: {}, actionGrants: {}, usePolicies: {}, capabilities: {}, itemIds: { [ITEM]: ITEM_ID }, ...extra }
 }

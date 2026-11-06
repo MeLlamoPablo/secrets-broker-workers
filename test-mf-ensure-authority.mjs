@@ -37,7 +37,7 @@ const consume = (key, action = 'secret.read') => stub.fetch('https://state/capab
 const EXP_FUTURE = Date.now() + 3600e3
 function base(extra = {}) {
   return {
-    agents: { [AGENT]: { hash: '', allow: [], groups: [], allowAll: false, write: false, legacy: true, account: ACCT } },
+    agents: { [AGENT]: { hash: '', allow: [], groups: [], allowAll: false, write: false, legacy: true, account: ACCT, createdAt: '2024-01-01' } },
     policies: {}, pending: {}, audit: [], settings: { notifications: {} },
     itemGroups: {}, actionGrants: {}, usePolicies: {}, capabilities: {}, itemIds: { [ITEM]: ITEM_ID },
     grants: {}, ...extra,
@@ -133,7 +133,7 @@ const legacyGrant = (extra = {}) => ({ agent: AGENT, name: ITEM, mode: 'share', 
   const r = await ensure({ subjectId: AGENT, itemId: ITEM_ID, action: 'secret.read', accountId: ACCT, legacyName: ITEM })
   const st = await getState()
   // noApproval without a grant hits the actionGrant requirement first; either
-  // refusal reason is correct �?what matters is that nothing is created.
+  // refusal reason is correct тА?what matters is that nothing is created.
   if (!r.ok && ['no-legacy-source', 'no-action-grant'].includes(r.reason) && !st.capabilities[CK]) pass('E11 noApproval alone yields no capability')
   else fail('E11', JSON.stringify({ r, cap: !!st.capabilities[CK] }))
 }

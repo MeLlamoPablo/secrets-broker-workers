@@ -46,8 +46,8 @@ const get = async () => (await (await stub.fetch('https://do/state')).json()).st
 
 const base = async (auto) => ({
   agents: {
-    muse: { hash: await hashOf(TOKEN), allow: [ITEM], groups: [], allowAll: false, legacy: false, account: ACCT },
-    codex: { hash: await hashOf(OTHER), allow: [ITEM], groups: [], allowAll: false, legacy: false, account: ACCT },
+    muse: { hash: await hashOf(TOKEN), allow: [ITEM], groups: [], allowAll: false, legacy: false, account: ACCT, createdAt: '2024-01-01' },
+    codex: { hash: await hashOf(OTHER), allow: [ITEM], groups: [], allowAll: false, legacy: false, account: ACCT, createdAt: '2024-01-01' },
   },
   oauthClients: {}, oauthCodes: {}, oauthTokens: {}, oauthAgentProfiles: {},
   policies: {}, grants: {}, pending: {}, audit: [], itemGroups: {}, security: {},

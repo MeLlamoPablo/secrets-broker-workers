@@ -81,7 +81,7 @@ for (const sql of [
 const ns = await mf.getDurableObjectNamespace('BROKER_STATE')
 const stub = ns.get(ns.idFromName('global'))
 const baseState = () => ({
-  agents: { muse: { hash: 'x', allow: [ITEM], groups: [], allowAll: false, legacy: false, account: ACCT } },
+  agents: { muse: { hash: 'x', allow: [ITEM], groups: [], allowAll: false, legacy: false, account: ACCT, createdAt: '2024-01-01' } },
   oauthClients: {}, oauthCodes: {}, oauthTokens: {}, oauthAgentProfiles: {},
   policies: {}, grants: {}, pending: { req1: { id: 'req1', agent: 'muse', name: ITEM, account: ACCT, action: 'secret.read', itemId: ITEM_ID, createdAt: '2026-01-01' } },
   audit: [], itemGroups: {}, security: {}, capabilities: {}, actionGrants: {}, usePolicies: {}, deniedAttempts: {},

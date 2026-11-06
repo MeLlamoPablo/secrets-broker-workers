@@ -87,7 +87,7 @@ const USE_POLICY = { [ITEM_ID]: { itemId: ITEM_ID, accountId: ACCT, hosts: ['api
 
 function base(extra = {}) {
   return {
-    agents: { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: ACCT } },
+    agents: { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: ACCT, createdAt: '2024-01-01' } },
     policies: {}, grants: {}, pending: {}, audit: [], settings: { requireClassification: false, notifications: {}, vaultEmail: ACCT },
     itemGroups: {}, itemIds: { [ITEM]: ITEM_ID },
     actionGrants: { [AGENT + '\u0000' + ITEM_ID]: { id: AGENT + '\u0000' + ITEM_ID, subjectId: AGENT, accountId: ACCT, itemId: ITEM_ID, itemName: ITEM, actions: ['secret.use'], legacy: false, createdAt: '2024-01-01' } },

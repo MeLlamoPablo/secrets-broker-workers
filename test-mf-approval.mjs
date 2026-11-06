@@ -53,7 +53,9 @@ async function putSession() {
 const KEY = 'approval-agent\u0000item-approval'
 function baseState(extra = {}) {
   return {
-    agents: { 'approval-agent': { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: 'vault@example.invalid' } },
+    // Pre-epoch agent: this suite exercises the approval pipeline, so the
+    // connection-admission gate must not turn it into a pending connection.
+    agents: { 'approval-agent': { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: 'vault@example.invalid', createdAt: '2024-01-01' } },
     policies: {}, grants: {}, pending: {}, audit: [], settings: { notifications: {} },
     itemGroups: {}, actionGrants: {}, usePolicies: {},
     ...extra,

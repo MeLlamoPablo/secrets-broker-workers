@@ -36,7 +36,7 @@ const ns = await mf.getDurableObjectNamespace('BROKER_STATE')
 const stub = ns.get(ns.idFromName('global'))
 const seed = (overrides = {}) => stub.fetch('https://do/state', {
   method: 'PUT', body: JSON.stringify({
-    agents: { [AGENT]: { name: AGENT, allow: [], groups: [], allowAll: true, account: ACCT, hash: AGENT_HASH } },
+    agents: { [AGENT]: { name: AGENT, allow: [], groups: [], allowAll: true, account: ACCT, hash: AGENT_HASH, createdAt: '2024-01-01' } },
     policies: {}, grants: {}, pending: {}, audit: [], itemIds: { [ITEM]: ITEM_ID }, legacyItemBindings: {},
     capabilities: {}, actionGrants: {}, usePolicies: {},
     settings: { vaultEmail: ACCT, notifications: {} }, profile: {},

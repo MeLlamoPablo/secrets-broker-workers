@@ -66,7 +66,7 @@ function cap(action, extra = {}) {
 }
 function base(extra = {}) {
   return {
-    agents: { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: ACCT } },
+    agents: { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: false, account: ACCT, createdAt: '2024-01-01' } },
     policies: {}, grants: {}, pending: {}, audit: [], settings: { requireClassification: false, notifications: {} },
     itemGroups: {}, actionGrants: {}, usePolicies: {}, capabilities: {}, ...extra,
   }

@@ -88,7 +88,7 @@ const post = (p, b, h = {}) => mf.dispatchFetch('https://broker.test' + p, { met
 
 function base(extra = {}) {
   return {
-    agents: { [AGENT]: { hash: '', allow: [], groups: [], allowAll: false, write: false, legacy: true, account: ACCT_A } },
+    agents: { [AGENT]: { hash: '', allow: [], groups: [], allowAll: false, write: false, legacy: true, account: ACCT_A, createdAt: '2024-01-01' } },
     policies: { [ITEM]: { noApproval: true } }, grants: {}, pending: {}, audit: [],
     settings: { notifications: {} }, itemGroups: {}, actionGrants: {}, usePolicies: {},
     capabilities: {}, itemIds: { [ITEM]: ITEM_ID }, legacyItemBindings: {}, ...extra,

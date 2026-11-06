@@ -88,7 +88,7 @@ const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
 // A2: legacy agent with allowAll can still read (compat), marked legacy in audit
 {
   await seedState({
-    agents: { 'hybrid-agent': { hash, allow: [], groups: [], allowAll: true, write: false, legacy: true, account: 'vault@example.invalid' } },
+    agents: { 'hybrid-agent': { hash, allow: [], groups: [], allowAll: true, write: false, legacy: true, account: 'vault@example.invalid', createdAt: '2024-01-01' } },
     policies: { 'plain-item': { noApproval: true } },
   })
   await putSession()
@@ -180,7 +180,7 @@ const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
 // model denies while the legacy scope still would have allowed.
 {
   await seedState({
-    agents: { 'hybrid-agent': { hash, allow: [], groups: [], allowAll: true, write: false, legacy: true, account: 'vault@example.invalid' } },
+    agents: { 'hybrid-agent': { hash, allow: [], groups: [], allowAll: true, write: false, legacy: true, account: 'vault@example.invalid', createdAt: '2024-01-01' } },
     actionGrants: { 'hybrid-agent\u0000item-1': { id: 'g1', subjectId: 'hybrid-agent', accountId: 'vault@example.invalid', itemId: 'item-1', itemName: 'plain-item', actions: ['secret.read'], legacy: false, createdAt: '2024-01-01' } },
     capabilities: { 'hybrid-agent\u0000item-1\u0000secret.read': { id: 'cap1', subjectId: 'hybrid-agent', accountId: 'vault@example.invalid', itemId: 'item-1', itemName: 'plain-item', action: 'secret.read', mode: 'preapproved', createdAt: '2024-01-01', expiresAt: null, maxUses: null, usedCount: 0, revokedAt: '2024-01-02', revokedBy: 'operator', approvalId: null, policyVersion: 1 } },
     policies: { 'plain-item': { noApproval: true } },

@@ -80,7 +80,7 @@ const mcp = (tool, args) => mf.dispatchFetch('https://broker.test/mcp', {
 const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
 function base(extra = {}) {
   return {
-    agents: { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: true, account: ACCT } },
+    agents: { [AGENT]: { hash, allow: [], groups: [], allowAll: false, write: false, legacy: true, account: ACCT, createdAt: '2024-01-01' } },
     policies: { [ITEM]: { noApproval: true } }, grants: {}, pending: {}, audit: [], settings: { notifications: {} },
     itemGroups: {}, actionGrants: {}, usePolicies: {}, capabilities: {}, itemIds: { [ITEM]: ITEM_ID }, ...extra,
   }

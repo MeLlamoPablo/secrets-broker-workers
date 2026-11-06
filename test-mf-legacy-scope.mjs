@@ -57,7 +57,7 @@ const textOf = (r) => r.body?.result?.content?.[0]?.text ?? ''
 const CK = 'legacy-agent\u0000' + ITEM_ID + '\u0000secret.read'
 function state(agent, extra = {}) {
   return {
-    agents: { 'legacy-agent': { hash, write: false, legacy: true, account: ACCT, ...agent } },
+    agents: { 'legacy-agent': { hash, write: false, legacy: true, account: ACCT, createdAt: '2024-01-01', ...agent } },
     policies: {}, grants: {}, pending: {}, audit: [], settings: { requireClassification: false, unclassifiedPlaintext: true, notifications: {} },
     itemGroups: {}, actionGrants: {}, usePolicies: {}, capabilities: {}, itemIds: { [ITEM]: ITEM_ID }, ...extra,
   }

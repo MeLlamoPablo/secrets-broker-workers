@@ -21,7 +21,10 @@ const ITEMS = {
 }
 
 function fakeAgent(allow, groups, extra = {}) {
-  return { hash: '', tokenWrapped: '', allow, groups, allowAll: false, write: false, account: 'vault@example.invalid', ...extra }
+  // createdAt predates CONNECTION_ADMISSION_EPOCH so the suite's synthetic
+  // agents model the pre-existing agents the grandfathered path is for; this
+  // suite asserts the permission matrix, not connection admission.
+  return { hash: '', tokenWrapped: '', allow, groups, allowAll: false, write: false, account: 'vault@example.invalid', createdAt: '2024-01-01', ...extra }
 }
 function tokenHash(token) {
   // sha256 base64, same encoding as src/crypto.js sha256Base64
