@@ -2232,6 +2232,7 @@ function connectionRecordView(state, record, { masked = false } = {}) {
     requestedPlaintext: record.requestedPlaintext === true,
     scope,
     plaintextAllowed: record.plaintextAllowed === true,
+    writeAllowed: record.writeAllowed === true,
     ttlMs: typeof record.ttlMs === 'number' ? record.ttlMs : null,
     decidedAt: record.decidedAt ?? null,
     decidedBy: record.decidedBy ?? null,
@@ -2316,18 +2317,30 @@ async function decideConnectionRequest(env, { id, decision, payload = {}, via = 
   if (ttlMs !== null && (!Number.isFinite(ttlMs) || ttlMs < 60_000 || ttlMs > CONNECTION_MAX_TTL_MS)) {
     return { status: 400, body: { ok: false, reasonCode: 'connection-ttl-invalid', error: 'ttlMs must be 60000..2592000000, or duration 1h/24h/7d/30d/always' } }
   }
+  // A connection approval is the operator's one chance to say what this agent
+  // may do. Until now it only admitted the agent and every later read/write was
+  // asked again, which read as "I already granted this". The approval now
+  // mints read capabilities (and, when ticked, standing write authorisations)
+  // for exactly the approved scope and lifetime.
+  const writeAllowed = payload.writeAllowed === true
   let approved = null
+  let grantedReads = 0
+  let grantedWrites = 0
   await updateState(env, (next) => {
     const record = next.connections?.[cleanId]
     if (!record || record.state !== 'pending') { approved = null; return next }
     record.state = 'approved'
     record.scope = { all, itemIds: all ? [] : [...new Set(itemIds)] }
     record.plaintextAllowed = plaintextAllowed
+    record.writeAllowed = writeAllowed
     record.ttlMs = ttlMs
     record.decidedAt = nowIso()
     record.decidedBy = adminEmail ? 'admin:' + adminEmail : 'admin'
     record.reasonCode = null
     record.expiresAt = ttlMs === null ? null : new Date(Date.now() + ttlMs).toISOString()
+    const minted = grantConnectionScope(next, record)
+    grantedReads = minted.reads
+    grantedWrites = minted.writes
     approved = record
     return next
   })
@@ -2335,9 +2348,70 @@ async function decideConnectionRequest(env, { id, decision, payload = {}, via = 
   await addAudit(env, {
     event: 'connection.approve', agent: approved.agent, requestId: cleanId, account: approved.account,
     all, itemIds: approved.scope.itemIds, itemCount: approved.scope.itemIds.length,
-    plaintextAllowed, ttlMs, expiresAt: approved.expiresAt, via,
+    plaintextAllowed, writeAllowed, grantedReads, grantedWrites, ttlMs, expiresAt: approved.expiresAt, via,
   })
   return { status: 200, body: { ok: true, connection: connectionRecordView(await loadState(env), approved) } }
+}
+
+// Materialises the approved scope into the same authority the per-item
+// approval would have created: a read capability per item, plus a standing
+// write ticket when the operator ticked write. A live capability is never
+// overwritten (one approval must not reset counters another approval set).
+// Returns how many of each were actually created for the audit row.
+function grantConnectionScope(state, record) {
+  const account = String(record.account ?? '').trim()
+  if (!isWellFormedAccountId(account)) return { reads: 0, writes: 0 }
+  const itemIds = record.scope?.all === true
+    ? Object.values(state.itemIds ?? {})
+    : (record.scope?.itemIds ?? [])
+  const expiresMs = record.expiresAt ? Date.parse(record.expiresAt) : null
+  const grantExpiresAt = expiresMs ?? 0
+  const agentName = String(record.agent ?? '')
+  let reads = 0
+  let writes = 0
+  state.capabilities ??= {}
+  state.grants ??= {}
+  if (record.writeAllowed === true) {
+    state.writeTickets ??= {}
+    // The write flag is the outer gate in put_secret; a scope-limited ticket
+    // still decides which items it applies to.
+    const agent = state.agents?.[agentName]
+    if (agent) agent.write = true
+    const profile = state.oauthAgentProfiles?.[agentName]
+    if (profile) profile.write = true
+  }
+  for (const itemId of itemIds) {
+    const itemName = itemNameOf(state, itemId)
+    if (!itemId || !itemName) continue
+    const key = capabilityKey(agentName, itemId, 'secret.read')
+    const existing = state.capabilities[key]
+    const live = existing && !existing.revokedAt && !existing.exhaustedAt
+      && (existing.expiresAt == null || Number(existing.expiresAt) > Date.now())
+    if (!live) {
+      state.capabilities[key] = {
+        id: key, subjectId: agentName, accountId: account, itemId, itemName,
+        action: 'secret.read', mode: 'temporary', createdAt: nowIso(),
+        createdBy: 'connection:' + (record.id ?? ''), expiresAt: expiresMs,
+        maxUses: null, usedCount: 0, revokedAt: null, revokedBy: null,
+        approvalId: record.id ?? null, policyVersion: 1,
+        regrantedFrom: existing ? (existing.revokedAt ? 'revoked' : (existing.exhaustedAt ? 'exhausted' : 'expired')) : null,
+      }
+      state.grants[grantKey(agentName, itemName)] = {
+        agent: agentName, name: itemName, action: 'secret.read', mode: 'connection',
+        createdAt: nowIso(), expiresAt: grantExpiresAt, reads: 0, maxReads: null,
+        revokedAt: null, account,
+      }
+      reads += 1
+    }
+    if (record.writeAllowed === true) {
+      state.writeTickets[grantKey(agentName, itemName)] = {
+        agent: agentName, name: itemName, account, createdAt: nowIso(),
+        expiresAt: grantExpiresAt, mode: expiresMs ? 'connection' : 'always', singleUse: false,
+      }
+      writes += 1
+    }
+  }
+  return { reads, writes }
 }
 
 function connectionDecision(record, now = Date.now()) {

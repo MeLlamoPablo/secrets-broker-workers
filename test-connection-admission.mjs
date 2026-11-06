@@ -627,6 +627,49 @@ async function main() {
       uiHtml.includes('data-conn-unlock') && uiHtml.includes('先解锁并回到审批'))
   }
 
+  // 19: one approval must cover the chosen scope. A connection approval used to
+  // only admit the device; every later read/write still asked, which is what
+  // "I already granted this and it asks again" described. Approving with a
+  // scope now mints the same read capability a per-item approval would, and
+  // ticking write leaves a standing write ticket for the same items.
+  {
+    const env = await freshEnv()
+    // The grandfathered helper agent has blanket read. Remove it so the only
+    // thing that can authorise a read is the approval under test.
+    const seeded = await readState(env)
+    seeded.agents[HARNESS.AGENT].legacy = false
+    await writeState(env, seeded)
+    const first = await getSecret(env)
+    const pending = await first.json()
+    const cookie = await login(env)
+    const approved = await decide(env, cookie, {
+      id: pending.requestId, decision: 'approve', itemIds: [HARNESS.ITEM_ID],
+      plaintextAllowed: true, writeAllowed: true, duration: '1h',
+    })
+    ok('一次批准同时记录写入许可',
+      approved.status === 200 && approved.body.connection.writeAllowed === true, JSON.stringify(approved.body))
+    const state = await readState(env)
+    const capKey = HARNESS.AGENT + '\u0000' + HARNESS.ITEM_ID + '\u0000secret.read'
+    ok('批准生成了该条目的读取能力、授权行与写入位',
+      Boolean(state.capabilities?.[capKey])
+      && Boolean(state.grants?.[HARNESS.AGENT + '\u0000' + HARNESS.ITEM])
+      && state.agents[HARNESS.AGENT].write === true,
+      JSON.stringify({ caps: Object.keys(state.capabilities ?? {}), grants: Object.keys(state.grants ?? {}) }))
+    ok('批准生成了该条目的写入票',
+      Boolean(state.writeTickets?.[HARNESS.AGENT + '\u0000' + HARNESS.ITEM]))
+    const second = await getSecret(env)
+    ok('范围内再次读取不再要求审批', second.status === 200, String(second.status))
+    const after = await readState(env)
+    ok('再次读取没有新增待批项',
+      Object.values(after.connections ?? {}).filter((entry) => entry.state === 'pending').length === 0)
+    const writeText = mcpText(await mcpCall(env, 'put_secret', { name: HARNESS.ITEM, value: 'ROTATED-VALUE' }))
+    const write = JSON.parse(writeText)
+    ok('范围内写入不再逐次询问', write.status === 'written', writeText)
+    const outsideText = mcpText(await mcpCall(env, 'put_secret', { name: ITEM2, value: 'OUTSIDE' }))
+    const outside = JSON.parse(outsideText)
+    ok('范围外写入仍然要审批', outside.status === 'pending-approval', outsideText)
+  }
+
   report.finish()
 }
 

@@ -4617,6 +4617,8 @@ function connectionApprovalHtml(entry) {
     + connItemChoicesHtml(entry) + '</div>'
     + '<label class="chk"><input type="checkbox" data-conn-plaintext> 允许它读出网站登录密码原文</label>'
     + '<div class="conn-meta">默认关闭；开启后，这次授权会允许 Agent 读取明文密码。</div>'
+    + '<label class="chk"><input type="checkbox" data-conn-write> 允许它写入/更新该范围内的条目</label>'
+    + '<div class="conn-meta">默认关闭；开启后，批准范围内的写入不再逐次询问。</div>'
     + '<label class="field" for="conn-ttl-' + id + '">授权时长</label><select id="conn-ttl-' + id + '" data-conn-duration aria-label="授权时长">'
     + '<option value="1h">1 小时</option><option value="24h">24 小时</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="always">永久（直到撤销）</option></select>'
     + '<div class="conn-hint" data-conn-status role="status" aria-live="polite">' + (locked ? '批准需要先解锁 Vault；拒绝不需要。 <button type="button" class="small" data-conn-unlock>先解锁并回到审批</button>' : '') + '</div>'
@@ -4674,7 +4676,7 @@ async function decideConnection(button, body, card, options = {}) {
   buttons.forEach((entry) => { entry.disabled = true; entry.setAttribute('aria-busy', 'true') })
   try {
     await api('/api/connections/decide', { method: 'POST', body: JSON.stringify(body) })
-    toast(body.decision === 'deny' ? '已拒绝连接申请' : '已批准连接 · ' + connectionDurationLabel(body.duration) + (body.plaintextAllowed ? '（含明文）' : '（不含明文）'))
+    toast(body.decision === 'deny' ? '已拒绝连接申请' : '已批准连接 · ' + connectionDurationLabel(body.duration) + (body.plaintextAllowed ? '（含明文）' : '（不含明文）') + (body.writeAllowed ? '（含写入）' : ''))
     await Promise.all([loadState(), loadStats(), loadItems()])
     // A resumed approval re-opened the sheet from the unlock callback, so it
     // has to be rebuilt here too or the stale row stays on screen.
@@ -4709,6 +4711,7 @@ async function submitConnectionForm(card, decision) {
   if (decision === 'deny') return decideConnection(null, { id, decision: 'deny' }, card)
   const duration = (card.querySelector('[data-conn-duration]') || {}).value || '1h'
   const plaintextAllowed = Boolean((card.querySelector('[data-conn-plaintext]') || {}).checked)
+  const writeAllowed = Boolean((card.querySelector('[data-conn-write]') || {}).checked)
   const scope = card.querySelector('[data-conn-scope]:checked')
   const all = !scope || scope.value === 'all'
   const itemIds = all ? [] : Array.from(card.querySelectorAll('[data-conn-item]:checked')).map((box) => box.value)
@@ -4716,7 +4719,7 @@ async function submitConnectionForm(card, decision) {
     setConnectionStatus(card, '先选至少一条条目，或改用「全部条目」。', true)
     return
   }
-  const body = { id, decision: 'approve', all, plaintextAllowed, duration }
+  const body = { id, decision: 'approve', all, plaintextAllowed, writeAllowed, duration }
   if (!all) body.itemIds = itemIds
   if (!vaultUnlocked()) {
     // The old copy just ended here and told the operator to unlock somewhere
