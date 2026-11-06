@@ -54,6 +54,11 @@ await stub.fetch('https://do/state', { method: 'PUT', body: JSON.stringify({
   capabilities: {}, actionGrants: {}, usePolicies: {},
   itemIds: { [API]: API_ID, [WEB]: WEB_ID },
   credentialKinds: { [API_ID]: 'api', [WEB_ID]: 'web' }, fillPolicies: {}, plaintextReadPolicies: {},
+  // This suite is about what the consent page grants. The device-admission
+  // flow is exercised on its own in test-connection-admission; an OAuth token
+  // minted here is by definition new, so it would otherwise stop at
+  // "pending-connection" before reaching any consent behaviour.
+  connectionPolicy: { required: false },
 }) })
 const plain = JSON.stringify({ email: ACCT, symEncKey: Buffer.alloc(32, 1).toString('base64'), symMacKey: Buffer.alloc(32, 2).toString('base64'), expiresAt: 0 })
 await stub.fetch('https://do/session', { method: 'PUT', body: JSON.stringify({ wrapped: await wrapWithKek(new TextEncoder().encode(plain), Buffer.from(KEK, 'base64')), expiresAt: 0 }) })

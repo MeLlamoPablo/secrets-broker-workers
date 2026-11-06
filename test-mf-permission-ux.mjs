@@ -176,7 +176,9 @@ const toolPayload = (raw) => JSON.parse(JSON.parse(raw).result.content[0].text)
 {
   const list = toolPayload(await mcp('list_secrets', {})).items
   const item = list.find((entry) => entry.name === SHUT)
-  if (item && item.requestable === false && item.grant_status === 'pending') pass('N7 the list marks an out-of-scope item already pending')
+  // requestable is "this connection may apply" (scope), not "no request yet";
+  // grant_status is what carries pending.
+  if (item && item.requestable === true && item.grant_status === 'pending') pass('N7 the list marks an out-of-scope item already pending')
   else fail('N7', JSON.stringify(item))
 }
 {
@@ -192,7 +194,7 @@ const toolPayload = (raw) => JSON.parse(JSON.parse(raw).result.content[0].text)
   const request = toolPayload(await mcp('request_access', { name: SHUT }))
   const list = toolPayload(await mcp('list_secrets', {})).items
   const item = list.find((entry) => entry.name === SHUT)
-  if (request.status === 'muted' && item && item.grant_status === 'muted' && item.requestable === false) pass('N9 a muted agent gets no request and the list says muted')
+  if (request.status === 'muted' && item && item.grant_status === 'muted' && item.requestable === true) pass('N9 a muted agent gets no request and the list says muted')
   else fail('N9', JSON.stringify({ request, item }))
 }
 
