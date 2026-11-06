@@ -1,7 +1,8 @@
 // Approval decisions must write exactly the authority the operator approved:
 // a refused decision writes nothing, a fill approval never mints a plaintext
 // read, and an approved read is tagged with its action.
-import { HARNESS, makeEnv, seedState, login, call, makeReporter } from './test-support/broker-harness.mjs'
+import { HARNESS, makeEnv, seedState, login, call, putSession, mcpCall, mcpText, tokenHash, makeReporter } from './test-support/broker-harness.mjs'
+import { uiHtml } from './src/ui.js'
 
 const { pass, fail, finish } = makeReporter()
 
@@ -159,6 +160,144 @@ async function decidedState(env) {
     pass('4e a live grant writes no expiry audit')
   } else {
     fail('4e live grant audited as expired', 'future-item')
+  }
+}
+
+// ============ 5. A timed write approval stops asking on every write ============
+{
+  const env = makeEnv()
+  await putSession(env)
+  await seedState(env, {
+    policies: {}, pending: {}, writeTickets: {},
+    agents: {
+      [HARNESS.AGENT]: {
+        hash: await tokenHash(), allow: [], groups: [], allowAll: true, write: true,
+        legacy: false, account: HARNESS.ACCT, createdAt: '2024-01-01',
+      },
+    },
+  })
+  const key = HARNESS.AGENT + '\u0000written-item'
+  const parse = (text) => { try { return JSON.parse(text) } catch { return {} } }
+  const first = parse(mcpText(await mcpCall(env, 'put_secret', { name: 'written-item', value: 'VALUE-A' })))
+  const firstState = await decidedState(env)
+  const pending = Object.values(firstState.pending ?? {})[0]
+  if (first.status === 'pending-approval' && pending?.action === 'secret.write') {
+    pass('5a an unauthorised write asks once and stores no value')
+  } else {
+    fail('5a first write', JSON.stringify({ first, pending }).slice(0, 240))
+  }
+  const cookie = await login(env)
+  const before = Date.now()
+  const decided = await call(env, '/api/pending/decide', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ id: pending?.id, decision: '24h' }),
+  })
+  const decidedBody = await decided.json()
+  const state = await decidedState(env)
+  const ticket = state.writeTickets?.[key]
+  const inDay = ticket && Math.abs((ticket.expiresAt - before) - 86400e3) < 5000
+  if (decidedBody.outcome?.approved === true && ticket?.mode === '24h' && ticket?.singleUse === false && inDay) {
+    pass('5b a 24h approval is a standing write authorisation for that item')
+  } else {
+    fail('5b ticket duration', JSON.stringify({ outcome: decidedBody.outcome, ticket }).slice(0, 240))
+  }
+  const once = parse(mcpText(await mcpCall(env, 'put_secret', { name: 'written-item', value: 'VALUE-A' })))
+  const again = parse(mcpText(await mcpCall(env, 'put_secret', { name: 'written-item', value: 'VALUE-A' })))
+  const after = await decidedState(env)
+  const pendingLeft = Object.values(after.pending ?? {}).filter((entry) => entry.action === 'secret.write')
+  if (once.status === 'written' && again.status === 'written' && pendingLeft.length === 0) {
+    pass('5c the second and third writes reuse the authorisation instead of asking again')
+  } else {
+    fail('5c repeated writes', JSON.stringify({ once, again, pendingLeft }).slice(0, 260))
+  }
+  if (after.writeTickets?.[key] && after.writeTickets[key].mode === '24h') {
+    pass('5d a timed authorisation survives the write that used it')
+  } else {
+    fail('5d timed ticket consumed', JSON.stringify(after.writeTickets ?? {}).slice(0, 200))
+  }
+  const writes = (env._vault.auditRows || []).filter((entry) => entry.event === 'secret.write')
+  const valueLeaked = JSON.stringify(after).includes('VALUE-A')
+  if (writes.length === 2 && writes.every((entry) => entry.source === 'authorisation') && writes.every((entry) => entry.mode === '24h') && !valueLeaked) {
+    pass('5e both writes are audited as the timed authorisation, and no value enters state')
+  } else {
+    fail('5e write audit', JSON.stringify({ writes, valueLeaked }).slice(0, 300))
+  }
+  if (uiHtml.includes('写入授权：仅本次仍是一次一确认') && uiHtml.includes("['always', '永久']")) {
+    pass('5f the console offers 仅本次 plus durations for a write approval')
+  } else {
+    fail('5f write duration UI', 'missing duration chips or hint')
+  }
+}
+
+// ============ 6. 仅本次 stays the per-call confirmation ============
+{
+  const env = makeEnv()
+  await putSession(env)
+  await seedState(env, {
+    policies: {}, pending: {}, writeTickets: {},
+    agents: {
+      [HARNESS.AGENT]: {
+        hash: await tokenHash(), allow: [], groups: [], allowAll: true, write: true,
+        legacy: false, account: HARNESS.ACCT, createdAt: '2024-01-01',
+      },
+    },
+  })
+  const parse = (text) => { try { return JSON.parse(text) } catch { return {} } }
+  const first = parse(mcpText(await mcpCall(env, 'put_secret', { name: 'once-item', value: 'VALUE-B' })))
+  const state0 = await decidedState(env)
+  const pending = Object.values(state0.pending ?? {})[0]
+  const cookie = await login(env)
+  const before = Date.now()
+  await call(env, '/api/pending/decide', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ id: pending?.id, decision: 'once' }),
+  })
+  const state1 = await decidedState(env)
+  const ticket = state1.writeTickets?.[HARNESS.AGENT + '\u0000once-item']
+  const tenMinutes = ticket && Math.abs((ticket.expiresAt - before) - 600e3) < 5000
+  if (first.status === 'pending-approval' && ticket?.singleUse === true && ticket?.mode === 'once' && tenMinutes) {
+    pass('6a 仅本次 mints a single-use ten-minute ticket')
+  } else {
+    fail('6a once ticket', JSON.stringify({ first, ticket }).slice(0, 240))
+  }
+  const write = parse(mcpText(await mcpCall(env, 'put_secret', { name: 'once-item', value: 'VALUE-B' })))
+  const retry = parse(mcpText(await mcpCall(env, 'put_secret', { name: 'once-item', value: 'VALUE-B' })))
+  const state2 = await decidedState(env)
+  const askedAgain = Object.values(state2.pending ?? {}).some((entry) => entry.action === 'secret.write')
+  if (write.status === 'written' && retry.status === 'pending-approval' && askedAgain) {
+    pass('6b the single-use ticket is spent, so the next write asks again')
+  } else {
+    fail('6b once replay', JSON.stringify({ write, retry, askedAgain }).slice(0, 240))
+  }
+  const audit = (env._vault.auditRows || []).filter((entry) => entry.event === 'secret.write')
+  if (audit.length === 1 && audit[0].source === 'approval') {
+    pass('6c the per-call write is audited as an approval, not a standing grant')
+  } else {
+    fail('6c once audit', JSON.stringify(audit).slice(0, 240))
+  }
+}
+
+// ============ 7. An out-of-scope write is refused before anyone is asked ============
+{
+  const env = makeEnv()
+  await putSession(env)
+  await seedState(env, {
+    policies: {}, pending: {}, writeTickets: {},
+    agents: {
+      [HARNESS.AGENT]: {
+        hash: await tokenHash(), allow: [HARNESS.ITEM], groups: [], allowAll: false, write: true,
+        legacy: false, account: HARNESS.ACCT, createdAt: '2024-01-01',
+      },
+    },
+  })
+  const raw = mcpText(await mcpCall(env, 'put_secret', { name: 'outside-item', value: 'VALUE-C' }))
+  const state = await decidedState(env)
+  if (raw.includes('outside the agent scope') && Object.keys(state.pending ?? {}).length === 0 && Object.keys(state.writeTickets ?? {}).length === 0) {
+    pass('7a an out-of-scope write is denied without a pending approval')
+  } else {
+    fail('7a out-of-scope write', JSON.stringify({ raw: raw.slice(0, 180), pending: state.pending }).slice(0, 260))
   }
 }
 

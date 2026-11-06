@@ -1973,6 +1973,18 @@ function agentRecordForState(state, name) {
 
 function grantKey(agent, name) { return `${agent}\u0000${name}` }
 
+// A write ticket is either one write (`once`, the per-call confirmation) or a
+// standing write authorisation for one item until it expires. Only an explicit
+// `always` approval stores expiresAt 0; a legacy ticket without a mode cannot
+// become permanent by accident.
+function writeTicketLive(ticket, account) {
+  if (!ticket) return false
+  const expiresAt = Number(ticket.expiresAt ?? 0)
+  const permanent = expiresAt === 0 && ticket.mode === 'always'
+  if (!permanent && expiresAt <= Date.now()) return false
+  return String(ticket.account ?? '').toLowerCase() === String(account ?? '').toLowerCase()
+}
+
 // Telegram has no vault session, so it can only resolve a name through the
 // itemIds cache that unlocking fills. Accept the id itself too, and say plainly
 // when the cache is cold instead of claiming the secret does not exist.
@@ -3335,10 +3347,13 @@ async function decidePending(env, id, decision, source = 'web') {
       outcome = { denied: true, agent: entry.agent, name: entry.name }
       return state
     }
-    // A write approval is not a standing permission, not a read grant and not a
-    // capability: it unlocks one write of one name for ten minutes. The value is
-    // never stored here — the agent sends it again on the retry — so approving a
-    // write can no longer park a secret in the state the console exposes.
+    // A write approval used to be a ten-minute one-shot ticket only. The agent's
+    // write capability was therefore an extra question, not an authorisation:
+    // every write of an item the operator had already granted asked again. The
+    // approval now carries the operator's chosen duration. `once` stays a
+    // single-use ticket (the per-call confirmation), while a timed choice is a
+    // standing write authorisation for that item and is not asked again until
+    // it expires. The value is still never stored here.
     if (String(entry.action ?? '') === 'secret.write') {
       // Approving an old pending entry is not enough: the agent may have been
       // made read-only, muted or deleted since the request was created.
@@ -3355,10 +3370,22 @@ async function decidePending(env, id, decision, source = 'web') {
         outcome = { agent: entry.agent, name: entry.name, action: 'secret.write', denied: true, error: 'account-missing' }
         return state
       }
+      const writeMode = ['once', '1h', '24h', '7d', 'always'].includes(decision) ? decision : 'once'
+      const writeExpiresAt = writeMode === '1h' ? Date.now() + 3600e3
+        : writeMode === '24h' ? Date.now() + 86400e3
+          : writeMode === '7d' ? Date.now() + 7 * 86400e3
+            : writeMode === 'always' ? 0
+              : Date.now() + 10 * 60 * 1000
       state.writeTickets ??= {}
-      for (const [tkey, ticket] of Object.entries(state.writeTickets)) if (Number(ticket?.expiresAt ?? 0) < Date.now()) delete state.writeTickets[tkey]
-      state.writeTickets[grantKey(entry.agent, entry.name)] = { agent: entry.agent, name: entry.name, account: writeAccount, createdAt: nowIso(), expiresAt: Date.now() + 10 * 60 * 1000 }
-      outcome = { agent: entry.agent, name: entry.name, action: 'secret.write', approved: true }
+      for (const [tkey, ticket] of Object.entries(state.writeTickets)) {
+        const expiresAt = Number(ticket?.expiresAt ?? 0)
+        if (expiresAt !== 0 && expiresAt < Date.now()) delete state.writeTickets[tkey]
+      }
+      state.writeTickets[grantKey(entry.agent, entry.name)] = {
+        agent: entry.agent, name: entry.name, account: writeAccount, createdAt: nowIso(),
+        expiresAt: writeExpiresAt, mode: writeMode, singleUse: writeMode === 'once',
+      }
+      outcome = { agent: entry.agent, name: entry.name, action: 'secret.write', approved: true, mode: writeMode }
       return state
     }
     // Legacy entries created before action binding have no action (and often
@@ -9551,9 +9578,12 @@ const TOOL_META = {
             for (const key of ['value', 'username', 'totp', 'url', 'notes', 'group']) if (typeof args[key] === 'string') fields[key] = args[key]
             if (!Object.keys(fields).length) return result(text('nothing to write: pass value, username, totp, url, notes or group', true))
             const ticketKey = grantKey(resolved.name, itemName)
+            // Scope is the operator's item-level authorisation, so it has to be
+            // decided before a human is asked: an approval for an item this
+            // agent may not touch can only be wasted.
+            if (!agentInScope(resolved.agent, resolved.state.itemGroups, itemName, fields.group)) return result(text('agent not allowed to write this item: it is outside the agent scope', true))
             const ticket = resolved.state.writeTickets?.[ticketKey] ?? null
-            const ticketLive = Boolean(ticket) && Number(ticket.expiresAt ?? 0) > Date.now()
-              && String(ticket.account ?? '').toLowerCase() === String(session.email).toLowerCase()
+            const ticketLive = writeTicketLive(ticket, session.email)
             if (!ticketLive) {
               // Same pending shape as a read request, so the console, Telegram and
               // the push notifications surface a write without a second code path.
@@ -9575,12 +9605,20 @@ const TOOL_META = {
             // every later read has to special-case.
             const existing = await findCipherRow(env, env.NODEWARDEN_DB, session, itemName)
             if (!existing && !fields.value) return result(text('value is required to create a new item', true))
-            // One approval, one write. The ticket is spent before the write so a
-            // crash cannot replay it later with a different value.
-            await updateState(env, (next) => { delete next.writeTickets?.[ticketKey]; return next })
+            // One `once` approval, one write: the ticket is spent before the
+            // write so a crash cannot replay it later with a different value.
+            // A timed ticket is the operator's standing authorisation for this
+            // item, so it survives the write until it expires.
+            await updateState(env, (next) => {
+              const current = next.writeTickets?.[ticketKey]
+              if (!current) return next
+              if (current.singleUse !== false) delete next.writeTickets[ticketKey]
+              else next.writeTickets[ticketKey] = { ...current, lastUsedAt: nowIso() }
+              return next
+            })
             if (existing) await updateCipher(env, env.NODEWARDEN_DB, session, itemName, fields)
             else await createCipher(env, env.NODEWARDEN_DB, session, { name: itemName, ...fields })
-            await addAudit(env, { event: 'secret.write', agent: resolved.name, name: itemName, action: 'secret.write', source: 'approval' })
+            await addAudit(env, { event: 'secret.write', agent: resolved.name, name: itemName, action: 'secret.write', source: ticket?.singleUse === false ? 'authorisation' : 'approval', mode: ticket?.mode ?? 'once' })
             return result(text({ status: 'written', name: itemName, updated: Boolean(existing) }))
           }
           if (name === 'explain_access') {

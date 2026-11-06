@@ -4443,9 +4443,10 @@ function renderPending() {
     const origin = pendingOriginLabel(request)
     const isFill = String(request.action || '') === 'secret.fill'
     const originLine = !origin ? '' : /^目标无效/.test(origin) ? origin : '目标 ' + origin
-    // A write is one ticket, not a duration: the other chips would promise a
-    // lifetime the approval cannot give.
-    const chips = (String(request.action || '') === 'secret.write' ? [['once', '批准写入']] : [['once', '仅本次'], ['1h', '1 小时'], ['24h', '24 小时'], ['7d', '7 天'], ['always', '永久']])
+    const isWrite = String(request.action || '') === 'secret.write'
+    // A write approval carries the chosen duration: 仅本次 is the per-call
+    // confirmation; a timed choice authorises this item until it expires.
+    const chips = [['once', '仅本次'], ['1h', '1 小时'], ['24h', '24 小时'], ['7d', '7 天'], ['always', '永久']]
       .map((mode) => '<button class="ios-chip" data-decide="' + mode[0] + '" data-id="' + esc(request.id) + '">' + mode[1] + '</button>').join('')
       + '<button class="ios-chip danger" data-decide="deny" data-id="' + esc(request.id) + '">拒绝</button>'
     return '<div class="ios-row ios-row--stack">' +
@@ -4454,6 +4455,7 @@ function renderPending() {
       '</span><span class="ios-tag">' + esc(pendingActionLabel(request)) + '</span></div>' +
       '<div class="ios-sub">条目 ' + esc(request.name) + '</div>' +
       (originLine ? '<div class="ios-sub">' + esc(originLine) + '</div>' : '') +
+      (isWrite ? '<div class="ios-sub">写入授权：仅本次仍是一次一确认；选时长后在窗口内不再逐次询问</div>' : '') +
       '<div class="ios-sub">' + esc(new Date(request.createdAt).toLocaleTimeString('zh-CN', { hour12: false })) + '</div>' +
       '<div class="ios-actions">' + chips + '</div></div></div>'
   }).join('')
