@@ -80,6 +80,15 @@ const routes = {
     ],
   }),
 }
+// A26: switching to the logs tab must fetch the trail immediately. The page
+// used to render an empty box until the operator pressed refresh, because the
+// nav handler never called refreshLogs; count the requests to prove it.
+let auditLoads = 0
+const auditEntries = [
+  { time: new Date().toISOString(), event: 'secret.read', agent: 'dsh', name: 'tavily-api-key', via: 'mcp' },
+  { time: new Date(Date.now() - 60e3).toISOString(), event: 'grant.share', agent: 'dsh', name: 'aaa-unread-key', mode: '24h' },
+]
+routes['/api/audit'] = () => { auditLoads += 1; return { entries: auditEntries, total: auditEntries.length, hasMore: false, masked: false } }
 
 // Saving from the detail page used to close #modal, which is hidden while the
 // page is open, so the stale page stayed on screen. A5 drives the real button.
@@ -439,6 +448,22 @@ purge: !!row.querySelector('[data-v2-purge]')
 v2controls.length === 2 && v2controls[0].write === '可写' && v2controls[0].purge === false
   ? pass('A25 a live device row carries a labelled write switch, a revoked row carries 删除')
   : fail('A25', JSON.stringify(v2controls).slice(0, 300))
+
+// A26 - entering the logs tab fetches the trail and renders it in the same
+// click. Before the fix the view stayed empty until the operator pressed
+// 刷新, because only refreshCurrent called refreshLogs.
+const auditBefore = auditLoads
+await evaluate("document.querySelector('#nav [data-view=logs]').click()")
+await wait(700)
+const logsView = await evaluate(`(() => ({
+  visible: !document.getElementById('view-logs').classList.contains('hidden'),
+  rows: document.querySelectorAll('#logs-box .ios-row').length,
+  text: document.getElementById('logs-box').textContent,
+  count: document.getElementById('logs-count').textContent
+}))()`)
+logsView.visible && auditLoads - auditBefore === 1 && logsView.rows === 2 && logsView.text.includes('tavily-api-key') && /共 2 条/.test(logsView.count)
+  ? pass('A26 the logs tab loads the trail on entry without a refresh click')
+  : fail('A26', JSON.stringify({ auditBefore, auditLoads, logsView }).slice(0, 320))
 
 // A11 - nothing threw while all of that happened.
   problems.length === 0 ? pass('A11 no runtime errors') : fail('A11', problems.slice(0, 3).join(' | '))

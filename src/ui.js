@@ -1868,7 +1868,7 @@ document.querySelectorAll('#nav button').forEach((button) => { button.onclick = 
   // same unsaved edits must not vanish just because the exit is a tab.
   if (!(await confirmDiscard())) return
   if (editor.dirty) closeItemPage()
-  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b === button)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + view)); syncGlobeToView(view); if (view === 'devices') loadVault2(false); if (view === 'settings') loadSettings(); if (view === 'profile') loadProfile() } })
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b === button)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + view)); syncGlobeToView(view); if (view === 'devices') loadVault2(false); if (view === 'settings') loadSettings(); if (view === 'profile') loadProfile(); if (view === 'logs') refreshLogs() } })
 document.querySelectorAll('#range-row button').forEach((button) => { button.onclick = () => { app.range = button.dataset.range; document.querySelectorAll('#range-row button').forEach((b) => b.classList.toggle('on', b === button)); loadStats() } })
 // ── Global search ───────────────────────────────────────────────────────────
 // One box on the overview searches every source the console already keeps in
