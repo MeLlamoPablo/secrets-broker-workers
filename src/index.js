@@ -3922,21 +3922,25 @@ async function dispatchReminderBatch(env, state, origin, ctx, now = Date.now(), 
       tasks.push(fetch(notifications.wxpush.url, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ title, content: text, token: notifications.wxpush.token }) }))
     }
   }
-  if (tasks.length) {
-    const run = Promise.allSettled(tasks)
-    if (ctx?.waitUntil) ctx.waitUntil(run)
-    else await run
-  }
-  // Record the sent markers atomically. A whole-state write here would persist a
-  // stale snapshot and silently drop anything that landed in the meantime -
-  // for example an OAuth client registered while this batch was being built.
-  const ops = fresh.map((r) => ({
+  if (!tasks.length) return { sent: 0, reminders: reminders.length }
+  // Only a delivered batch may suppress the next one. The markers used to be
+  // written whatever the channels answered, so a dead token or a 500 hid the
+  // reminder for 20 hours. Now a batch where every channel failed leaves them
+  // unmarked and the next pass retries.
+  const run = Promise.allSettled(tasks)
+  const markSent = () => mutateState(env, fresh.map((r) => ({
     op: 'set',
     path: ['reminderSent', reminderSentKey(r)],
     value: now,
-  }))
-  if (ops.length) await mutateState(env, ops).catch(() => {})
-  return { sent: tasks.length ? fresh.length : 0, reminders: reminders.length }
+  }))).catch(() => {})
+  if (ctx?.waitUntil) {
+    ctx.waitUntil(run.then((results) => (results.some((result) => result.status === 'fulfilled') ? markSent() : undefined)))
+    return { sent: fresh.length, reminders: reminders.length }
+  }
+  const results = await run
+  const delivered = results.some((result) => result.status === 'fulfilled')
+  if (delivered) await markSent()
+  return { sent: delivered ? fresh.length : 0, reminders: reminders.length }
 }
 
 // Count the captured globe events without exposing anything sensitive: totals
