@@ -3922,16 +3922,21 @@ async function dispatchReminderBatch(env, state, origin, ctx, now = Date.now(), 
       tasks.push(fetch(notifications.wxpush.url, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ title, content: text, token: notifications.wxpush.token }) }))
     }
   }
-  const markSent = () => mutateState(env, fresh.map((r) => ({
-    op: 'set',
-    path: ['reminderSent', reminderSentKey(r)],
-    value: now,
-  }))).catch(() => {})
+  // Markers are written as atomic state ops, never as a whole-state snapshot:
+  // a concurrent OAuth registration must not be rolled back by this batch.
+  const markSent = async () => {
+    const ops = fresh.map((r) => ({
+      op: 'set',
+      path: ['reminderSent', reminderSentKey(r)],
+      value: now,
+    }))
+    if (ops.length) await mutateState(env, ops)
+  }
   if (!tasks.length) {
     // No channel configured is not a delivery failure: there was nothing to
     // send. Keep the old marker so repeated polling does not rebuild the batch,
     // and leave the registry keyed by the same threshold the lookup uses.
-    if (fresh.length) await markSent()
+    if (fresh.length) await markSent().catch(() => {})
     return { sent: 0, reminders: reminders.length }
   }
   // Only a delivered batch may suppress the next one. The markers used to be
@@ -3940,12 +3945,12 @@ async function dispatchReminderBatch(env, state, origin, ctx, now = Date.now(), 
   // unmarked and the next pass retries.
   const run = Promise.allSettled(tasks)
   if (ctx?.waitUntil) {
-    ctx.waitUntil(run.then((results) => (results.some((result) => result.status === 'fulfilled') ? markSent() : undefined)))
+    ctx.waitUntil(run.then((results) => (results.some((result) => result.status === 'fulfilled') ? markSent().catch(() => {}) : undefined)))
     return { sent: fresh.length, reminders: reminders.length }
   }
   const results = await run
   const delivered = results.some((result) => result.status === 'fulfilled')
-  if (delivered) await markSent()
+  if (delivered) await markSent().catch(() => {})
   return { sent: delivered ? fresh.length : 0, reminders: reminders.length }
 }
 
