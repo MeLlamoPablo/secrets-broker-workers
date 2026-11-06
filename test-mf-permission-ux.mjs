@@ -161,7 +161,7 @@ const refused = (text) => /not allowed|denied|forbidden/i.test(text) && !/not fo
 // the same request, and a muted agent gets no new request.
 const toolPayload = (raw) => JSON.parse(JSON.parse(raw).result.content[0].text)
 {
-  const list = toolPayload(await mcp('list_secrets', {}))
+  const list = toolPayload(await mcp('list_secrets', {})).items
   const item = list.find((entry) => entry.name === SHUT)
   if (item && item.requestable === true && item.grant_status === 'none') pass('N6a an out-of-scope item starts requestable')
   else fail('N6a', JSON.stringify(item))
@@ -174,7 +174,7 @@ const toolPayload = (raw) => JSON.parse(JSON.parse(raw).result.content[0].text)
   else fail('N6', JSON.stringify({ first, entry }))
 }
 {
-  const list = toolPayload(await mcp('list_secrets', {}))
+  const list = toolPayload(await mcp('list_secrets', {})).items
   const item = list.find((entry) => entry.name === SHUT)
   if (item && item.requestable === false && item.grant_status === 'pending') pass('N7 the list marks an out-of-scope item already pending')
   else fail('N7', JSON.stringify(item))
@@ -190,7 +190,7 @@ const toolPayload = (raw) => JSON.parse(JSON.parse(raw).result.content[0].text)
   state.agents['in-scope'].muted = true
   await putState(state)
   const request = toolPayload(await mcp('request_access', { name: SHUT }))
-  const list = toolPayload(await mcp('list_secrets', {}))
+  const list = toolPayload(await mcp('list_secrets', {})).items
   const item = list.find((entry) => entry.name === SHUT)
   if (request.status === 'muted' && item && item.grant_status === 'muted' && item.requestable === false) pass('N9 a muted agent gets no request and the list says muted')
   else fail('N9', JSON.stringify({ request, item }))

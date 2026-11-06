@@ -146,10 +146,11 @@ await seedState()
 // E8 - the list tells the caller which tool to use, sorted, and honours filter.
 {
   await seedState()
+  // list_secrets answers {items, count, ...}, as tools/list documents.
   const all = JSON.parse(await call('list_secrets', {}))
-  const sorted = all.map((e) => e.name).join(',')
+  const sorted = all.items.map((e) => e.name).join(',')
   const only = JSON.parse(await call('list_secrets', { filter: 'WEB' }))
-  sorted === 'api-key,website-login' && all[1].kind === 'web' && only.length === 1 && only[0].name === WEB
+  sorted === 'api-key,website-login' && all.items[1].kind === 'web' && only.items.length === 1 && only.items[0].name === WEB
     ? pass('E8 list_secrets carries kind, sorts, and filters') : fail('E8', JSON.stringify({ sorted, all, only }))
 }
 
