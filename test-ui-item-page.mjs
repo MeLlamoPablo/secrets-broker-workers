@@ -40,6 +40,9 @@ state.reminders = [{ kind: 'expiring', agent: 'dsh', severity: 'warning', daysLe
 // Agent can read, not how many credentials are classified as api.
 state.agentActions = [{ agent: 'dsh', itemName: 'tavily-api-key', itemId: 'item-1', action: 'secret.read', expiresAt: 0, usesLeft: null }]
 state.deniedAttempts = [{ agent: 'dsh', name: 'tavily-api-key', action: 'secret.read', reason: 'no-grant', count: 2, firstAt: '2026-10-23T20:00:00.000Z', lastAt: '2026-10-23T20:00:00.000Z' }]
+// Deliberately empty: the overview slice must not be able to stand in for the
+// KPI window. The 30s tick will fill one row later to prove the refresh path.
+state.audit = []
 const items = {
   items: [{
     id: 'item-1', type: 1, name: 'tavily-api-key', url: 'https://tavily.com', folderId: null,
@@ -57,6 +60,14 @@ const items = {
   completedTransfers: [],
 }
 const stats = { totalReads: 3, activeAgents: 1, pending: 1, activeGrants: 1, buckets: [], topItems: [], topAgents: [] }
+// The KPI detail has to read the same window /api/stats counted. Three reads in
+// the range, none of them in the 20-row /api/state slice (state.audit starts
+// empty), reproduce the regression where the card said 3 and the sheet said 暂无.
+const readEntries = [
+  { time: new Date().toISOString(), event: 'secret.read', agent: 'dsh', name: 'tavily-api-key', via: 'mcp' },
+  { time: new Date(Date.now() - 2 * 60e3).toISOString(), event: 'secret.read', agent: 'dsh', name: 'aaa-unread-key', via: 'mcp' },
+  { time: new Date(Date.now() - 5 * 60e3).toISOString(), event: 'secret.read', agent: 'dsh', name: 'tavily-api-key', via: 'mcp' },
+]
 
 // /api/items lags /api/stats on every real load (it decrypts the whole vault),
 // which left a window where the health card counted zero items and printed its
@@ -84,11 +95,21 @@ const routes = {
 // used to render an empty box until the operator pressed refresh, because the
 // nav handler never called refreshLogs; count the requests to prove it.
 let auditLoads = 0
+let auditReadLoads = 0
 const auditEntries = [
   { time: new Date().toISOString(), event: 'secret.read', agent: 'dsh', name: 'tavily-api-key', via: 'mcp' },
   { time: new Date(Date.now() - 60e3).toISOString(), event: 'grant.share', agent: 'dsh', name: 'aaa-unread-key', mode: '24h' },
 ]
-routes['/api/audit'] = () => { auditLoads += 1; return { entries: auditEntries, total: auditEntries.length, hasMore: false, masked: false } }
+// The reads sheet asks for event=secret.read and the same from-window the card
+// counted; answer that separately so a test can tell the two queries apart.
+routes['/api/audit'] = (url) => {
+  auditLoads += 1
+  if (url.searchParams.get('event') === 'secret.read') {
+    auditReadLoads += 1
+    return { entries: readEntries, total: readEntries.length, hasMore: false, masked: false }
+  }
+  return { entries: auditEntries, total: auditEntries.length, hasMore: false, masked: false }
+}
 
 // Saving from the detail page used to close #modal, which is hidden while the
 // page is open, so the stale page stayed on screen. A5 drives the real button.
@@ -111,7 +132,7 @@ const server = http.createServer(async (req, res) => {
   const route = routes[url.pathname]
   if (route) {
     res.writeHead(200, { 'content-type': 'application/json' })
-    return res.end(JSON.stringify(route()))
+    return res.end(JSON.stringify(route(url)))
   }
   if (url.pathname === '/' || url.pathname === '/index.html') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
@@ -448,6 +469,46 @@ purge: !!row.querySelector('[data-v2-purge]')
 v2controls.length === 2 && v2controls[0].write === '可写' && v2controls[0].purge === false
   ? pass('A25 a live device row carries a labelled write switch, a revoked row carries 删除')
   : fail('A25', JSON.stringify(v2controls).slice(0, 300))
+
+// A27 - the reads card and its detail sheet read the same window. /api/state
+// carries no audit row here, so the sheet can only show 3 records if it asked
+// /api/audit; then a new read arrives and the 30s tick alone must move both the
+// number and 最近动态 without a reload.
+await evaluate("document.querySelector('#nav [data-view=overview]').click()")
+await wait(700)
+const readsCard = await evaluate("(document.querySelector('[data-kpi=reads] .value') || {}).textContent || ''")
+const readsBefore = auditReadLoads
+const readsSheet = await evaluate(`(async () => {
+  document.querySelector('[data-kpi=reads]').click()
+  await new Promise((r) => setTimeout(r, 600))
+  const modal = document.getElementById('modal')
+  return {
+    shown: !modal.classList.contains('hidden'),
+    text: modal.textContent,
+    rows: modal.querySelectorAll('table tr').length,
+  }
+})()`)
+readsCard === '3' && readsSheet.shown && readsSheet.rows === 4 && /共 3 条/.test(readsSheet.text) && !/暂无读取记录/.test(readsSheet.text) && auditReadLoads - readsBefore === 1
+  ? pass('A27 the reads KPI and its detail share one /api/audit window')
+  : fail('A27', JSON.stringify({ readsCard, readsSheet, auditReadLoads, readsBefore }).slice(0, 280))
+await evaluate("document.querySelector('#modal .modal-x')?.click()")
+await wait(300)
+// One more read, published only through /api/state + /api/stats + /api/audit
+// (exactly what the server would do). Calling the poll by hand is the same code
+// path the 30s timer runs, without waiting half a minute in the suite.
+const newRead = { time: new Date().toISOString(), event: 'secret.read', agent: 'dsh', name: 'aaa-unread-key', via: 'mcp' }
+readEntries.unshift(newRead)
+state.audit = [newRead]
+stats.totalReads = 4
+const tick = await evaluate(`(async () => {
+  await checkPendingNotifications()
+  await new Promise((r) => setTimeout(r, 800))
+  const card = (document.querySelector('[data-kpi=reads] .value') || {}).textContent || ''
+  return { card, recent: document.getElementById('recent-box').textContent }
+})()`)
+tick.card === '4' && !/暂无活动/.test(tick.recent)
+  ? pass('A27b the poll refresh moves the reads number and 最近动态 without a reload')
+  : fail('A27b', JSON.stringify(tick).slice(0, 220))
 
 // A26 - entering the logs tab fetches the trail and renders it in the same
 // click. Before the fix the view stayed empty until the operator pressed

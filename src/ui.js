@@ -1238,7 +1238,21 @@ async function api(path, options = {}) {
   if (route === '/api/items' || route === '/api/v2/status') clearDbDown()
   return body
 }
-let app = { me: null, data: { agents: [], policies: {}, grants: [], pending: [], audit: [] }, items: [], itemsLoaded: false, itemsError: '', stateLoaded: false, stateError: '', stats: null, range: '24h', token: '' }
+let app = { me: null, data: { agents: [], policies: {}, grants: [], pending: [], audit: [] }, items: [], itemsLoaded: false, itemsError: '', stateLoaded: false, stateError: '', stats: null, recentAudit: [], range: '24h', token: '' }
+// A detail panel answers "what happened in this range", so it reads the same
+// audit table /api/stats aggregates. /api/state carries only a 20-row slice for
+// the overview and must never stand in for the full window.
+async function auditPage(params = {}) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && String(value) !== '') query.set(key, String(value))
+  }
+  return api('/api/audit' + (query.toString() ? '?' + query.toString() : ''))
+}
+function rangeStartIso() {
+  const ms = app.range === '7d' ? 7 * 86400e3 : app.range === '30d' ? 30 * 86400e3 : 24 * 3600e3
+  return new Date(Date.now() - ms).toISOString()
+}
 const selectedItems = new Set()
 // Selection is an explicit mode: iOS lists do not show checkboxes until you ask
 // for them, and showing them all the time squeezed the name column.
@@ -1546,7 +1560,7 @@ $('site-logo').onclick = () => { location.href = '/' }
 async function refreshCurrent() {
   const view = document.querySelector('.view:not(.hidden)')?.id?.replace('view-', '') || 'overview'
   try {
-    if (view === 'overview') await Promise.all([loadState(), loadStats()])
+    if (view === 'overview') await Promise.all([loadState(), loadStats(), loadRecent()])
     else if (view === 'items') await Promise.all([loadState(), loadItems()])
     else if (view === 'agents' || view === 'grants') await loadState()
     else if (view === 'logs') { await loadState(); await refreshLogs() }
@@ -2343,7 +2357,7 @@ async function openPermissionMatrix() {
   renderMatrix()
 }
 // Detail view: 概况 / 权限 / 授权 / 活动. Read-only display plus the existing actions.
-function openAgentDetail(name) {
+async function openAgentDetail(name) {
   const agent = ((app.data && app.data.agents) || []).find((entry) => entry.name === name)
   if (!agent) return
   const last = lastActivityFor(name)
@@ -2352,7 +2366,10 @@ function openAgentDetail(name) {
   const scope = agent.allowAll ? '全部条目' : (agent.allow && agent.allow.length ? agent.allow.join(', ') : (agent.groups && agent.groups.length ? '分组：' + agent.groups.join(', ') : '无权限'))
   const expiry = typeof agent.expiresAt === 'number' ? new Date(agent.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '长期有效'
   const created = agent.createdAt ? new Date(agent.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-'
-  const recent = ((app.data && app.data.audit) || []).filter((entry) => entry.agent === name).slice(0, 5)
+  // The agent's five latest events come from the full trail; the state slice
+  // only holds the 20 newest rows of the whole vault.
+  let recent = ((app.data && app.data.audit) || []).filter((entry) => entry.agent === name).slice(0, 5)
+  try { const data = await auditPage({ agent: name, limit: 5 }); recent = data.entries || recent } catch {}
   const activityRows = recent.length ? recent.map((entry) => '<div class="hint">' + esc(new Date(entry.time).toLocaleString('zh-CN', { hour12: false })) + ' · ' + esc(entry.event || '') + (entry.name ? ' · ' + esc(entry.name) : '') + '</div>').join('') : '<div class="hint">暂无读取记录</div>'
   openModal(agentDisplayName(agent), '<div class="row" style="justify-content:space-between;align-items:center"><div><b>' + esc(agentDisplayName(agent)) + '</b><div class="hint">' + kind + (agentDisplayNote(agent) ? ' · ' + esc(agentDisplayNote(agent)) : '') + '</div></div><span class="agent-health ' + (health.level === 'ok' ? 'ok' : (health.level === 'warn' ? 'warn' : 'bad')) + '">' + esc(health.label) + '</span></div>' +
     '<div class="agent-detail-grid" style="margin-top:14px">' +
@@ -2603,7 +2620,15 @@ async function checkPendingNotifications() {
       renderPending()
       renderAging()
       if (agentsMoved) renderAgents()
-      if (logsMoved) { renderRecent(); renderLogs() }
+      if (logsMoved) {
+        renderLogs()
+        // Counts and recent activity aggregate the whole trail; when the
+        // overview is on screen they ride the same 30s tick that noticed the
+        // new row, so there is no second timer and no request while nothing
+        // changed.
+        const onOverview = document.querySelector('.view:not(.hidden)')?.id === 'view-overview'
+        if (onOverview) { loadStats(); loadRecent() } else renderRecent()
+      }
       if (!grantsSelecting) renderGrants()
       if (pendingMoved) renderNoticeBar()
     }
@@ -2695,7 +2720,7 @@ async function loadStats() { try { app.stats = await api('/api/stats?range=' + a
 // The zero-knowledge listing used to load (and prompt for TOTP) on every boot,
 // even when the operator never opened that card. Status-only now; the explicit
 // refresh/device actions still ask for the second factor.
-async function refreshAll() { await Promise.all([loadState(), loadItems(), loadStats(), loadVault2(false)]) }
+async function refreshAll() { await Promise.all([loadState(), loadItems(), loadStats(), loadVault2(false), loadRecent()]) }
 // The OIDC providers. Each one is edited on its own; the client secret is
 // never sent back, so the field starts empty and an empty value keeps the
 // stored one.
@@ -3044,15 +3069,24 @@ async function testNotifications(simulate = false) {
     if (simulate) await loadState()
   } catch (error) { status('settings-status', error.message, 'error') }
 }
-function openKpiModal(kind) {
-  const audit = app.data.audit || []
+async function openKpiModal(kind) {
   if (kind === 'reads') {
-    const reads = audit.filter((entry) => entry.event === 'secret.read').slice(0, 30)
-    openModal('最近读取记录', reads.length ? '<div class="hint">当前加载的最近 ' + reads.length + ' 条读取记录</div><table><tr><th>时间</th><th>Agent</th><th>条目</th><th>方式</th></tr>' + reads.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + '</td><td>' + esc(agentLabel(entry.agent)) + '</td><td><code>' + esc(entry.name) + '</code></td><td>' + esc(entry.mode || entry.channel || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无读取记录</div>')
+    // The KPI counts every secret.read in the selected range, so the detail has
+    // to read that range from /api/audit instead of the 20-row overview slice.
+    let data = null
+    try { data = await auditPage({ event: 'secret.read', from: rangeStartIso(), limit: 30 }) } catch (error) {
+      openModal('最近读取记录', '<div class="hint">读取记录失败：' + esc(error.message) + '</div>')
+      return
+    }
+    const reads = data.entries || []
+    const total = data.total ?? reads.length
+    openModal('最近读取记录', reads.length ? '<div class="hint">当前区间共 ' + total + ' 条，显示最近 ' + reads.length + ' 条</div><table><tr><th>时间</th><th>Agent</th><th>条目</th><th>方式</th></tr>' + reads.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + '</td><td>' + esc(agentLabel(entry.agent)) + '</td><td><code>' + esc(entry.name) + '</code></td><td>' + esc(entry.mode || entry.channel || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">当前区间暂无读取记录</div>')
   } else if (kind === 'agents') {
-    const counts = {}; for (const entry of audit) if (entry.event === 'secret.read' && entry.agent) counts[entry.agent] = (counts[entry.agent] || 0) + 1
-    const rows = Object.entries(counts).sort((a, b) => b[1] - a[1])
-    openModal('活跃 Agent', rows.length ? '<table><tr><th>Agent</th><th>读取次数</th></tr>' + rows.map(([name, count]) => '<tr><td>' + esc(agentLabel(name)) + '</td><td>' + count + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无活跃 Agent</div>')
+    // Same aggregation the KPI and the donut use, not a count over the slice.
+    const rows = (app.stats && app.stats.topAgents) || []
+    const totalAgents = app.stats ? (app.stats.activeAgents ?? rows.length) : rows.length
+    const note = rows.length < totalAgents ? '<div class="hint">当前区间共 ' + totalAgents + ' 个活跃 Agent，下表为前 ' + rows.length + ' 个</div>' : ''
+    openModal('活跃 Agent', rows.length ? note + '<table><tr><th>Agent</th><th>读取次数</th></tr>' + rows.map((row) => '<tr><td>' + esc(agentLabel(row.name)) + '</td><td>' + row.count + '</td></tr>').join('') + '</table>' : '<div class="hint">当前区间暂无活跃 Agent</div>')
   } else if (kind === 'grants') {
     const now = Date.now(); const active = (app.data.grants || []).filter((grant) => !grant.revokedAt && (!grant.expiresAt || grant.expiresAt > now) && (!grant.maxReads || (grant.reads ?? 0) < grant.maxReads))
     openModal('有效授权', active.length ? '<table><tr><th>Agent</th><th>条目</th><th>到期</th><th>读取</th></tr>' + active.map((grant) => '<tr><td>' + esc(agentLabel(grant.agent)) + '</td><td><code>' + esc(grant.name) + '</code></td><td>' + (grant.expiresAt ? new Date(grant.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久') + '</td><td>' + (grant.reads ?? 0) + '/' + (grant.maxReads || '∞') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无有效授权</div>')
@@ -5171,11 +5205,18 @@ const LOG_EVENT_GROUPS = [
 ]
 
 function renderRecent() {
-  $('recent-box').innerHTML = (app.data.audit || []).slice(0, 8).map((entry) =>
+  // The overview shows the latest activity from the full trail, not only what
+  // still fits in the 20-row state slice.
+  const rows = (app.recentAudit && app.recentAudit.length ? app.recentAudit : (app.data.audit || [])).slice(0, 8)
+  $('recent-box').innerHTML = rows.map((entry) =>
     '<div class="ios-row ios-row--log"><div class="ios-main">' +
     '<div class="ios-log-time">' + esc(new Date(entry.time).toLocaleTimeString('zh-CN', { hour12: false })) + '</div>' +
     '<div class="ios-log-text' + (RED_LOG_EVENTS.has(String(entry.event || '')) ? ' bad' : '') + '">' + esc(describe(entry)) + '</div>' +
     '</div></div>').join('') || '<div class="hint">暂无活动</div>'
+}
+async function loadRecent() {
+  try { const data = await auditPage({ limit: 8 }); app.recentAudit = data.entries || [] } catch { app.recentAudit = [] }
+  renderRecent()
 }
 // Options are rebuilt from the audit rows on every render (the data can change
 // under a refresh); the current choice is carried over by value.
@@ -5455,7 +5496,7 @@ function describeEvent(entry) {
   }
   return map[entry.event] || entry.event || ''
 }
-function itemInfoHtml(item) {
+function itemInfoHtml(item, history = null) {
   // Sharing arrives in two shapes: capabilities (agentActions) and legacy grant
   // rows. The list above counts both, so this panel must too — otherwise the
   // row said "3 个 Agent 可用" while this card said "当前没有分享".
@@ -5464,12 +5505,16 @@ function itemInfoHtml(item) {
   const holders = new Map()
   for (const grant of legacy) holders.set(grant.agent, { agent: grant.agent, mode: grant.mode || '授权', reads: grant.reads || 0, max: grant.maxReads, expiresAt: grant.expiresAt, legacy: true })
   for (const cap of caps) if (!holders.has(cap.agent)) holders.set(cap.agent, { agent: cap.agent, mode: '能力', reads: cap.usedCount ?? 0, max: cap.maxUses, expiresAt: cap.expiresAt, legacy: false })
-  const usage = (app.data.audit || []).filter((entry) => entry.name === item.name && ['secret.read', 'secret.read-noapproval', 'grant.share', 'grant.approve', 'transfer.complete', 'item.create', 'item.update'].includes(entry.event)).slice(0, 10)
+  // Usage and refusals answer "what happened to this item", so they read the
+  // full trail for the item rather than the 20-row state slice. The caller
+  // fetches that history once and passes it in.
+  const trail = history || (app.data.audit || [])
+  const usage = trail.filter((entry) => entry.name === item.name && ['secret.read', 'secret.read-noapproval', 'grant.share', 'grant.approve', 'transfer.complete', 'item.create', 'item.update'].includes(entry.event)).slice(0, 10)
   // Denied attempts were only visible in the log page, which is the one place
   // an operator does not look when asking "why did this agent stop working".
   // They are a separate list: a refusal is not usage, and showing them mixed in
   // would make a working credential look broken.
-  const denied = (app.data.audit || []).filter((entry) => entry.name === item.name && ['access.denied', 'secret.read-deny'].includes(entry.event)).slice(0, 6)
+  const denied = trail.filter((entry) => entry.name === item.name && ['access.denied', 'secret.read-deny'].includes(entry.event)).slice(0, 6)
   const durationLabel = (grant) => { if (!grant.expiresAt) return '永久'; const ms = grant.expiresAt - Date.now(); if (ms <= 0) return '已过期'; const days = Math.ceil(ms / 86400000); return days <= 1 ? Math.max(1, Math.ceil(ms / 3600000)) + ' 小时' : days + ' 天' }
   const grantRows = holders.size ? [...holders.values()].map((grant) => '<div class="ios-field"><label>' + esc(agentLabel(grant.agent)) + '<small>' + esc(grant.mode) + ' · 已读 ' + grant.reads + '/' + (grant.max || '∞') + '</small></label>' + (grant.legacy
     ? '<button class="ios-pill plain" data-item-grant data-agent="' + esc(grant.agent) + '" data-name="' + esc(item.name) + '" title="点击修改时长和读取次数">' + esc(durationLabel(grant)) + '</button>'
@@ -5685,10 +5730,13 @@ async function revealItemSecret(item) {
   $('rv-go').onclick = submit
   $('rv-code').onkeydown = (event) => { if (event.key === 'Enter') submit() }
 }
-function openItemMenu(name) {
+async function openItemMenu(name) {
   const item = app.items.find((entry) => entry.name === name); if (!item) return
   const agents = app.data.agents || []
-  openItemPage(name, itemInfoHtml(item) + '<div class="card read-card"><h2>凭据</h2>' +
+  // One fetch for the item's full trail feeds both 最近使用 and 被拒尝试.
+  let history = (app.data.audit || []).filter((entry) => entry.name === name)
+  try { const data = await auditPage({ item: name, limit: 30 }); history = data.entries || history } catch {}
+  openItemPage(name, itemInfoHtml(item, history) + '<div class="card read-card"><h2>凭据</h2>' +
         '<div class="kv"><span>用户名</span><b>' + esc(item.username || '未设置') + '</b></div>' +
     '<div class="kv"><span>密钥</span><b><button class="ios-pill plain" id="item-reveal" type="button">查看</button></b></div>' +
     '<div class="kv"><span>网址</span><b>' + (item.url ? '<a href="' + esc(item.url) + '" target="_blank" rel="noreferrer">' + esc(item.url) + '</a>' : '未设置') + '</b></div>' +
@@ -5922,11 +5970,15 @@ async function openAgentMenu(name) {
   $('ma-rotate').onclick = async () => { if (!(await askYes('轮换 ' + name + ' 的 token？旧 token 会立即失效。'))) return; try { const data = await api('/api/agents/rotate', { method: 'POST', body: JSON.stringify({ name }) }); $('ma-token').textContent = data.token; $('ma-token').classList.remove('hidden'); await navigator.clipboard.writeText(data.token); await refreshAll(); toast('已轮换并复制新 token') } catch (error) { toast(error.message, true) } }
   $('ma-delete').onclick = async () => { if (!(await askYes('删除 Agent ' + name + '？'))) return; try { await api('/api/agents/delete', { method: 'POST', body: JSON.stringify({ name }) }); show('modal', false); await refreshAll(); toast('已删除') } catch (error) { toast(error.message, true) } }
 }
-function openGrantMenu(agent, name) {
+async function openGrantMenu(agent, name) {
   const grant = (app.data.grants || []).find((entry) => entry.agent === agent && entry.name === name); if (!grant) return
   const seconds = !grant.expiresAt ? 0 : Math.max(0, Math.round((grant.expiresAt - Date.now()) / 1000))
   const nearest = !grant.expiresAt ? 0 : ([3600, 86400, 604800, 2592000].find((value) => seconds <= value) || 0)
-  const usage = (app.data.audit || []).filter((entry) => entry.agent === agent && entry.name === name).slice(0, 15)
+  // The state slice only carries the newest 20 rows for the whole vault; one
+  // grant's own usage history has to come from the paged trail or it reads as
+  // empty for anything that is not the latest activity.
+  let usage = (app.data.audit || []).filter((entry) => entry.agent === agent && entry.name === name).slice(0, 15)
+  try { const data = await auditPage({ agent, item: name, limit: 15 }); usage = data.entries || usage } catch {}
   const usageHtml = '<div class="hint" style="margin-bottom:8px">创建：' + (grant.createdAt ? new Date(grant.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + ' · 已读：' + (grant.reads ?? 0) + ' 次 · 到期：' + (grant.expiresAt ? new Date(grant.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久') + '</div><div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px"><b>使用记录</b>' + (usage.length ? '<table><tr><th>时间</th><th>动作</th><th>方式</th></tr>' + usage.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + '</td><td>' + esc(describeEvent(entry)) + '</td><td>' + esc(entry.mode || entry.source || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无记录</div>') + '</div>'
   openModal('授权「' + agent + ' → ' + name + '」', usageHtml + '<label class="field">时长</label><select id="mg-seconds"><option value="3600" ' + (nearest === 3600 ? 'selected' : '') + '>1 小时</option><option value="86400" ' + (nearest === 86400 ? 'selected' : '') + '>24 小时</option><option value="604800" ' + (nearest === 604800 ? 'selected' : '') + '>7 天</option><option value="2592000" ' + (nearest === 2592000 ? 'selected' : '') + '>30 天</option><option value="0" ' + (nearest === 0 ? 'selected' : '') + '>永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mg-max" type="number" min="1" value="' + (grant.maxReads ?? '') + '"><div class="row" style="margin-top:14px"><button class="primary" id="mg-save">保存授权</button>' + (grant.revokedAt || (grant.expiresAt && grant.expiresAt <= Date.now()) || (grant.maxReads && (grant.reads ?? 0) >= grant.maxReads) ? '<button id="mg-restore">恢复授权</button>' : '') + '<button class="danger" id="mg-revoke">撤销</button><button class="danger" id="mg-delete">删除记录</button></div>')
   $('mg-save').onclick = async () => { try { await api('/api/grants/update', { method: 'POST', body: JSON.stringify({ agent, name, seconds: Number($('mg-seconds').value), maxReads: $('mg-max').value || null }) }); show('modal', false); await refreshAll(); toast('已更新授权') } catch (error) { toast(error.message, true) } }
@@ -5938,7 +5990,14 @@ async function loadProfile() {
   try {
     const data = await api('/api/profile'); const profile = data.profile || {}
     $('profile-name').value = profile.name || ''; $('profile-email').value = profile.email || profile.oidcEmail || ''; $('profile-avatar').value = profile.avatarUrl || ''
-    const logins = (app.data.audit || []).filter((entry) => ['admin.login', 'admin.oidc-login', 'vault.unlock', 'admin.logout'].includes(entry.event)).slice(0, 12)
+    // Login history is asked for explicitly instead of filtered out of the
+    // 20-row state slice: a week of other activity would otherwise hide every
+    // login, and the panel would claim there were none.
+    let logins = (app.data.audit || []).filter((entry) => ['admin.login', 'admin.oidc-login', 'vault.unlock', 'admin.logout'].includes(entry.event)).slice(0, 12)
+    try {
+      const trail = await auditPage({ event: 'login', limit: 50 })
+      logins = (trail.entries || []).filter((entry) => ['admin.login', 'admin.oidc-login', 'vault.unlock', 'admin.logout'].includes(entry.event)).slice(0, 12)
+    } catch {}
     $('login-history').innerHTML = '<div class="hint">当前在线：' + (app.me?.unlocked ? '本浏览器已解锁' : '本浏览器未解锁') + '</div>' + (logins.length ? '<table><tr><th>时间</th><th>事件</th><th>方式</th></tr>' + logins.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + '</td><td>' + esc(entry.event) + '</td><td>' + esc(entry.source || entry.channel || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无登录记录</div>')
     try {
       const data = await api('/api/sessions')

@@ -34,6 +34,7 @@ test-*.mjs
 !test-approval-grant-scope.mjs
 !test-connection-admission.mjs
 !test-connection-notify.mjs
+!test-overview-stats.mjs
 !test-secret-read-by-id.mjs
 !test-v2-unlock-persist.mjs
 !test-version-endpoint.mjs
