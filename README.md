@@ -480,6 +480,12 @@ node scripts/check-pack.mjs     # the CLI, everything it imports, nothing secret
 npm publish
 ```
 
+`package.json` is `"private": true` on purpose: publishing is an explicit
+decision, not a side effect. `npm publish` refuses a private package, so **remove
+`"private": true` in the same commit that publishes** (and put it back afterwards
+if the package should stay unpublished). The check also compares the declared
+version with `src/version.js`; if they drift, run `npm run sync:version` first.
+
 `prepublishOnly` runs that check plus the CLI, exec, daemon and v2-CLI suites, so
 a broken file list or a failing line stops the publish instead of shipping it.
 The `files` list must keep `cli/`, `src/envelope.js`, `src/vaultdiff.js` and

@@ -2,6 +2,7 @@
 // trusting the `files` list: every import the CLI makes must be inside it.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { VERSION } from '../src/version.js'
 
 const results = []
 const pass = (n, extra = '') => { results.push({ n, ok: true }); console.log('PASS  ' + n + (extra ? ' :: ' + extra : '')) }
@@ -38,12 +39,20 @@ const bytes = packed[0]?.size ?? 0
   bad.length ? fail('P3 no tests or local secrets in the tarball', bad.join(', ')) : pass('P3 no tests or local secrets in the tarball')
 }
 
-// P4: the bin entry is executable and pointed at a real file.
+// P4: the bin entry is executable, pointed at a real file, and the tarball
+// declares the version the runtime actually reports. The version is compared
+// with src/version.js instead of a fixed major, so the gate follows the repo
+// rather than an old release plan (a hardcoded /^2\./ outlived its bump).
 {
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
   const bin = String(pkg.bin?.['secrets-broker'] ?? '').replace(/^\.\//, '')
-  const ok = bin && files.includes(bin) && /^2\./.test(String(pkg.version))
-  ok ? pass('P4 bin points at a packed file and the version is 2.x', pkg.version) : fail('P4', 'bin=' + bin + ' version=' + pkg.version)
+  const problems = []
+  if (!bin || !files.includes(bin)) problems.push('bin=' + bin)
+  if (!/^\d+\.\d+\.\d+$/.test(String(pkg.version))) problems.push('version is not x.y.z: ' + pkg.version)
+  if (String(pkg.version) !== VERSION) problems.push(`package.json ${pkg.version} != src/version.js ${VERSION}`)
+  problems.length
+    ? fail('P4 bin points at a packed file and the version matches src/version.js', problems.join(', '))
+    : pass('P4 bin points at a packed file and the version matches src/version.js', pkg.version)
 }
 
 console.log('\n  tarball: ' + files.length + ' files, ' + (bytes / 1024).toFixed(1) + ' KiB')
