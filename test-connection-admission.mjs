@@ -489,6 +489,20 @@ async function main() {
       mcpText(getHidden).split(ITEM2).join('<name>') === mcpText(getAbsent).split('no-such-item-xyz').join('<name>'),
       mcpText(getHidden) + ' / ' + mcpText(getAbsent))
 
+    // Same trail for both probes: an out-of-scope item must not be cheaper or
+    // quieter than a name that does not exist.
+    const afterReads = await readState(env)
+    const hiddenAttempt = Object.values(afterReads.deniedAttempts ?? {}).find((entry) => entry.name === ITEM2)
+    const absentAttempt = Object.values(afterReads.deniedAttempts ?? {}).find((entry) => entry.name === 'no-such-item-xyz')
+    ok('范围外读取与不存在读取写同样的 deniedAttempts 汇总',
+      Boolean(hiddenAttempt && absentAttempt) && hiddenAttempt.count === 1 && absentAttempt.count === 1
+      && hiddenAttempt.reasonCode === absentAttempt.reasonCode
+      && hiddenAttempt.reason.split(ITEM2).join('<name>') === absentAttempt.reason.split('no-such-item-xyz').join('<name>'),
+      JSON.stringify({ hiddenAttempt, absentAttempt }))
+    ok('两条路径都写一条 access.denied 审计',
+      env._vault.auditRows.filter((entry) => entry.event === 'access.denied').length === 2,
+      JSON.stringify(env._vault.auditRows.filter((entry) => entry.event === 'access.denied')))
+
     // explain_access used to describe any name the agent asked about: it
     // returned the itemId, classification and policies even for items outside
     // the connection, which confirmed both existence and configuration.

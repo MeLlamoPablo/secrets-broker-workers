@@ -5043,6 +5043,33 @@ function itemNotFoundFor(action, createRequest, name) {
   }
 }
 
+// One denied attempt looks the same whichever gate refused it: the console's
+// aggregate row, the audit line and the rate-limited operator push. An
+// out-of-scope existing item and a name that does not exist must cost the same
+// and leave the same trail, or response time and push activity become a name
+// oracle and make the not-found answer a weaker disguise.
+async function recordDeniedAttempt(env, { state, agentName, name, itemId, account, action, reason, reasonCode, origin, target, ctx }) {
+  const key = 'deny\u0000' + agentName + '\u0000' + name + '\u0000' + action
+  const lastNotified = Number(state.deniedAttempts?.[key]?.notifiedAt ?? 0)
+  // Notify at most once per (agent, item, action) every 30 minutes. An Agent
+  // that retries in a loop must not turn into a stream of push messages; the
+  // console list still records every attempt with its count.
+  const shouldNotify = Date.now() - lastNotified > 30 * 60 * 1000
+  await updateState(env, (next) => {
+    next.deniedAttempts ??= {}
+    const before = next.deniedAttempts[key]
+    next.deniedAttempts[key] = {
+      agent: agentName, name, itemId, account, action, reason, reasonCode,
+      origin: action === 'secret.use' ? String(target?.host ?? '') : '',
+      count: (before?.count ?? 0) + 1, firstAt: before?.firstAt ?? nowIso(), lastAt: nowIso(),
+      notifiedAt: shouldNotify ? Date.now() : (before?.notifiedAt ?? 0),
+    }
+    return next
+  })
+  await addAudit(env, { event: 'access.denied', agent: agentName, name, itemId, action, reason, reasonCode, source: 'agent' })
+  if (shouldNotify) await notifyPending(env, origin, { id: 'deny-' + itemId, agent: agentName, name, createdAt: nowIso(), action, denied: true, reason }, ctx).catch(() => {})
+}
+
 // Admin-only truth behind a not-found answer. The agent never sees this; the
 // two causes stay distinguishable when someone greps the audit.
 async function auditItemMiss(env, { agentName, name, itemId, action, exists, detail }) {
@@ -5085,6 +5112,16 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
   // a missing name would, so the response cannot confirm that the item exists.
   if (connection && itemId && !connectionAllowsItem(connection, itemId)) {
     await auditItemMiss(env, { agentName, name, itemId, action, exists: true, detail: 'outside-admitted-scope' })
+    // A plain read must cost what a missing name costs: the same aggregate
+    // attempt row, audit line and rate-limited notification. request_access
+    // probes already match the missing-name path (one audit line, no push).
+    if (!createRequest) {
+      await recordDeniedAttempt(env, {
+        state, agentName, name, itemId, account: session.email, action,
+        reason: '当前账户里没有名为「' + name + '」的条目（名字必须与面板完全一致，空格也算）',
+        reasonCode: 'item-not-found', origin, target, ctx,
+      })
+    }
     return itemNotFoundFor(action, createRequest, name)
   }
   if (connection && action === 'secret.read' && connection.plaintextAllowed !== true) {
@@ -5123,26 +5160,10 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
       // "not-in-scope" (未授权) and "no-grant" (缺少该条授权) are different
       // answers and need different remedies, so both records carry both.
       const whyCode = !itemId ? 'item-not-found' : !inScope ? 'not-in-scope' : 'no-grant'
-      // Notify at most once per (agent, item, action) every 30 minutes. An Agent
-      // that retries in a loop must not turn into a stream of push messages; the
-      // console list still records every attempt with its count.
-      const prior = state.deniedAttempts?.['deny\u0000' + agentName + '\u0000' + name + '\u0000' + action]
-      const lastNotified = Number(prior?.notifiedAt ?? 0)
-      const shouldNotify = Date.now() - lastNotified > 30 * 60 * 1000
-      await updateState(env, (next) => {
-        const key = 'deny\u0000' + agentName + '\u0000' + name + '\u0000' + action
-        next.deniedAttempts ??= {}
-        const before = next.deniedAttempts[key]
-        next.deniedAttempts[key] = {
-          agent: agentName, name, itemId, account: session.email, action, reason: why, reasonCode: whyCode,
-          origin: action === 'secret.use' ? String(target?.host ?? '') : '',
-          count: (before?.count ?? 0) + 1, firstAt: before?.firstAt ?? nowIso(), lastAt: nowIso(),
-          notifiedAt: shouldNotify ? Date.now() : (before?.notifiedAt ?? 0),
-        }
-        return next
+      await recordDeniedAttempt(env, {
+        state, agentName, name, itemId, account: session.email, action,
+        reason: why, reasonCode: whyCode, origin, target, ctx,
       })
-      await addAudit(env, { event: 'access.denied', agent: agentName, name, itemId, action, reason: why, reasonCode: whyCode, source: 'agent' })
-      if (shouldNotify) await notifyPending(env, origin, { id: 'deny-' + itemId, agent: agentName, name, createdAt: nowIso(), action, denied: true, reason: why }, ctx).catch(() => {})
       // Say which action was refused: "read" sent agents looking for a read
       // permission when the block was about calling the API with it.
       const verb = action === 'secret.use' ? 'use this credential (http_request)' : action === 'secret.fill' ? 'fill with this credential' : 'read this item'
