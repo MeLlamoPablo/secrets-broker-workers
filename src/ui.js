@@ -2524,7 +2524,7 @@ const PENDING_POLL_HIDDEN_MS = 120000
 let knownPending = new Set()
 let pendingInitialized = false
 function updateBrowserNotifyStatus() { const el = $('browser-notify-status'); if (!el) return; el.textContent = typeof Notification === 'undefined' ? '此浏览器不支持通知' : '当前权限：' + Notification.permission }
-function showBrowserNotification(title, body, tag) { if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return; try { const notification = new Notification(title, { body, tag }); notification.onclick = () => { window.focus(); document.querySelector('#nav [data-view=grants]').click(); notification.close() } } catch {} }
+function showBrowserNotification(title, body, tag) { if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return; try { const notification = new Notification(title, { body, tag }); notification.onclick = () => { window.focus(); location.hash = '#pending'; openPendingSheet(); notification.close() } } catch {} }
 async function enableBrowserNotifications() { if (typeof Notification === 'undefined') return status('settings-status', '此浏览器不支持通知', 'error'); const permission = await Notification.requestPermission(); updateBrowserNotifyStatus(); if (permission === 'granted') { status('settings-status', '浏览器通知已启用', 'ok'); startPendingPolling() } else status('settings-status', '未获得通知权限', 'error') }
 function b64urlBytes(value) {
   const normalized = String(value).replace(/-/g, '+').replace(/_/g, '/')
@@ -2565,13 +2565,18 @@ async function checkPendingNotifications() {
     // One waiting set: a first connection is an approval, so it counts toward
     // the same badge and raises the same notification as a read request.
     const ids = new Set(pending.map((entry) => entry.id).concat(connections.map((entry) => 'connection:' + entry.id)))
-    const fresh = pendingInitialized
+    const wasInitialized = pendingInitialized
+    const fresh = wasInitialized
       ? pending.filter((entry) => !knownPending.has(entry.id)).concat(connections.filter((entry) => !knownPending.has('connection:' + entry.id)))
-      : []
+      // The first poll can beat loadAll. Treat that queue as new rather than
+      // baseline, otherwise a request created while the page was closed is
+      // silently accepted as already seen.
+      : pending.concat(connections)
     // Only a change in the waiting set needs a new banner; a 30s re-render
     // would restart the rotation timer and rebuild the same DOM for nothing.
     const pendingMoved = fresh.length > 0 || ids.size !== knownPending.size
-    for (const entry of fresh) {
+    if (!wasInitialized && fresh.length) notifyPendingBatch(fresh)
+    else for (const entry of fresh) {
       if (entry.name) showBrowserNotification('Secrets Broker 授权请求', (pendingAgentLabel(entry)) + ' 请求读取「' + entry.name + '」', entry.id)
       else showBrowserNotification('Secrets Broker 连接请求', (entry.agent || 'Agent') + ' 请求首次连接', 'connection:' + entry.id)
     }
@@ -2611,15 +2616,34 @@ function schedulePendingPoll() {
   // tick, so hiding or showing the tab takes effect without a second timer.
   pendingTimer = setTimeout(async () => { await checkPendingNotifications(); schedulePendingPoll() }, pendingPollDelay())
 }
+// A queue that was already waiting when the page opened is still news. The
+// first look raises one batch notification instead of turning the request
+// silent, and a repeated loadAll over the same ids stays quiet.
+function notifyPendingBatch(entries) {
+  if (!entries.length) return
+  const connection = entries.some((entry) => !entry.name)
+  const body = entries.length === 1
+    ? (connection ? (entries[0].agent || 'Agent') + ' 请求首次连接' : pendingAgentLabel(entries[0]) + ' 请求读取「' + (entries[0].name || '') + '」')
+    : entries.length + ' 条审批请求等待处理'
+  showBrowserNotification('Secrets Broker 有待审批', body, 'pending-batch')
+}
 // loadAll already fetched /api/state and loadState already rendered the queue.
-// Seeding the known set from that result removes the duplicate boot request:
-// the first poll then starts from the queue the operator can already see.
+// Seeding the known set from that result removes the duplicate boot request,
+// but it must not pretend the operator has seen a request they have not.
 function seedPendingFromState() {
   if (!app.stateLoaded || !app.data) return false
   const pending = app.data.pending || []
   const connections = (app.data.connections && app.data.connections.pending) || []
-  knownPending = new Set(pending.map((entry) => entry.id).concat(connections.map((entry) => 'connection:' + entry.id)))
+  const keyed = pending.map((entry) => ({ id: entry.id, entry }))
+    .concat(connections.map((entry) => ({ id: 'connection:' + entry.id, entry })))
+  const fresh = keyed.filter((item) => !knownPending.has(item.id)).map((item) => item.entry)
+  knownPending = new Set(keyed.map((item) => item.id))
   pendingInitialized = true
+  if (fresh.length) {
+    syncPendingTitle()
+    renderNoticeBar()
+    notifyPendingBatch(fresh)
+  }
   return true
 }
 let swMessageWired = false

@@ -729,7 +729,7 @@ html[data-theme="dark"] .sb-backdrop, html.dark .sb-backdrop {
           const out = [];
 
           if (tab === 'queue') {
-            const actionLabel = { 'secret.read': '读取明文', 'secret.use': '代持调用', 'secret.fill': '网页填充', 'secret.materialize': '写入本地文件', 'secret.write': '写入密钥' };
+            const actionLabel = { 'secret.read': '读取明文', 'secret.use': '代持调用', 'secret.fill': '网页填充', 'secret.materialize': '写入本地文件', 'secret.write': '写入密钥', 'connection': '首次连接' };
             // Detail is a push page, not a dialog: the list stays underneath and
             // the next screen slides in from the right, the way iOS does it.
             const openDetail = (entry) => {

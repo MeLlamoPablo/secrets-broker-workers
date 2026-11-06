@@ -157,4 +157,85 @@ async function pushOnce({ ok = true, state = {} } = {}) {
   }
 }
 
+// ============ 3. The plugin relay sees and can decide a connection ============
+{
+  const env = makeEnv({ extra: { DSH_PLUGIN_TOKEN: 'plugin-token' } })
+  await putSession(env)
+  const createdAt = new Date().toISOString()
+  const expiresAt = new Date(Date.now() + 2 * 3600e3).toISOString()
+  await seedState(env, {
+    connectionPolicy: { required: true },
+    connections: {
+      c1: {
+        id: 'c1', agent: 'connecting-agent', account: HARNESS.ACCT, oauth: false,
+        state: 'pending', createdAt, expiresAt, origin: 'https://broker.test',
+        requestedScope: { all: true, itemIds: [] }, requestedPlaintext: false,
+      },
+    },
+    settings: { vaultEmail: HARNESS.ACCT },
+  })
+  const pluginHeaders = { 'x-broker-plugin-token': 'plugin-token' }
+  const pending = await worker.fetch(new Request('https://broker.test/api/plugin/pending', { headers: pluginHeaders }), env, { waitUntil: () => {} })
+  const pendingBody = await pending.json()
+  const card = (pendingBody.pending || []).find((entry) => entry.id === 'c1')
+  if (pendingBody.count === 1 && card?.kind === 'connection' && card?.action === 'connection' && card?.agent === 'connecting-agent' && card?.name === '') {
+    pass('3a the plugin badge and queue include the waiting connection')
+  } else {
+    fail('3a plugin pending', JSON.stringify(pendingBody).slice(0, 260))
+  }
+  const waiting = await worker.fetch(new Request('https://broker.test/api/plugin/wait?timeout=0', { headers: pluginHeaders }), env, { waitUntil: () => {} })
+  const waitingBody = await waiting.json()
+  if (waitingBody.count === 1 && waitingBody.pending?.some((entry) => entry.id === 'c1' && entry.kind === 'connection')) {
+    pass('3b the plugin long poll wakes on a connection, not only on item requests')
+  } else {
+    fail('3b plugin wait', JSON.stringify(waitingBody).slice(0, 260))
+  }
+  const decided = await worker.fetch(new Request('https://broker.test/api/plugin/decide', {
+    method: 'POST',
+    headers: { ...pluginHeaders, 'content-type': 'application/json' },
+    body: JSON.stringify({ id: 'c1', decision: '24h' }),
+  }), env, { waitUntil: () => {} })
+  const decidedBody = await decided.json()
+  const snapshot = await (await env.BROKER_STATE.get().fetch('https://state/state')).json()
+  const record = snapshot.state?.connections?.c1
+  const audit = (env._vault.auditRows || []).filter((entry) => entry.event === 'connection.approve')
+  if (decided.status === 200 && record?.state === 'approved' && record.scope?.all === true && record.ttlMs === 86400e3 && record.plaintextAllowed === false) {
+    pass('3c the plugin approval applies the console admission rules and defaults to the requested scope')
+  } else {
+    fail('3c plugin approve', JSON.stringify({ status: decided.status, body: decidedBody, record }).slice(0, 320))
+  }
+  if (audit.length === 1 && audit[0].via === 'dsh-plugin') {
+    pass('3d a plugin approval leaves a connection.approve audit line')
+  } else {
+    fail('3d plugin audit', JSON.stringify(audit).slice(0, 200))
+  }
+}
+
+// ============ 4. A queue that predates the page is news, not baseline ============
+{
+  const UI = readFileSync(new URL('./src/ui.js', import.meta.url), 'utf8')
+  const seed = /function seedPendingFromState\(\)[\s\S]{0,900}notifyPendingBatch\(fresh\)[\s\S]{0,120}return true/.test(UI)
+  const bars = /function seedPendingFromState\(\)[\s\S]{0,900}syncPendingTitle\(\)[\s\S]{0,200}renderNoticeBar\(\)/.test(UI)
+  if (seed && bars) {
+    pass('4a the first state read shows the bar and raises one batch notification')
+  } else {
+    fail('4a seed notification', JSON.stringify({ seed, bars }))
+  }
+  if (UI.includes(': pending.concat(connections)') && /if \(!wasInitialized && fresh.length\) notifyPendingBatch\(fresh\)/.test(UI)) {
+    pass('4b a first poll that beats loadAll treats the queue as new and notifies once')
+  } else {
+    fail('4b initial poll', 'missing batch branch')
+  }
+  if (/notification.onclick[\s\S]{0,220}location.hash = '#pending'[\s\S]{0,80}openPendingSheet\(\)/.test(UI)) {
+    pass('4c clicking a local notification opens the pending panel, not the grants page')
+  } else {
+    fail('4c notification click', 'does not open the pending sheet')
+  }
+  if (/const n = \(\(app.data && app.data.pending\) \|\| \[\]\)\.length \+ pendingConnections\(\)\.length/.test(UI)) {
+    pass('4d the title count and plugin card share the connection queue')
+  } else {
+    fail('4d queue count', 'title or plugin card misses connections')
+  }
+}
+
 finish()

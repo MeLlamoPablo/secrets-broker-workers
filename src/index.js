@@ -2253,6 +2253,93 @@ function connectionView(state, { masked = false, limit = 20 } = {}) {
   return { pending, recent: recent.slice(0, limit), count: pending.length }
 }
 
+// One admission decision, shared by the console route and the plugin relay so
+// the two cannot drift on scope, plaintext, TTL or the vault gate. Returns the
+// status and body; each caller wraps it in its own envelope.
+async function decideConnectionRequest(env, { id, decision, payload = {}, via = 'web' }) {
+  const cleanId = String(id ?? '').trim()
+  const cleanDecision = String(decision ?? '').trim()
+  if (!cleanId) return { status: 400, body: { ok: false, reasonCode: 'connection-id-required', error: 'id required' } }
+  if (cleanDecision !== 'approve' && cleanDecision !== 'deny') return { status: 400, body: { ok: false, reasonCode: 'connection-decision-invalid', error: 'decision must be approve or deny' } }
+  // A late click must not resurrect a request whose window closed: apply
+  // expiry first, then refuse anything that is no longer pending.
+  await sweepExpiredState(env)
+  const state = await loadState(env)
+  const existing = state.connections?.[cleanId]
+  if (!existing) return { status: 404, body: { ok: false, reasonCode: 'connection-not-found', error: 'connection request not found' } }
+  if (existing.state !== 'pending') return { status: 409, body: { ok: false, reasonCode: 'connection-not-pending', error: 'connection request is ' + existing.state, state: existing.state } }
+  const adminSession = await getSession(env)
+  const adminEmail = String(adminSession?.email ?? '').trim().toLowerCase()
+  if (cleanDecision === 'deny') {
+    let denied = null
+    await updateState(env, (next) => {
+      const record = next.connections?.[cleanId]
+      if (!record || record.state !== 'pending') { denied = null; return next }
+      record.state = 'denied'
+      record.decidedAt = nowIso()
+      record.decidedBy = adminEmail ? 'admin:' + adminEmail : 'admin'
+      // A denial holds for a day, so retrying the same source cannot turn
+      // "no" into a fresh row in the approval list.
+      record.expiresAt = new Date(Date.now() + CONNECTION_DENY_TTL_MS).toISOString()
+      record.reasonCode = 'admin-denied'
+      denied = record
+      return next
+    })
+    if (!denied) return { status: 409, body: { ok: false, reasonCode: 'connection-not-pending', error: 'connection request changed state' } }
+    await addAudit(env, { event: 'connection.deny', agent: denied.agent, requestId: cleanId, account: denied.account, reasonCode: 'admin-denied', via })
+    return { status: 200, body: { ok: true, connection: connectionRecordView(await loadState(env), denied) } }
+  }
+  const { account, unlocked } = await consoleVault(env)
+  if (!unlocked) return { status: 423, body: { error: 'locked' } }
+  if (existing.account && account && String(existing.account).toLowerCase() !== String(account).toLowerCase()) {
+    return { status: 409, body: { ok: false, reasonCode: 'connection-account-mismatch', error: 'connection belongs to another vault account' } }
+  }
+  const all = payload.all === true
+  const itemIds = (Array.isArray(payload.itemIds) ? payload.itemIds : [])
+    .map((value) => String(value ?? '').trim())
+    .filter((value) => value.length > 0 && value.length <= 128)
+  if (!all && itemIds.length === 0) return { status: 400, body: { ok: false, reasonCode: 'connection-scope-empty', error: 'approve needs itemIds or all:true' } }
+  // Fail closed: only an explicit true may expose values.
+  const plaintextAllowed = payload.plaintextAllowed === true
+  // ttlMs is the precise form; duration is the friendly one. "always" is
+  // the only way to make an admission permanent, so it must be explicit.
+  let ttlMs = null
+  if (Object.prototype.hasOwnProperty.call(payload, 'ttlMs')) {
+    ttlMs = payload.ttlMs === null ? null : Number(payload.ttlMs)
+  } else if (typeof payload.duration === 'string' && payload.duration) {
+    if (payload.duration === 'always') ttlMs = null
+    else if (Object.prototype.hasOwnProperty.call(CONNECTION_TTL_PRESETS, payload.duration)) ttlMs = CONNECTION_TTL_PRESETS[payload.duration]
+    else ttlMs = NaN
+  } else {
+    ttlMs = CONNECTION_TTL_PRESETS['24h']
+  }
+  if (ttlMs !== null && (!Number.isFinite(ttlMs) || ttlMs < 60_000 || ttlMs > CONNECTION_MAX_TTL_MS)) {
+    return { status: 400, body: { ok: false, reasonCode: 'connection-ttl-invalid', error: 'ttlMs must be 60000..2592000000, or duration 1h/24h/7d/30d/always' } }
+  }
+  let approved = null
+  await updateState(env, (next) => {
+    const record = next.connections?.[cleanId]
+    if (!record || record.state !== 'pending') { approved = null; return next }
+    record.state = 'approved'
+    record.scope = { all, itemIds: all ? [] : [...new Set(itemIds)] }
+    record.plaintextAllowed = plaintextAllowed
+    record.ttlMs = ttlMs
+    record.decidedAt = nowIso()
+    record.decidedBy = adminEmail ? 'admin:' + adminEmail : 'admin'
+    record.reasonCode = null
+    record.expiresAt = ttlMs === null ? null : new Date(Date.now() + ttlMs).toISOString()
+    approved = record
+    return next
+  })
+  if (!approved) return { status: 409, body: { ok: false, reasonCode: 'connection-not-pending', error: 'connection request changed state' } }
+  await addAudit(env, {
+    event: 'connection.approve', agent: approved.agent, requestId: cleanId, account: approved.account,
+    all, itemIds: approved.scope.itemIds, itemCount: approved.scope.itemIds.length,
+    plaintextAllowed, ttlMs, expiresAt: approved.expiresAt, via,
+  })
+  return { status: 200, body: { ok: true, connection: connectionRecordView(await loadState(env), approved) } }
+}
+
 function connectionDecision(record, now = Date.now()) {
   if (!record) return { ok: false, status: 'pending', record: null, reasonCode: 'connection-pending' }
   const expires = connectionExpiredAt(record)
@@ -5836,7 +5923,17 @@ export default {
     if (url.pathname === '/api/plugin/pending' && request.method === 'GET') {
       if (!pluginAuthorized(request, env)) return fail('unauthorized', 401)
       const state = await loadState(env)
-      return json({ pending: Object.values(state.pending ?? {}).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, action: entry.action, targetOrigin: entry.targetOrigin ?? '', createdAt: entry.createdAt, ...(entry.gatewayId ? { gatewayId: entry.gatewayId, downstreamClientId: entry.downstreamClientId, downstreamClientName: entry.downstreamClientName, downstreamClientType: entry.downstreamClientType } : {}) })), count: Object.keys(state.pending ?? {}).length })
+      const requests = Object.values(state.pending ?? {}).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, action: entry.action, targetOrigin: entry.targetOrigin ?? '', createdAt: entry.createdAt, ...(entry.gatewayId ? { gatewayId: entry.gatewayId, downstreamClientId: entry.downstreamClientId, downstreamClientName: entry.downstreamClientName, downstreamClientType: entry.downstreamClientType } : {}) }))
+      // A first connection is an approval for the same operator, so the plugin
+      // badge and card list must see it too. The record carries no item names or
+      // values, only the agent, the requested scope and when it arrived.
+      const connections = connectionView(state).pending.map((entry) => ({
+        id: entry.id, kind: 'connection', agent: entry.agent, name: '', action: 'connection',
+        targetOrigin: entry.origin ?? '', createdAt: entry.createdAt, expiresAt: entry.expiresAt,
+        requestedScope: entry.requestedScope, requestedPlaintext: entry.requestedPlaintext,
+      }))
+      const pending = requests.concat(connections)
+      return json({ pending, count: pending.length })
     }
     // Read-only: which agents are using which credentials, derived from the audit
     // trail and the live capabilities. This is the "who is using my keys" fact
@@ -5915,12 +6012,20 @@ export default {
       const started = Date.now()
       const snapshot = async () => {
         const state = await loadState(env)
-        const ids = Object.keys(state.pending ?? {}).sort()
+        const ids = Object.keys(state.pending ?? {}).map((id) => 'request:' + id)
+          .concat(Object.values(state.connections ?? {}).filter((record) => record?.state === 'pending').map((record) => 'connection:' + record.id))
+          .sort()
+        const requests = Object.values(state.pending ?? {}).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, action: entry.action ?? '', createdAt: entry.createdAt ?? '', ...(entry.gatewayId ? { gatewayId: entry.gatewayId, downstreamClientId: entry.downstreamClientId, downstreamClientName: entry.downstreamClientName, downstreamClientType: entry.downstreamClientType } : {}) }))
+        const connections = connectionView(state).pending.map((entry) => ({
+          id: entry.id, kind: 'connection', agent: entry.agent, name: '', action: 'connection',
+          targetOrigin: entry.origin ?? '', createdAt: entry.createdAt, expiresAt: entry.expiresAt,
+          requestedScope: entry.requestedScope, requestedPlaintext: entry.requestedPlaintext,
+        }))
         return {
-          count: ids.length,
+          count: requests.length + connections.length,
           ids,
           signature: ids.join(','),
-          pending: Object.values(state.pending ?? {}).map((entry) => ({ id: entry.id, agent: entry.agent, name: entry.name, action: entry.action ?? '', createdAt: entry.createdAt ?? '', ...(entry.gatewayId ? { gatewayId: entry.gatewayId, downstreamClientId: entry.downstreamClientId, downstreamClientName: entry.downstreamClientName, downstreamClientType: entry.downstreamClientType } : {}) })),
+          pending: requests.concat(connections),
         }
       }
       let current = await snapshot()
@@ -6078,6 +6183,24 @@ export default {
       if (!pluginAuthorized(request, env)) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
       if (!body.id) return fail('id required', 400)
+      const state = await loadState(env)
+      const connectionId = String(body.id)
+      if (state.connections?.[connectionId]) {
+        // The plugin sends once/24h/always/deny. A connection has no single-use
+        // admission, so "once" becomes the one-minute floor; a missing scope
+        // accepts the scope the agent asked for (all), and the vault gate is
+        // still enforced by decideConnectionRequest.
+        const decision = body.decision === 'deny' ? 'deny' : 'approve'
+        const payload = { ...body }
+        if (decision === 'approve') {
+          if (body.all == null && !Array.isArray(body.itemIds)) payload.all = true
+          if (body.decision === 'once') payload.ttlMs = 60_000
+          else if (!body.duration && ['1h', '24h', '7d', '30d', 'always'].includes(body.decision)) payload.duration = body.decision
+          payload.plaintextAllowed = body.plaintextAllowed === true
+        }
+        const result = await decideConnectionRequest(env, { id: connectionId, decision, payload, via: 'dsh-plugin' })
+        return json(result.body, result.status)
+      }
       const outcome = await decidePending(env, String(body.id), String(body.decision ?? 'once'), 'dsh-plugin')
       return json({ ok: true, outcome })
     }
@@ -7970,87 +8093,10 @@ export default {
     if (url.pathname === '/api/connections/decide' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
-      const id = String(body.id ?? '').trim()
-      const decision = String(body.decision ?? '').trim()
-      if (!id) return json({ ok: false, reasonCode: 'connection-id-required', error: 'id required' }, 400)
-      if (decision !== 'approve' && decision !== 'deny') return json({ ok: false, reasonCode: 'connection-decision-invalid', error: 'decision must be approve or deny' }, 400)
-      // A late click must not resurrect a request whose window closed: apply
-      // expiry first, then refuse anything that is no longer pending.
-      await sweepExpiredState(env)
-      const state = await loadState(env)
-      const existing = state.connections?.[id]
-      if (!existing) return json({ ok: false, reasonCode: 'connection-not-found', error: 'connection request not found' }, 404)
-      if (existing.state !== 'pending') return json({ ok: false, reasonCode: 'connection-not-pending', error: 'connection request is ' + existing.state, state: existing.state }, 409)
-      const adminSession = await getSession(env)
-      const adminEmail = String(adminSession?.email ?? '').trim().toLowerCase()
-      if (decision === 'deny') {
-        let denied = null
-        await updateState(env, (next) => {
-          const record = next.connections?.[id]
-          if (!record || record.state !== 'pending') { denied = null; return next }
-          record.state = 'denied'
-          record.decidedAt = nowIso()
-          record.decidedBy = adminEmail ? 'admin:' + adminEmail : 'admin'
-          // A denial holds for a day, so retrying the same source cannot turn
-          // "no" into a fresh row in the approval list.
-          record.expiresAt = new Date(Date.now() + CONNECTION_DENY_TTL_MS).toISOString()
-          record.reasonCode = 'admin-denied'
-          denied = record
-          return next
-        })
-        if (!denied) return json({ ok: false, reasonCode: 'connection-not-pending', error: 'connection request changed state' }, 409)
-        await addAudit(env, { event: 'connection.deny', agent: denied.agent, requestId: id, account: denied.account, reasonCode: 'admin-denied', via: 'web' })
-        return json({ ok: true, connection: connectionRecordView(await loadState(env), denied) })
-      }
-      const { account, unlocked } = await consoleVault(env)
-      if (!unlocked) return fail('locked', 423)
-      if (existing.account && account && String(existing.account).toLowerCase() !== String(account).toLowerCase()) {
-        return json({ ok: false, reasonCode: 'connection-account-mismatch', error: 'connection belongs to another vault account' }, 409)
-      }
-      const all = body.all === true
-      const itemIds = (Array.isArray(body.itemIds) ? body.itemIds : [])
-        .map((value) => String(value ?? '').trim())
-        .filter((value) => value.length > 0 && value.length <= 128)
-      if (!all && itemIds.length === 0) return json({ ok: false, reasonCode: 'connection-scope-empty', error: 'approve needs itemIds or all:true' }, 400)
-      // Fail closed: only an explicit true may expose values.
-      const plaintextAllowed = body.plaintextAllowed === true
-      // ttlMs is the precise form; duration is the friendly one. "always" is
-      // the only way to make an admission permanent, so it must be explicit.
-      let ttlMs = null
-      if (Object.prototype.hasOwnProperty.call(body, 'ttlMs')) {
-        ttlMs = body.ttlMs === null ? null : Number(body.ttlMs)
-      } else if (typeof body.duration === 'string' && body.duration) {
-        if (body.duration === 'always') ttlMs = null
-        else if (Object.prototype.hasOwnProperty.call(CONNECTION_TTL_PRESETS, body.duration)) ttlMs = CONNECTION_TTL_PRESETS[body.duration]
-        else ttlMs = NaN
-      } else {
-        ttlMs = CONNECTION_TTL_PRESETS['24h']
-      }
-      if (ttlMs !== null && (!Number.isFinite(ttlMs) || ttlMs < 60_000 || ttlMs > CONNECTION_MAX_TTL_MS)) {
-        return json({ ok: false, reasonCode: 'connection-ttl-invalid', error: 'ttlMs must be 60000..2592000000, or duration 1h/24h/7d/30d/always' }, 400)
-      }
-      let approved = null
-      await updateState(env, (next) => {
-        const record = next.connections?.[id]
-        if (!record || record.state !== 'pending') { approved = null; return next }
-        record.state = 'approved'
-        record.scope = { all, itemIds: all ? [] : [...new Set(itemIds)] }
-        record.plaintextAllowed = plaintextAllowed
-        record.ttlMs = ttlMs
-        record.decidedAt = nowIso()
-        record.decidedBy = adminEmail ? 'admin:' + adminEmail : 'admin'
-        record.reasonCode = null
-        record.expiresAt = ttlMs === null ? null : new Date(Date.now() + ttlMs).toISOString()
-        approved = record
-        return next
+      const result = await decideConnectionRequest(env, {
+        id: body.id, decision: body.decision, payload: body, via: 'web',
       })
-      if (!approved) return json({ ok: false, reasonCode: 'connection-not-pending', error: 'connection request changed state' }, 409)
-      await addAudit(env, {
-        event: 'connection.approve', agent: approved.agent, requestId: id, account: approved.account,
-        all, itemIds: approved.scope.itemIds, itemCount: approved.scope.itemIds.length,
-        plaintextAllowed, ttlMs, expiresAt: approved.expiresAt, via: 'web',
-      })
-      return json({ ok: true, connection: connectionRecordView(await loadState(env), approved) })
+      return json(result.body, result.status)
     }
     // Agent-side poll, so a client that got "pending" can wait in the same
     // call instead of resubmitting. `wait` is clamped to 30 seconds: one Worker
