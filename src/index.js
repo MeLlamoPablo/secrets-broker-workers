@@ -5214,13 +5214,14 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
           const fresh = await loadState(env)
           const cap = fresh.capabilities?.[capabilityKey(agentName, itemId, action)]
           if (cap && !cap.revokedAt) {
-            const consumed = await consumeCapability(env, capabilityKey(agentName, itemId, action), session.email, action)
-            if (consumed?.ok) {
-              if (action === 'secret.use') return { status: 'use-ok', itemId, url: (await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, { itemId }))?.url ?? '' }
-              // The auto rule just minted and consumed a capability, so this read
-              // is granted: classification is not a second gate on it.
-              const guard = plaintextReadAllowed(fresh, itemId, { agent: agentName, noApproval: fresh.policies?.[name]?.noApproval === true, granted: { subject: agentName, accountId: session.email } })
-              if (guard.ok) {
+            // The plaintext door is checked before the counter is spent: an
+            // auto-approved read the policy refuses must not burn the use it
+            // just minted, or a retry would be refused as exhausted.
+            const guard = plaintextReadAllowed(fresh, itemId, { agent: agentName, noApproval: fresh.policies?.[name]?.noApproval === true, granted: { subject: agentName, accountId: session.email } })
+            if (guard.ok) {
+              const consumed = await consumeCapability(env, capabilityKey(agentName, itemId, action), session.email, action)
+              if (consumed?.ok) {
+                if (action === 'secret.use') return { status: 'use-ok', itemId, url: (await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, { itemId }))?.url ?? '' }
                 const result = await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, { itemId })
                 if (result) {
                   await addAudit(env, { event: 'secret.read', agent: agentName, name, itemId, via: 'agent', source: 'auto-rule' })
@@ -5235,6 +5236,36 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
       }
     }
     return { status: 'pending', requestId: pendingId, approvalUrl: `${origin}/#pending`, itemId, targetOrigin: String(target?.origin ?? '') }
+  }
+  // The plaintext door is checked before any counter is spent. It used to run
+  // after the consume, so a policy-refused read burned a capability use (or a
+  // legacy grant read) and the next attempt could be refused as exhausted.
+  const readGuard = action === 'secret.read'
+    ? plaintextReadAllowed(state, itemId, {
+      agent: agentName,
+      noApproval: policy?.noApproval === true,
+      granted: (decision.capability || legacyGrant) ? { subject: agentName, accountId: session.email } : null,
+    })
+    : { ok: true }
+  if (!readGuard.ok) {
+    await addAudit(env, { event: 'secret.read-deny', agent: agentName, name, reason: readGuard.reason })
+    // The agent has the scope but not the plaintext door. Leaving this as a bare
+    // 403 is why a freshly authorised MCP client looked "connected but broken":
+    // the console had nothing to show and nothing to click. Record it in the same
+    // list as a missing grant, so one chip can open the door.
+    await updateState(env, (next) => {
+      const key = 'deny\u0000' + agentName + '\u0000' + name + '\u0000plaintext'
+      next.deniedAttempts ??= {}
+      const before = next.deniedAttempts[key]
+      next.deniedAttempts[key] = {
+        agent: agentName, name, itemId, account: session.email, action: 'secret.read',
+        reason: readGuard.reason, plaintext: true, origin: '',
+        count: (before?.count ?? 0) + 1, firstAt: before?.firstAt ?? nowIso(), lastAt: nowIso(),
+        notifiedAt: before?.notifiedAt ?? 0,
+      }
+      return next
+    })
+    return { status: 'forbidden', error: '不能读明文：' + readGuardMessage(readGuard.reason), reason: readGuard.reason }
   }
   // Unified atomic consume: capability is the sole counter. Checks passed
   // above; consume now, before decrypt/fetch, inside the DO transaction.
@@ -5281,34 +5312,10 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
   }
   const result = await readSecretFromRows(env, env.NODEWARDEN_DB, session, name, { itemId })
   if (!result) return { status: 'notfound', error: 'not found' }
-  // The credential id comes from the row that was actually decrypted, so a
-  // stale name->id cache can never point the guard at the wrong item.
+  // The credential id comes from the row that was actually decrypted, so the
+  // report names the item that was read. The plaintext decision itself was
+  // already made before the counter was spent, on the resolved itemId.
   const resolvedItemId = result.id || itemId
-  // The plaintext guard runs here, where the real id is known. A web
-  // credential never reaches the caller; an api credential needs an explicit
-  // read policy. An id that cannot be resolved is refused, not treated as
-  // unclassified.
-  const readGuard = plaintextReadAllowed(state, resolvedItemId, { agent: agentName, noApproval: policy?.noApproval === true, granted: (decision.capability || legacyGrant) ? { subject: agentName, accountId: session.email } : null })
-  if (!readGuard.ok) {
-    await addAudit(env, { event: 'secret.read-deny', agent: agentName, name, reason: readGuard.reason })
-    // The agent has the scope but not the plaintext door. Leaving this as a bare
-    // 403 is why a freshly authorised MCP client looked "connected but broken":
-    // the console had nothing to show and nothing to click. Record it in the same
-    // list as a missing grant, so one chip can open the door.
-    await updateState(env, (next) => {
-      const key = 'deny\u0000' + agentName + '\u0000' + name + '\u0000plaintext'
-      next.deniedAttempts ??= {}
-      const before = next.deniedAttempts[key]
-      next.deniedAttempts[key] = {
-        agent: agentName, name, itemId: resolvedItemId, account: session.email, action: 'secret.read',
-        reason: readGuard.reason, plaintext: true, origin: '',
-        count: (before?.count ?? 0) + 1, firstAt: before?.firstAt ?? nowIso(), lastAt: nowIso(),
-        notifiedAt: before?.notifiedAt ?? 0,
-      }
-      return next
-    })
-    return { status: 'forbidden', error: '不能读明文：' + readGuardMessage(readGuard.reason), reason: readGuard.reason }
-  }
   // One event name for every authorised read, with the risk carried in fields.
   // A separate 'secret.read-noapproval' name made the statistics — totalReads,
   // buckets, topItems, topAgents, activeAgents — silently skip exactly the reads

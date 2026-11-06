@@ -531,7 +531,7 @@ async function main() {
         policies: {},
         capabilities: {
           [HARNESS.AGENT + '\u0000' + HARNESS.ITEM_ID + '\u0000secret.read']: {
-            id: 'cap-spent', agent: HARNESS.AGENT, itemId: HARNESS.ITEM_ID, action: 'secret.read',
+            id: 'cap-spent', subjectId: HARNESS.AGENT, itemId: HARNESS.ITEM_ID, action: 'secret.read',
             accountId: HARNESS.ACCT, createdAt: iso(-60 * 1000), expiresAt: iso(24 * 3600e3),
             maxUses: 1, usedCount: 1, revokedAt: null, policyVersion: 1,
           },
@@ -542,6 +542,41 @@ async function main() {
     const payload = JSON.parse(mcpText(listed))
     const item = (payload.items ?? []).find((entry) => entry.id === HARNESS.ITEM_ID)
     ok('用尽的 capability 在 list_secrets 里不再显示 granted', Boolean(item) && item.grant_status === 'none', mcpText(listed))
+  }
+
+  // 16: a plaintext-refused read must not spend the capability it was refused
+  // by. The guard used to run after the atomic consume, so one refused attempt
+  // exhausted a maxUses=1 capability and the next allowed read looked used-up.
+  {
+    const capKey = HARNESS.AGENT + '\u0000' + HARNESS.ITEM_ID + '\u0000secret.read'
+    const env = await freshEnv({
+      policy: { required: false },
+      extra: {
+        policies: {},
+        credentialKinds: { [HARNESS.ITEM_ID]: 'web', [ITEM2_ID]: 'api' },
+        capabilities: {
+          [capKey]: {
+            id: 'cap-plain', subjectId: HARNESS.AGENT, itemId: HARNESS.ITEM_ID, action: 'secret.read',
+            accountId: HARNESS.ACCT, createdAt: iso(-60 * 1000), expiresAt: iso(24 * 3600e3),
+            maxUses: 1, usedCount: 0, revokedAt: null, policyVersion: 1,
+          },
+        },
+      },
+    })
+    const refused = await mcpCall(env, 'get_secret', { name: HARNESS.ITEM })
+    ok('web 凭据的明文读取被读门拒绝', mcpText(refused).includes('不能读明文'), mcpText(refused))
+    const afterRefusal = await readState(env)
+    ok('被拒的明文读取没有消耗 capability', afterRefusal.capabilities[capKey].usedCount === 0,
+      JSON.stringify(afterRefusal.capabilities[capKey]))
+    // The operator's real switch, not a test-only bypass.
+    const opened = afterRefusal
+    opened.settings = { ...(opened.settings ?? {}), webPlaintext: true }
+    await writeState(env, opened)
+    const allowed = await mcpCall(env, 'get_secret', { name: HARNESS.ITEM })
+    ok('打开明文开关后同一条 capability 仍可用', mcpText(allowed).includes(HARNESS.PASSWORD), mcpText(allowed))
+    const afterAllowed = await readState(env)
+    ok('成功读取才消耗唯一一次', afterAllowed.capabilities[capKey].usedCount === 1,
+      JSON.stringify(afterAllowed.capabilities[capKey]))
   }
 
   report.finish()
