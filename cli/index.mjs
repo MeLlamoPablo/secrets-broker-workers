@@ -265,6 +265,8 @@ async function main() {
         process.stdout.write(`current: ${result.current}\nno published releases\n`)
       } else if (result.rateLimited) {
         process.stdout.write(`current: ${result.current}\nGitHub rate limit; try again later\n`)
+      } else if (result.notDesktopRelease) {
+        process.stdout.write(`current: ${result.current}\nlatest GitHub release is not a desktop build; no desktop update to offer\n`)
       } else {
         process.stdout.write([
           `current: ${result.current}`,

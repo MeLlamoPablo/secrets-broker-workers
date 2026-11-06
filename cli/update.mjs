@@ -2,8 +2,17 @@
 // caller gets the release URL so a human can choose when to update.
 const REPO = 'otscup/secrets-broker-workers'
 
+// Only desktop builds are desktop updates. The same repo also tags Worker
+// releases, and /releases/latest returns whichever shipped last, so a `v0.7.x`
+// Worker release must never be compared with (or offered to) a desktop build.
+const DESKTOP_TAG = /^desktop-v\d/i
+
+function isDesktopTag(tag) {
+  return DESKTOP_TAG.test(String(tag || '').trim())
+}
+
 function versionFromTag(tag) {
-  return String(tag || '').trim().replace(/^desktop-v?/i, '').replace(/^v/i, '')
+  return String(tag || '').trim().replace(/^desktop-v/i, '').replace(/^v/i, '')
 }
 
 async function latestFromHtml(fetchImpl, repo) {
@@ -17,6 +26,7 @@ async function latestFromHtml(fetchImpl, repo) {
     const tag = (response.url || '').match(/\/releases\/tag\/([^/?#]+)/)?.[1]
       || html.match(/\/releases\/tag\/([^"/?#]+)/)?.[1]
     if (!tag) return null
+    if (!isDesktopTag(tag)) return { notDesktop: true }
     const assets = await fetchImpl(`https://github.com/${repo}/releases/expanded_assets/${encodeURIComponent(tag)}`, {
       headers: { 'User-Agent': 'secrets-broker-update-check' },
     })
@@ -73,6 +83,9 @@ export async function checkForUpdate({
   if (response.status === 403 || response.status === 429) {
     const fallback = await latestFromHtml(fetchImpl, repo)
     if (!fallback) return { current: String(current), latest: '', update: false, url: '', download: '', rateLimited: true }
+    if (fallback.notDesktop) {
+      return { current: String(current), latest: '', update: false, url: '', download: '', notDesktopRelease: true }
+    }
     return {
       current: String(current),
       latest: fallback.latest,
@@ -83,8 +96,12 @@ export async function checkForUpdate({
   }
   if (!response.ok) throw new Error(`GitHub releases returned ${response.status}`)
   const release = await response.json()
-  const latest = versionFromTag(release.tag_name || release.name || '')
-  if (!latest) throw new Error('latest release has no tag_name')
+  const tag = String(release.tag_name || release.name || '').trim()
+  if (!tag) throw new Error('latest release has no tag_name')
+  if (!isDesktopTag(tag)) {
+    return { current: String(current), latest: '', update: false, url: '', download: '', notDesktopRelease: true }
+  }
+  const latest = versionFromTag(tag)
   return {
     current: String(current),
     latest,
