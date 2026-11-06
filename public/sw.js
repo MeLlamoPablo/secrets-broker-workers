@@ -11,12 +11,21 @@ self.addEventListener('push', (event) => {
       const response = await fetch('/api/state', { cache: 'no-store', headers: { accept: 'application/json' } })
       if (response.ok) {
         const state = await response.json()
+        // A first connection is an approval too, and it used to be invisible
+        // here because only item requests were read. Prefer the connection
+        // queue; fall back to the item queue when none is waiting.
+        const connection = ((state.connections || {}).pending || [])[0]
         const pending = (state.pending || [])[0]
-        if (pending) {
+        if (connection) {
+          title = 'Secrets Broker 连接请求'
+          body = `${connection.agent || 'Agent'} 请求首次连接，点击打开待审批面板`
+        } else if (pending) {
           title = 'Secrets Broker 授权请求'
           body = `${pending.agent || 'Agent'} 请求读取「${pending.name || ''}」`
         }
       }
+      // A 401 or any other failure keeps the generic text above: the session is
+      // gone, so naming an agent or item would leak to the lock screen.
     } catch {}
     await self.registration.showNotification(title, {
       body,

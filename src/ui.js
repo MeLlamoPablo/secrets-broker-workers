@@ -2104,13 +2104,14 @@ if (noticeBar) {
     const quick = event.target.closest('[data-quick-decide]')
     if (quick) { event.stopPropagation(); decideQuickApproval(quick); return }
     if (event.target.closest('[data-notice-notify]')) { event.stopPropagation(); askNotifyFromBar(); return }
+    if (event.target.closest('[data-notice-push]')) { event.stopPropagation(); enableWebPushFromBar(); return }
     if (event.target.closest('[data-notice-approve-more]')) { event.stopPropagation(); openNotices(); return }
     openNotices()
   }
   noticeBar.onkeydown = (event) => {
     // Keys pressed on a button inside the bar belong to that button, not to the
     // bar's own open-the-sheet shortcut.
-    if (event.target.closest('[data-quick-decide],[data-notice-notify],[data-notice-approve-more]')) return
+    if (event.target.closest('[data-quick-decide],[data-notice-notify],[data-notice-push],[data-notice-approve-more]')) return
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openNotices() }
   }
 }
@@ -2498,7 +2499,7 @@ $('grants-box').addEventListener('click', async (event) => {
   }
 })
 async function loadAll() {
-  await refreshAll(); startPendingPolling(); updateBrowserNotifyStatus()
+  await refreshAll(); startPendingPolling(); updateBrowserNotifyStatus(); offerPushOnce()
   if (/^#\/?pending$/.test(location.hash)) openPendingSheet()
   else if (/^#\/?grants$/.test(location.hash)) openNoticeModal()
   if (/^#\/?(pending|grants)$/.test(location.hash)) history.replaceState({}, '', '/')
@@ -2517,7 +2518,7 @@ function b64urlBytes(value) {
   const normalized = String(value).replace(/-/g, '+').replace(/_/g, '/')
   return Uint8Array.from(atob(normalized + '='.repeat((4 - normalized.length % 4) % 4)), (char) => char.charCodeAt(0))
 }
-async function enableWebPush() {
+async function enableWebPush(options = {}) {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('此浏览器不支持后台推送')
     const registration = await navigator.serviceWorker.register('/sw.js')
@@ -2532,7 +2533,13 @@ async function enableWebPush() {
     })
     await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: subscription.toJSON() }) })
     status('webpush-status', '后台推送已启用，关闭页面也能收到审批请求', 'ok')
-  } catch (error) { status('webpush-status', error.message, 'error') }
+    if (options.fromBar) toast('后台推送已开启：关闭页面也能收到审批请求')
+    return true
+  } catch (error) {
+    status('webpush-status', error.message, 'error')
+    if (options.fromBar) toast(error.message || '后台推送未开启', true)
+    return false
+  }
 }
 async function testWebPush() {
   try {
@@ -3980,6 +3987,41 @@ const BASE_TITLE = document.title || 'Secrets Broker · Cloudflare Workers'
 // The in-bar prompt must be askable exactly once: after a denial or a dismissed
 // browser prompt the button never comes back, so the bar cannot nag.
 const NOTIFY_ASK_KEY = 'sb.notify.asked.v1'
+// Separate key for the background-push offer. Granting the desktop permission
+// does not subscribe a service worker, and the two are asked at different
+// moments, so one flag cannot cover both.
+const PUSH_ASK_KEY = 'sb.push.asked.v1'
+function markPushOffered(ok) {
+  if (!ok) return
+  try { localStorage.setItem(PUSH_ASK_KEY, '1') } catch {}
+  renderNoticeBar()
+}
+// A browser that already granted the permission can be subscribed without a
+// second prompt. Doing it once after login is what makes "closed tab" pushes
+// work without sending the operator to the settings page.
+function offerPushOnce() {
+  try {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+    if (localStorage.getItem(PUSH_ASK_KEY) === '1') return
+  } catch { return }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+  enableWebPush().then(markPushOffered)
+}
+function notifyOptInHtml() {
+  try {
+    if (typeof Notification === 'undefined') return ''
+    if (Notification.permission === 'default') {
+      if (localStorage.getItem(NOTIFY_ASK_KEY) === '1') return ''
+      return '<button type="button" class="na-notify" data-notice-notify aria-label="开启桌面通知：审批出现时提醒你，只询问一次">开启桌面通知</button>'
+    }
+    // Permission is already granted, but an in-page Notification dies with the
+    // tab. Offer the background subscription here rather than only in settings.
+    if (Notification.permission === 'granted' && localStorage.getItem(PUSH_ASK_KEY) !== '1') {
+      return '<button type="button" class="na-notify" data-notice-push aria-label="开启后台推送：关闭页面也能收到审批通知，只提示一次">开启后台推送</button>'
+    }
+  } catch { return '' }
+  return ''
+}
 function syncPendingTitle() {
   // Connection requests wait in the same queue, so the same title count answers
   // "is anyone waiting on me" from a background tab.
@@ -4066,6 +4108,10 @@ async function decideQuickApproval(button) {
     if (stale) await loadState()
   }
 }
+async function enableWebPushFromBar() {
+  const ok = await enableWebPush({ fromBar: true })
+  markPushOffered(ok)
+}
 async function askNotifyFromBar() {
   // Mark first: a dismissed prompt must not bring the button back either.
   try { localStorage.setItem(NOTIFY_ASK_KEY, '1') } catch {}
@@ -4074,8 +4120,14 @@ async function askNotifyFromBar() {
   try { if (permission === 'default') permission = await Notification.requestPermission() } catch {}
   updateBrowserNotifyStatus()
   renderNoticeBar()
-  if (permission === 'granted') { toast('桌面通知已开启：审批出现时会提醒你'); startPendingPolling() }
-  else toast(permission === 'denied' ? '已拒绝桌面通知；审批仍显示在标题计数和提示条里' : '未开启桌面通知；审批仍显示在标题计数和提示条里')
+  if (permission === 'granted') {
+    toast('桌面通知已开启：审批出现时会提醒你')
+    startPendingPolling()
+    // The permission was just granted inside a user gesture, so subscribing the
+    // service worker now needs no second prompt. Without it the notification
+    // only fires while this tab is open.
+    enableWebPush().then(markPushOffered)
+  } else toast(permission === 'denied' ? '已拒绝桌面通知；审批仍显示在标题计数和提示条里' : '未开启桌面通知；审批仍显示在标题计数和提示条里')
 }
 function renderNoticeBar() {
   const bar = $('notice-bar')

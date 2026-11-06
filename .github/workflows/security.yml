@@ -313,6 +313,9 @@ jobs:
       - name: Approval grant scope (no runtime)
         shell: bash
         run: npm run test:approval-grant-scope 2>&1 | tee "$RUNNER_TEMP/ci-logs/approval-grant-scope.log"
+      - name: Connection request notifications (no runtime)
+        shell: bash
+        run: npm run test:connection-notify 2>&1 | tee "$RUNNER_TEMP/ci-logs/connection-notify.log"
       - name: Id-addressed secret reads (no runtime)
         shell: bash
         run: npm run test:secret-read-by-id 2>&1 | tee "$RUNNER_TEMP/ci-logs/secret-read-by-id.log"

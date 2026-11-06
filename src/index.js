@@ -2254,7 +2254,7 @@ function connectionDecision(record, now = Date.now()) {
 // Looks up (or asks for) the admission for this agent + account + source.
 // Repeats from the same source reuse the pending record, so a retrying or
 // probing client cannot flood the approval list.
-async function connectionAdmission(env, { state, agentName, account, request, origin = '', plaintextRequested = false }) {
+async function connectionAdmission(env, { state, agentName, account, request, origin = '', plaintextRequested = false, ctx = null }) {
   if (state.connectionPolicy?.required === false) return { ok: true, record: null, disabled: true }
   const accountKey = String(account ?? '').trim().toLowerCase()
   const source = await connectionSourceOf(request)
@@ -2297,6 +2297,13 @@ async function connectionAdmission(env, { state, agentName, account, request, or
     event: 'connection.request', agent: agentName, requestId: created.id,
     account: accountKey, plaintextRequested: created.requestedPlaintext, source: source.ipHash,
   })
+  // The security-critical write above stays awaited. Telling the operator is a
+  // side effect, so it rides waitUntil: a slow Telegram or push endpoint must
+  // not delay the agent's 202. The body carries the agent and the time only —
+  // the agent names no items at connect time, and nothing here should reach a
+  // channel that is less trusted than the console.
+  const notified = notifyConnectionPending(env, origin, created).catch(() => {})
+  if (ctx?.waitUntil) ctx.waitUntil(notified)
   return { ok: false, status: 'pending', record: created, reasonCode: 'connection-pending' }
 }
 
@@ -3770,6 +3777,54 @@ async function notifyDenied(env, origin, entry, notifications) {
     }))
   }
   tasks.push(sendWebPush(env).catch(() => ({ sent: 0 })))
+  await Promise.allSettled(tasks)
+}
+
+// A first connection is an approval too, so it uses the same channels as a
+// read request. It deliberately does not reuse notifyPending: that path signs
+// per-item approval links, and here there is no item yet. The operator picks
+// the scope in the console, which is where the click lands.
+async function notifyConnectionPending(env, origin, record) {
+  const state = await loadState(env)
+  const notifications = liveChannels(state.settings?.notifications ?? {})
+  const when = String(record.createdAt || nowIso()).replace('T', ' ').slice(0, 16) + ' UTC'
+  const where = origin ? `\n在控制台的待审批面板处理：${String(origin).replace(/\/$/, '')}/#pending` : '\n在控制台的待审批面板处理'
+  const text = `${record.agent} 申请首次连接（${when}）${where}`
+  const title = 'Secrets Broker · 连接申请'
+  const tasks = []
+  if (notifications.telegram?.botToken && notifications.telegram?.chatId) {
+    tasks.push(fetch(`https://api.telegram.org/bot${notifications.telegram.botToken}/sendMessage`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: notifications.telegram.chatId, text, disable_web_page_preview: true }),
+    }))
+  }
+  if (notifications.ntfy?.url && notifications.ntfy?.topic) {
+    tasks.push(fetch(`${String(notifications.ntfy.url).replace(/\/$/, '')}/${encodeURIComponent(notifications.ntfy.topic)}`, {
+      method: 'POST', headers: { title, tags: 'lock' }, body: text,
+    }))
+  }
+  if (notifications.gotify?.url && notifications.gotify?.token) {
+    tasks.push(fetch(`${String(notifications.gotify.url).replace(/\/$/, '')}/message?token=${encodeURIComponent(notifications.gotify.token)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-gotify-key': notifications.gotify.token },
+      body: JSON.stringify({ title, message: text, priority: 5 }),
+    }))
+  }
+  if (notifications.wxpush?.url) {
+    if (notifications.wxpush.format === 'json' && notifications.wxpush.token) {
+      tasks.push(fetch(notifications.wxpush.url, {
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${notifications.wxpush.token}` },
+        body: JSON.stringify({ title, text, content: text }),
+      }))
+    } else {
+      const body = new URLSearchParams({ title, content: text })
+      if (notifications.wxpush.token) body.set('token', notifications.wxpush.token)
+      tasks.push(fetch(notifications.wxpush.url, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body }))
+    }
+  }
+  // Only wake Web Push when someone subscribed; otherwise this would mint VAPID
+  // keys on the first agent call for a deployment that never opted in.
+  if ((state.settings?.notifications?.webpush?.subscriptions || []).length) tasks.push(sendWebPush(env).catch(() => ({ sent: 0 })))
+  if (!tasks.length) return
   await Promise.allSettled(tasks)
 }
 
@@ -9477,6 +9532,7 @@ const TOOL_META = {
           request,
           origin: url.origin,
           plaintextRequested: name === 'get_secret' || name === 'get_credential' || name === 'http_request',
+          ctx,
         })
         if (!admission.ok) {
           const blocked = connectionBlockedPayload(admission, url.origin)
@@ -9961,7 +10017,7 @@ const TOOL_META = {
       const admission = await connectionAdmission(env, {
         state: resolved.state, agentName: resolved.name,
         account: session.email || resolved.agent.account || '',
-        request, origin: url.origin,
+        request, origin: url.origin, ctx,
       })
       if (!admission.ok) {
         const blocked = connectionBlockedPayload(admission, url.origin)
@@ -10056,7 +10112,7 @@ const TOOL_META = {
       const admission = await connectionAdmission(env, {
         state: resolved.state, agentName: resolved.name,
         account: session.email || resolved.agent.account || '',
-        request, origin: url.origin, plaintextRequested: true,
+        request, origin: url.origin, plaintextRequested: true, ctx,
       })
       if (!admission.ok) {
         const blocked = connectionBlockedPayload(admission, url.origin)
