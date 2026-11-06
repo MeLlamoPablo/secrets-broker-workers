@@ -33,6 +33,10 @@ self.addEventListener('push', (event) => {
       tag: 'secrets-broker-pending',
       data: { url: '/#pending' },
     })
+    // An open console must not wait for its next poll to show the new row:
+    // tell every tab to refresh the queue now.
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    for (const client of clients) client.postMessage({ type: 'secrets-broker:pending' })
   })())
 })
 

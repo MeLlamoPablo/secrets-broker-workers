@@ -85,20 +85,22 @@ const SW = readFileSync(new URL('./public/sw.js', import.meta.url), 'utf8')
 async function pushOnce({ ok = true, state = {} } = {}) {
   const listeners = {}
   const shown = []
+  const posted = []
   const self = {
     location: { origin: 'https://broker.test' },
     addEventListener: (type, handler) => { listeners[type] = handler },
     registration: { showNotification: async (title, options) => { shown.push({ title, options }) } },
+    clients: { matchAll: async () => [{ postMessage: (message) => posted.push(message) }] },
   }
   const fetch = async () => ({ ok, json: async () => state })
   vm.runInNewContext(SW, { self, fetch, URL })
   let pending = Promise.resolve()
   listeners.push({ waitUntil: (promise) => { pending = promise } })
   await pending
-  return shown[0]
+  return { notice: shown[0], posted }
 }
 {
-  const notice = await pushOnce({
+  const { notice, posted } = await pushOnce({
     state: {
       connections: { pending: [{ id: 'c1', agent: 'connecting-agent' }] },
       pending: [{ id: 'p1', agent: 'item-agent', name: 'secret-item' }],
@@ -119,9 +121,14 @@ async function pushOnce({ ok = true, state = {} } = {}) {
   } else {
     fail('2c click target', JSON.stringify(notice?.options?.data).slice(0, 160))
   }
+  if (posted.length === 1 && posted[0].type === 'secrets-broker:pending') {
+    pass('2f an open console is told to refresh immediately instead of waiting for a poll')
+  } else {
+    fail('2f tab refresh message', JSON.stringify(posted).slice(0, 160))
+  }
 }
 {
-  const notice = await pushOnce({ state: { connections: { pending: [] }, pending: [{ id: 'p1', agent: 'item-agent', name: 'secret-item' }] } })
+  const { notice } = await pushOnce({ state: { connections: { pending: [] }, pending: [{ id: 'p1', agent: 'item-agent', name: 'secret-item' }] } })
   if (notice && notice.title === 'Secrets Broker 授权请求' && notice.options.body.includes('secret-item')) {
     pass('2d with no waiting connection the item request still produces its notice')
   } else {
@@ -131,11 +138,22 @@ async function pushOnce({ ok = true, state = {} } = {}) {
 {
   // A logged-out browser gets 401: the worker keeps the generic copy instead of
   // rendering the agent or item that the session could not be checked against.
-  const notice = await pushOnce({ ok: false, state: { connections: { pending: [{ agent: 'should-not-show' }] } } })
+  const { notice } = await pushOnce({ ok: false, state: { connections: { pending: [{ agent: 'should-not-show' }] } } })
   if (notice && notice.options.body === '有新的授权请求，点击查看') {
     pass('2e a 401 keeps the generic copy and leaks no agent name')
   } else {
     fail('2e 401 copy', JSON.stringify(notice).slice(0, 200))
+  }
+}
+{
+  // The console side of the same fix: the poll must rebuild the bar and the
+  // push listener must run the poll, otherwise the banner only appears after a
+  // manual refresh.
+  const UI = readFileSync(new URL('./src/ui.js', import.meta.url), 'utf8')
+  if (UI.includes("secrets-broker:pending") && UI.includes('wireServiceWorkerMessages()') && UI.includes('if (pendingMoved) renderNoticeBar()')) {
+    pass('2g the console refreshes the notice bar from a push message and from the poll')
+  } else {
+    fail('2g console refresh wiring', 'missing listener or renderNoticeBar call')
   }
 }
 

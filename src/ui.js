@@ -2610,7 +2610,19 @@ function seedPendingFromState() {
   pendingInitialized = true
   return true
 }
-function startPendingPolling() { updateBrowserNotifyStatus(); if (pendingTimer) return; if (!seedPendingFromState()) checkPendingNotifications(); schedulePendingPoll() }
+let swMessageWired = false
+// A push already knows there is something new; waiting up to 30 seconds for the
+// next poll is what made the queue look stale until a manual refresh. The
+// service worker posts to every open tab, and this makes the bar, the title and
+// any open queue move immediately.
+function wireServiceWorkerMessages() {
+  if (swMessageWired || !('serviceWorker' in navigator)) return
+  swMessageWired = true
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'secrets-broker:pending') checkPendingNotifications()
+  })
+}
+function startPendingPolling() { updateBrowserNotifyStatus(); wireServiceWorkerMessages(); if (pendingTimer) return; if (!seedPendingFromState()) checkPendingNotifications(); schedulePendingPoll() }
 // Coming back to the tab is when a stale banner is most visible, so refresh
 // immediately; going away re-arms the timer with the slower interval.
 document.addEventListener('visibilitychange', () => { if (!pendingTimer) return; schedulePendingPoll(); if (!document.hidden) checkPendingNotifications() })
