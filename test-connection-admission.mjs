@@ -59,6 +59,10 @@ async function readState(env) {
   return (await response.json()).state ?? {}
 }
 
+async function writeState(env, state) {
+  await env.BROKER_STATE.get().fetch('https://state/state', { method: 'PUT', body: JSON.stringify(state) })
+}
+
 function getSecret(env, name = HARNESS.ITEM) {
   return call(env, '/secret?name=' + encodeURIComponent(name), { headers: { authorization: 'Bearer ' + HARNESS.AUTH } })
 }
@@ -188,7 +192,8 @@ async function main() {
     ok('不读明文时仍能看到许可范围内的名称', text.includes(HARNESS.ITEM) && !text.includes(ITEM2), text)
   }
 
-  // 4: an approved admission that ran out of time stops working.
+  // 4: an approved admission that ran out of time stops working — but it is
+  // history, not a lockout: the same source may ask again immediately.
   {
     const expired = record({
       id: 'conn-approved-expired', state: 'approved',
@@ -198,11 +203,15 @@ async function main() {
     const env = await freshEnv({ connections: { [expired.id]: expired } })
     const read = await getSecret(env)
     const body = await read.json()
-    ok('到期的连接许可失效', read.status === 403 && body.status === 'connection-expired' && body.reasonCode === 'ttl-elapsed', JSON.stringify(body))
+    ok('到期的连接许可不再放行，改为新的待批（不是 403）',
+      read.status === 202 && body.status === 'pending-connection' && body.reasonCode === 'connection-pending'
+      && Boolean(body.requestId) && body.requestId !== expired.id, JSON.stringify(body))
     const state = await readState(env)
     ok('到期记录被标记为 expired', state.connections[expired.id].state === 'expired')
     ok('到期写入 connection.expire 审计',
-      env._vault.auditRows.some((entry) => entry.event === 'connection.expire' && entry.reasonCode === 'ttl-elapsed'))
+      env._vault.auditRows.some((entry) => entry.event === 'connection.expire' && entry.reasonCode === 'ttl-elapsed' && entry.requestId === expired.id))
+    ok('到期后同一来源得到新的待批记录',
+      Object.values(state.connections ?? {}).some((entry) => entry.id === body.requestId && entry.state === 'pending'))
   }
 
   // 5: 10 minutes without a decision -> expired, gone from the pending list.
@@ -222,6 +231,37 @@ async function main() {
       env._vault.auditRows.some((entry) => entry.event === 'connection.expire'
         && entry.reasonCode === 'not-decided-in-10m'
         && entry.requestId === stale.id))
+  }
+
+  // 5b: a pending request that ran out of time is not a lockout either. The
+  // same agent + account + IP may ask again at once, and the two attempts stay
+  // distinguishable in the audit.
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const firstBody = await first.json()
+    ok('首次申请产生待批', first.status === 202 && Boolean(firstBody.requestId), JSON.stringify(firstBody))
+    // Move the pending window into the past — what ten minutes of waiting does.
+    const snapshot = await readState(env)
+    snapshot.connections[firstBody.requestId].expiresAt = iso(-60 * 1000)
+    await writeState(env, snapshot)
+    const second = await getSecret(env)
+    const secondBody = await second.json()
+    ok('超时后同一来源立即得到新的待批，而不是 403/锁死',
+      second.status === 202 && secondBody.status === 'pending-connection'
+      && secondBody.reasonCode === 'connection-pending'
+      && Boolean(secondBody.requestId) && secondBody.requestId !== firstBody.requestId,
+      JSON.stringify(secondBody))
+    const requests = env._vault.auditRows.filter((entry) => entry.event === 'connection.request')
+    ok('审计里两条 connection.request 可区分',
+      requests.length === 2 && requests[0].requestId === firstBody.requestId
+      && requests[1].requestId === secondBody.requestId,
+      JSON.stringify(requests.map((entry) => entry.requestId)))
+    const state = await readState(env)
+    ok('旧申请保留为 expired，新申请是 pending',
+      state.connections[firstBody.requestId].state === 'expired'
+      && state.connections[secondBody.requestId].state === 'pending',
+      JSON.stringify(Object.values(state.connections ?? {}).map((entry) => [entry.id, entry.state])))
   }
 
   // 6: an agent that predates the gate is already admitted.

@@ -2062,6 +2062,17 @@ function connectionExpiredAt(record) {
   return Number.isFinite(expires) ? expires : null
 }
 
+// Only a record still inside its window may speak for a source. An 'expired'
+// row (pending timed out, approved TTL elapsed) is kept for a day purely so the
+// console can show what happened; matching it turned a timed-out request into a
+// day-long lockout where the same agent + account + IP could never ask again.
+// A denial keeps its own one-day expiry, so it still answers "denied" until the
+// sweep removes it.
+function connectionLive(record, now = Date.now()) {
+  const expires = connectionExpiredAt(record)
+  return expires === null || expires > now
+}
+
 // Moves records whose time is up to 'expired' and returns the transitions that
 // still need an audit line. Called inside a state transaction, so two readers
 // cannot both claim the same transition.
@@ -2190,18 +2201,19 @@ async function connectionAdmission(env, { state, agentName, account, request, or
   if (state.connectionPolicy?.required === false) return { ok: true, record: null, disabled: true }
   const accountKey = String(account ?? '').trim().toLowerCase()
   const source = await connectionSourceOf(request)
-  const match = (connections) => Object.values(connections ?? {}).find((record) => record
+  const sameSource = (record) => record
     && record.agent === agentName
     && String(record.account ?? '').trim().toLowerCase() === accountKey
-    && String(record.source?.ipHash ?? '') === source.ipHash)
+    && String(record.source?.ipHash ?? '') === source.ipHash
+  // A row outside its window is history, not an admission: it must not block a
+  // fresh request from the same source. Only a live pending/approved/denied row
+  // decides this call.
+  const match = (connections, now = Date.now()) => Object.values(connections ?? {}).find((record) => sameSource(record) && connectionLive(record, now))
   const existing = match(state.connections)
-  if (existing) {
-    const decision = connectionDecision(existing)
-    // Time is the authority even when nobody has read the list: an expired
-    // record never works again, and this call leaves the audit line behind.
-    if (decision.status === 'expired' && existing.state !== 'expired') await sweepConnectionExpiry(env).catch(() => {})
-    return decision
-  }
+  if (existing) return connectionDecision(existing)
+  // Apply the transition (and its audit line) before asking again, so the
+  // console shows "expired" beside the new request instead of a stale row.
+  if (Object.values(state.connections ?? {}).some(sameSource)) await sweepConnectionExpiry(env).catch(() => {})
   if (connectionGrandfathered(state, agentName)) return { ok: true, record: null, grandfathered: true }
   let created = null
   await updateState(env, (next) => {
