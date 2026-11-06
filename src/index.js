@@ -44,7 +44,7 @@ const AUDIT_RED_EVENTS = ['secret.read-noapproval', 'access.denied', 'secret.rea
 const AUDIT_EVENT_GROUPS = {
   read: ['secret.read', 'secret.read-deny', 'secret.read-noapproval'],
   blocked: ['access.denied'],
-  grant: ['grant.share', 'grant.revoke', 'grant.extend', 'request.approve', 'request.deny', 'request.auto-approve', 'request.create'],
+  grant: ['grant.share', 'grant.revoke', 'grant.expire', 'grant.extend', 'request.approve', 'request.deny', 'request.auto-approve', 'request.create'],
   ai: ['ai.ask', 'telegram.*'],
   login: ['admin.login', 'admin.login-fail', 'admin.oidc-login', 'admin.origin-mismatch', 'vault.unlock', 'vault.lock', 'vault.oidc-unlock'],
   item: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.rotate.purge', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update'],
@@ -2133,21 +2133,57 @@ function connectionSweepNeeded(state, now = Date.now()) {
   return false
 }
 
+// Expired grants are deleted here rather than left in the list as "已过期"
+// rows. The audit line written by the caller keeps the trace, so removing the
+// record does not remove the fact that the authority existed. Permanent grants
+// (expiresAt 0) and revoked ones are untouched: revocation is an explicit act
+// the operator may still want to see and undo.
+function sweepExpiredGrants(state, now = Date.now()) {
+  state.grants ??= {}
+  const expired = []
+  for (const [key, grant] of Object.entries(state.grants)) {
+    if (!grant) { delete state.grants[key]; continue }
+    if (!grant.expiresAt || grant.expiresAt > now) continue
+    expired.push({
+      agent: grant.agent ?? String(key).split('\u0000')[0] ?? '',
+      name: grant.name ?? String(key).split('\u0000')[1] ?? '',
+      mode: grant.mode ?? '',
+      expiresAt: grant.expiresAt,
+      reads: grant.reads ?? 0,
+    })
+    delete state.grants[key]
+  }
+  return expired
+}
+
+function grantSweepNeeded(state, now = Date.now()) {
+  return Object.values(state.grants ?? {}).some((grant) => grant && grant.expiresAt && grant.expiresAt <= now)
+}
+
 // Lazy sweep: this deployment has no cron (the account's slot limit is full),
 // so expiry is applied the next time anyone reads or uses a connection. It is
 // safe to call often: the snapshot check avoids a write when nothing is due.
-async function sweepConnectionExpiry(env) {
+// Expired grants ride along in the same pass instead of needing their own
+// timer. Audits are written after the state write, so the trace outlives the
+// deleted record.
+async function sweepExpiredState(env) {
   const snapshot = await loadState(env)
-  if (!connectionSweepNeeded(snapshot)) return []
-  const expired = []
+  if (!connectionSweepNeeded(snapshot) && !grantSweepNeeded(snapshot)) return []
+  const expiredConnections = []
+  const expiredGrants = []
   await updateState(env, (state) => {
-    expired.push(...sweepConnections(state, Date.now()))
+    const now = Date.now()
+    expiredConnections.push(...sweepConnections(state, now))
+    expiredGrants.push(...sweepExpiredGrants(state, now))
     return state
   })
-  for (const entry of expired) {
+  for (const entry of expiredConnections) {
     await addAudit(env, { event: 'connection.expire', agent: entry.agent, requestId: entry.id, from: entry.from, reasonCode: entry.reasonCode })
   }
-  return expired
+  for (const grant of expiredGrants) {
+    await addAudit(env, { event: 'grant.expire', agent: grant.agent, name: grant.name, mode: grant.mode, expiresAt: grant.expiresAt, reads: grant.reads })
+  }
+  return [...expiredConnections, ...expiredGrants]
 }
 
 function connectionAllowsItem(connection, itemId) {
@@ -2234,7 +2270,7 @@ async function connectionAdmission(env, { state, agentName, account, request, or
   if (existing) return connectionDecision(existing)
   // Apply the transition (and its audit line) before asking again, so the
   // console shows "expired" beside the new request instead of a stale row.
-  if (Object.values(state.connections ?? {}).some(sameSource)) await sweepConnectionExpiry(env).catch(() => {})
+  if (Object.values(state.connections ?? {}).some(sameSource)) await sweepExpiredState(env).catch(() => {})
   if (connectionGrandfathered(state, agentName)) return { ok: true, record: null, grandfathered: true }
   let created = null
   await updateState(env, (next) => {
@@ -3132,13 +3168,16 @@ function publicState(state, options = {}) {
     requireClassification: requireClassification(state),
     // Reminder cadence for the health card. Display-only: no auth path reads it.
     rotateReminderDays: rotateReminderDays(state),
-    grants: Object.values(state.grants ?? {}),
+    // Expired grants are deleted by sweepExpiredState before this runs, but the
+    // filter stays as a backstop for any view built from an unswept snapshot:
+    // the list should never offer authority whose window has closed.
+    grants: Object.values(state.grants ?? {}).filter((grant) => grant && (!grant.expiresAt || grant.expiresAt > now)),
     pending: Object.values(state.pending ?? {}),
     // Legacy grants that have no recorded identity binding cannot be migrated
     // safely, so the admin has to re-grant them against a concrete item.
     // Metadata only: agent, item name and the reason.
     legacyUnbound: Object.entries(state.grants ?? {})
-      .filter(([, grant]) => grant && !grant.revokedAt && !grant.migratedToCapability)
+      .filter(([, grant]) => grant && !grant.revokedAt && !grant.migratedToCapability && (!grant.expiresAt || grant.expiresAt > now))
       .filter(([grantKeyName, grant]) => {
         const subject = String(grantKeyName).split('\u0000')[0]
         const name = String(grantKeyName).split('\u0000')[1]
@@ -7464,7 +7503,7 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       // Expiry is applied here too, so an open console loses a stale request
       // without waiting for the operator to open a separate panel.
-      await sweepConnectionExpiry(env)
+      await sweepExpiredState(env)
       const state = await loadState(env)
       await migrateLegacyAudit(env, state)
       const audit = await recentAuditEntries(env, state, LEGACY_AUDIT_LIMIT)
@@ -7840,7 +7879,7 @@ export default {
     // The console reads the pending connections and decides one at a time.
     if (url.pathname === '/api/connections' && request.method === 'GET') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
-      await sweepConnectionExpiry(env)
+      await sweepExpiredState(env)
       const state = await loadState(env)
       const masked = await shouldMaskConsole(env)
       const connections = connectionView(state, { masked })
@@ -7855,7 +7894,7 @@ export default {
       if (decision !== 'approve' && decision !== 'deny') return json({ ok: false, reasonCode: 'connection-decision-invalid', error: 'decision must be approve or deny' }, 400)
       // A late click must not resurrect a request whose window closed: apply
       // expiry first, then refuse anything that is no longer pending.
-      await sweepConnectionExpiry(env)
+      await sweepExpiredState(env)
       const state = await loadState(env)
       const existing = state.connections?.[id]
       if (!existing) return json({ ok: false, reasonCode: 'connection-not-found', error: 'connection request not found' }, 404)
@@ -7959,7 +7998,7 @@ export default {
       if (record && record.state === 'pending') {
         const expires = connectionExpiredAt(record)
         if (expires !== null && expires <= Date.now()) {
-          await sweepConnectionExpiry(env).catch(() => {})
+          await sweepExpiredState(env).catch(() => {})
           state = await loadState(env)
           record = latest(state)
         }

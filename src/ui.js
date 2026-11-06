@@ -1066,7 +1066,7 @@ nav{grid-area:tabs}
   <section id="view-grants" class="view hidden">
     <div class="card" id="transfers-card"><h2>待复制到其他账户</h2><div class="hint">主账户分享后先进入队列；切回目标账户并解锁后自动复制到指定文件夹并生成授权。</div><div id="transfers-box" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
     <div class="card"><h2>待批准请求</h2><div class="hint">点按钮即授权；同 Docker 版的 once/1h/24h/7d/永久。</div><div id="pending-box" class="scroll-list" style="margin-top:10px"></div></div>
-    <div class="card"><h2>有效授权</h2><div class="hint">过期的授权会显示「已过期」，点该行的时长即可延期；「选择」可以批量删除或按时长批量恢复。</div><div class="row" style="margin-top:8px"><button id="grants-select">选择</button></div><div id="grants-bulk" class="row hidden" style="margin-top:8px;background:var(--fill);padding:8px;border-radius:10px;flex-wrap:wrap"><span id="grants-bulk-count" class="hint" style="flex:0 0 auto"></span><select id="grants-bulk-seconds" title="恢复后的时长（从现在起算）" style="flex:0 0 auto"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800" selected>7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><button id="grants-bulk-restore" class="primary">批量恢复</button><button class="danger" id="grants-bulk-delete">批量删除</button><button id="grants-bulk-clear">清除选择</button></div><div id="grants-box" class="scroll-list" style="margin-top:10px"></div></div>
+    <div class="card"><h2>有效授权</h2><div class="hint">到期的授权会在下次刷新时自动从列表移除（审计仍保留）；点该行的时长即可修改时长；「选择」可以批量删除或按时长批量恢复。</div><div class="row" style="margin-top:8px"><button id="grants-select">选择</button></div><div id="grants-bulk" class="row hidden" style="margin-top:8px;background:var(--fill);padding:8px;border-radius:10px;flex-wrap:wrap"><span id="grants-bulk-count" class="hint" style="flex:0 0 auto"></span><select id="grants-bulk-seconds" title="恢复后的时长（从现在起算）" style="flex:0 0 auto"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800" selected>7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><button id="grants-bulk-restore" class="primary">批量恢复</button><button class="danger" id="grants-bulk-delete">批量删除</button><button id="grants-bulk-clear">清除选择</button></div><div id="grants-box" class="scroll-list" style="margin-top:10px"></div></div>
   </section>
 
   <section id="view-logs" class="view hidden"><div class="card"><h2>审计日志</h2><div class="hint">最近 500 条，数据在 Durable Object 中。</div>
@@ -5020,6 +5020,7 @@ function describe(entry) {
     case 'grant.batch': return (entry.action === 'delete' ? '批量删除授权（' : '批量恢复授权（') + (entry.count || 0) + ' 条）'
     case 'secret.write': return agent + ' 写入了 ' + name
     case 'grant.revoke': return '撤销 ' + agent + ' 对 ' + name + ' 的授权'
+    case 'grant.expire': return agent + ' 对 ' + name + ' 的授权到期，已从列表清理（审计保留）'
     case 'grant.extend': return '延长 ' + agent + ' 对 ' + name + ' 的授权'
     case 'action-grant.revoke': return '批量撤销授权（' + (entry.items || 1) + ' 条）'
     case 'request.auto-approve': return agent + ' 的 ' + name + ' 申请按自动规则放行'

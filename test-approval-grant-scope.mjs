@@ -107,4 +107,59 @@ async function decidedState(env) {
   }
 }
 
+// ============ 4. Expired grants leave the list but stay in the audit ============
+{
+  // A grant whose window has closed used to keep its row and its "已过期"
+  // badge forever. The next state read has to delete it while the audit keeps
+  // the trace, so the operator can still explain what authority once existed.
+  const env = makeEnv()
+  const now = Date.now()
+  const key = (name) => HARNESS.AGENT + '\u0000' + name
+  const grant = (name, extra = {}) => ({
+    agent: HARNESS.AGENT, name, mode: 'share', createdAt: '2024-01-01',
+    expiresAt: now + 3600e3, reads: 0, maxReads: null, revokedAt: null, account: HARNESS.ACCT, ...extra,
+  })
+  await seedState(env, {
+    grants: {
+      [key('expired-item')]: grant('expired-item', { expiresAt: now - 60e3 }),
+      [key('future-item')]: grant('future-item'),
+      [key('permanent-item')]: grant('permanent-item', { expiresAt: 0 }),
+      [key('revoked-item')]: grant('revoked-item', { revokedAt: '2024-01-02' }),
+    },
+    pending: {},
+  })
+  const cookie = await login(env)
+  const response = await call(env, '/api/state', { headers: { cookie } })
+  const view = await response.json()
+  const listed = (view.grants || []).map((entry) => entry.name)
+  if (!listed.includes('expired-item')) {
+    pass('4a an expired grant is gone from the state list')
+  } else {
+    fail('4a expired grant still listed', JSON.stringify(listed).slice(0, 200))
+  }
+  if (['future-item', 'permanent-item', 'revoked-item'].every((name) => listed.includes(name))) {
+    pass('4b future, permanent and revoked grants stay in the list')
+  } else {
+    fail('4b live grants dropped', JSON.stringify(listed).slice(0, 200))
+  }
+  const raw = await decidedState(env)
+  if (!raw.grants?.[key('expired-item')] && raw.grants?.[key('future-item')]) {
+    pass('4c the expired grant record is deleted from state, not only hidden')
+  } else {
+    fail('4c expired record survived', JSON.stringify(Object.keys(raw.grants || {})).slice(0, 200))
+  }
+  const audits = (env._vault.auditRows || []).filter((entry) => entry.event === 'grant.expire')
+  const trace = audits.find((entry) => entry.name === 'expired-item' && entry.agent === HARNESS.AGENT)
+  if (trace && trace.expiresAt === now - 60e3) {
+    pass('4d the deletion writes a grant.expire audit line with the expiry that ended it')
+  } else {
+    fail('4d missing grant.expire audit', JSON.stringify(audits).slice(0, 240))
+  }
+  if (!(env._vault.auditRows || []).some((entry) => entry.event === 'grant.expire' && entry.name === 'future-item')) {
+    pass('4e a live grant writes no expiry audit')
+  } else {
+    fail('4e live grant audited as expired', 'future-item')
+  }
+}
+
 finish()
