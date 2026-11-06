@@ -1701,6 +1701,9 @@ async function finishUnlock(options = {}) {
   renderLockedSurface()
   await loadAll()
   if (!options.inline) status('unlock-status', '已解锁', 'ok')
+  // Callers that were mid-approval use this to continue the action they
+  // started instead of sending the operator back to find the card again.
+  if (typeof options.after === 'function') await options.after()
 }
 async function unlockV2(password, options = {}) {
   const tier = options.tier || $('ttl')?.value || '12h'
@@ -1739,7 +1742,7 @@ async function unlockLegacy(password, ttl = '12h', options = {}) {
 }
 // The unlock prompt that appears where the user is working. One field, the same
 // tier list, and no page swap: approval work continues underneath it.
-function inlineUnlockSheet() {
+function inlineUnlockSheet(after) {
   openModal('就地解锁', '<p class="hint">解锁只影响名称与明文的可见性，当前页面不会跳转。审批可以继续。</p>'
     + '<label class="field" for="inline-password">Vault 主密码</label><input id="inline-password" type="password" autocomplete="current-password" enterkeyhint="go">'
     + '<label class="field" for="inline-ttl">解锁有效期</label><select id="inline-ttl"><option value="12h" selected>12 小时（默认）</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="device">长期（绑定本设备）</option></select>'
@@ -1755,8 +1758,8 @@ function inlineUnlockSheet() {
     status('inline-unlock-status', '正在本地派生密钥…')
     try {
       const v2 = app.v2 || await api('/api/v2/status').catch(() => null)
-      if (v2?.initialized) await unlockV2(password, { inline: true, tier: $('inline-ttl').value })
-      else await unlockLegacy(password, $('inline-ttl').value, { inline: true })
+      if (v2?.initialized) await unlockV2(password, { inline: true, tier: $('inline-ttl').value, after })
+      else await unlockLegacy(password, $('inline-ttl').value, { inline: true, after })
     } catch (error) {
       status('inline-unlock-status', error.message, 'error')
       $('inline-password').focus()
@@ -1846,6 +1849,15 @@ $('locked-unlock').onclick = () => {
   else inlineUnlockSheet()
 }
 document.addEventListener('click', (event) => {
+  // The connection card lives inside the pending modal, so unlocking from it
+  // has to rebuild that queue on the way back; the generic form below would
+  // leave the operator staring at a closed modal.
+  const connTrigger = event.target.closest('[data-conn-unlock]')
+  if (connTrigger) {
+    event.preventDefault()
+    inlineUnlockSheet(() => openPendingSheet())
+    return
+  }
   const trigger = event.target.closest('[data-inline-unlock]')
   if (!trigger) return
   event.preventDefault()
@@ -4481,10 +4493,13 @@ function pendingConnections() {
   const data = app.data || {}
   return (data.connections && data.connections.pending) || []
 }
-// Approval needs the vault key; denial never does. v2 is authoritative when the
-// account has migrated, otherwise fall back to the legacy unlock flag.
+// Approval needs the vault key; denial never does. Either an unlocked v2 slot
+// or a live legacy session satisfies it, matching consoleVault on the Worker.
 function vaultUnlocked() {
-  if (app.v2 && app.v2.initialized === true) return app.v2.unlocked === true
+  // consoleVault on the Worker accepts a live v1 session *or* the cached v2
+  // slot. Reading only the v2 flag made the console refuse approvals the
+  // server would have taken, which is one half of the "locked" dead end.
+  if (app.v2 && app.v2.initialized === true && app.v2.unlocked === true) return true
   return app.me ? app.me.unlocked === true : false
 }
 function connExpiresAt(entry) {
@@ -4544,7 +4559,7 @@ function connectionApprovalHtml(entry) {
     + '<div class="conn-meta">默认关闭；开启后，这次授权会允许 Agent 读取明文密码。</div>'
     + '<label class="field" for="conn-ttl-' + id + '">授权时长</label><select id="conn-ttl-' + id + '" data-conn-duration aria-label="授权时长">'
     + '<option value="1h">1 小时</option><option value="24h">24 小时</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="always">永久（直到撤销）</option></select>'
-    + '<div class="conn-hint" data-conn-status role="status" aria-live="polite">' + (locked ? '批准需要先解锁 Vault；拒绝不需要。 <button type="button" class="small" data-inline-unlock>先解锁</button>' : '') + '</div>'
+    + '<div class="conn-hint" data-conn-status role="status" aria-live="polite">' + (locked ? '批准需要先解锁 Vault；拒绝不需要。 <button type="button" class="small" data-conn-unlock>先解锁并回到审批</button>' : '') + '</div>'
     + '<div class="conn-actions"><button type="button" class="primary" data-conn-approve="' + id + '" aria-label="批准连接：' + esc(entry.agent || '') + '">批准</button>'
     + '<button type="button" class="danger" data-conn-deny="' + id + '" aria-label="拒绝连接：' + esc(entry.agent || '') + '">拒绝</button></div>'
     + '</div></div>'
@@ -4594,14 +4609,16 @@ function setConnectionStatus(card, text, isError) {
   if (isError) el.dataset.state = 'error'
   else delete el.dataset.state
 }
-async function decideConnection(button, body, card) {
+async function decideConnection(button, body, card, options = {}) {
   const buttons = card ? Array.from(card.querySelectorAll('button')) : (button ? [button] : [])
   buttons.forEach((entry) => { entry.disabled = true; entry.setAttribute('aria-busy', 'true') })
   try {
     await api('/api/connections/decide', { method: 'POST', body: JSON.stringify(body) })
     toast(body.decision === 'deny' ? '已拒绝连接申请' : '已批准连接 · ' + connectionDurationLabel(body.duration) + (body.plaintextAllowed ? '（含明文）' : '（不含明文）'))
     await Promise.all([loadState(), loadStats(), loadItems()])
-    if (card && card.closest('#modal-body')) openPendingSheet()
+    // A resumed approval re-opened the sheet from the unlock callback, so it
+    // has to be rebuilt here too or the stale row stays on screen.
+    if (options.afterUnlock || (card && card.closest('#modal-body'))) openPendingSheet()
   } catch (error) {
     buttons.forEach((entry) => { entry.disabled = false; entry.removeAttribute('aria-busy') })
     const stale = [404, 409].includes(error.status) || /not-pending|not-found/i.test(String(error.reason || '') + ' ' + String(error.message || ''))
@@ -4610,8 +4627,13 @@ async function decideConnection(button, body, card) {
       toast('这条申请已处理或已过期，队列已刷新。', true)
       await loadState()
     } else if (error.status === 423) {
-      if (card) setConnectionStatus(card, '批准需要先解锁 Vault；拒绝不需要。', true)
-      toast('批准连接需要先解锁 Vault；拒绝不需要。', true)
+      const message = '批准连接需要先解锁 Vault；拒绝不需要。'
+      if (card) setConnectionStatus(card, message + ' 已打开就地解锁，解锁后会继续这次批准。', true)
+      toast(message, true)
+      // A retry that still finds the vault locked must not reopen the sheet on
+      // itself: the operator sees the status line and decides what to do next.
+      if (options.afterUnlock) return
+      inlineUnlockSheet(() => { openPendingSheet(); decideConnection(null, body, null, { afterUnlock: true }) })
     } else {
       if (card) setConnectionStatus(card, error.message, true)
       toast('审批失败：' + error.message, true)
@@ -4625,10 +4647,6 @@ async function submitConnectionForm(card, decision) {
   const id = card.dataset.connCard
   if (!id) return
   if (decision === 'deny') return decideConnection(null, { id, decision: 'deny' }, card)
-  if (!vaultUnlocked()) {
-    setConnectionStatus(card, '批准需要先解锁 Vault；拒绝不需要。解锁后可重新打开这张卡。', true)
-    return
-  }
   const duration = (card.querySelector('[data-conn-duration]') || {}).value || '1h'
   const plaintextAllowed = Boolean((card.querySelector('[data-conn-plaintext]') || {}).checked)
   const scope = card.querySelector('[data-conn-scope]:checked')
@@ -4640,19 +4658,27 @@ async function submitConnectionForm(card, decision) {
   }
   const body = { id, decision: 'approve', all, plaintextAllowed, duration }
   if (!all) body.itemIds = itemIds
+  if (!vaultUnlocked()) {
+    // The old copy just ended here and told the operator to unlock somewhere
+    // else. Open the form in place and resubmit the same body once it works.
+    setConnectionStatus(card, '批准需要先解锁 Vault；在这里解锁后会自动继续这次批准。', true)
+    inlineUnlockSheet(() => { openPendingSheet(); decideConnection(null, body, null, { afterUnlock: true }) })
+    return
+  }
   setConnectionStatus(card, '')
   return decideConnection(null, body, card)
 }
 async function decideConnectionQuick(button) {
   if (!button || button.disabled) return
   const id = button.dataset.connQuick
+  const body = { id, decision: 'approve', all: true, plaintextAllowed: false, duration: '1h' }
   if (!vaultUnlocked()) {
-    setConnectionStatus(button.closest('[data-conn-card]'), '批准连接需要先解锁 Vault；拒绝不需要。', true)
-    toast('批准连接需要先解锁 Vault；拒绝不需要。', true)
-    openPendingSheet()
+    setConnectionStatus(button.closest('[data-conn-card]'), '批准需要先解锁 Vault；解锁后会自动继续这次批准。', true)
+    toast('批准连接需要先解锁 Vault；已打开就地解锁。', true)
+    inlineUnlockSheet(() => { openPendingSheet(); decideConnection(null, body, null, { afterUnlock: true }) })
     return
   }
-  return decideConnection(button, { id, decision: 'approve', all: true, plaintextAllowed: false, duration: '1h' }, null)
+  return decideConnection(button, body, null)
 }
 
 // The web fill policy card. Every call goes through the admin API, which

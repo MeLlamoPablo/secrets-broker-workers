@@ -10,6 +10,7 @@ import {
   FakeD1, legacyCipherRow, tokenHash, mcpCall, mcpText,
 } from './test-support/broker-harness.mjs'
 import { createBridge } from './cli/bridge.mjs'
+import { uiHtml } from './src/ui.js'
 
 const ITEM2 = 'other-item'
 const ITEM2_ID = 'item-other'
@@ -577,6 +578,53 @@ async function main() {
     const afterAllowed = await readState(env)
     ok('成功读取才消耗唯一一次', afterAllowed.capabilities[capKey].usedCount === 1,
       JSON.stringify(afterAllowed.capabilities[capKey]))
+  }
+
+  // 17: approving needs the vault key and denying does not — and the lock is
+  // the same definition consoleVault uses (a live session *or* a cached v2
+  // slot), so the console cannot refuse an approval the server would take.
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const pending = await first.json()
+    const cookie = await login(env)
+    // Logged in but locked: the unlocked vault session is gone.
+    await env.BROKER_STATE.get().fetch('https://state/session', { method: 'DELETE' })
+    const locked = await decide(env, cookie, {
+      id: pending.requestId, decision: 'approve', all: true, plaintextAllowed: false, duration: '1h',
+    })
+    ok('未解锁时批准返回 423', locked.status === 423 && locked.body.error === 'locked', JSON.stringify(locked.body))
+    await putSession(env)
+    const approved = await decide(env, cookie, {
+      id: pending.requestId, decision: 'approve', all: true, plaintextAllowed: false, duration: '1h',
+    })
+    ok('解锁后同一条申请可以继续批准',
+      approved.status === 200 && approved.body.ok === true, JSON.stringify(approved.body))
+  }
+  {
+    const env = await freshEnv()
+    const first = await getSecret(env)
+    const pending = await first.json()
+    const cookie = await login(env)
+    await env.BROKER_STATE.get().fetch('https://state/session', { method: 'DELETE' })
+    const denied = await decide(env, cookie, { id: pending.requestId, decision: 'deny' })
+    ok('未解锁也能拒绝连接', denied.status === 200 && denied.body.ok === true, JSON.stringify(denied.body))
+  }
+
+  // 18: the console must not stop at "Vault is locked". The local check mirrors
+  // consoleVault, a locked click opens the inline sheet, and the unlock
+  // callback resumes the same approval body without a page change.
+  {
+    ok('UI 的解锁判定同时接受 v1 session 与 v2 槽',
+      /function vaultUnlocked\(\)[\s\S]{0,400}app\.v2\.initialized === true && app\.v2\.unlocked === true[\s\S]{0,160}app\.me \? app\.me\.unlocked === true/.test(uiHtml))
+    ok('未解锁时批准会先就地解锁并续批',
+      /if \(!vaultUnlocked\(\)\) \{[\s\S]{0,260}inlineUnlockSheet\(\(\) => \{ openPendingSheet\(\); decideConnection\(null, body, null, \{ afterUnlock: true \}\) \}\)/.test(uiHtml))
+    ok('423 不只提示，还会打开就地解锁并继续这次批准',
+      /error\.status === 423[\s\S]{0,700}inlineUnlockSheet\(\(\) => \{ openPendingSheet\(\); decideConnection\(null, body, null, \{ afterUnlock: true \}\) \}\)/.test(uiHtml))
+    ok('解锁完成后执行续批回调',
+      /if \(typeof options\.after === 'function'\) await options\.after\(\)/.test(uiHtml))
+    ok('锁定的连接卡提供「先解锁并回到审批」入口',
+      uiHtml.includes('data-conn-unlock') && uiHtml.includes('先解锁并回到审批'))
   }
 
   report.finish()
