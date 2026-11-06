@@ -29,20 +29,20 @@ export function parseCommand(text) {
 // The help text. Deliberately states what it cannot do, so nobody asks it for a
 // password and assumes a failure means the feature is broken.
 export const TELEGRAM_HELP = [
-  '控制台命令（不会返回任何密钥值）：',
-  '/pending — 列出待审批请求',
-  '/approve <请求号> [once|1h|24h|7d|always] — 批准',
-  '/deny <请求号> — 拒绝',
-  '/grants — 列出授权及状态',
-  '/extend <agent> <条目> <天数|permanent> — 延长授权',
-  '/revoke <agent> <条目> [action] — 撤销授权',
-  '/status — 概览',
-  '/asksettings — 查看自动审批规则',
-  '/auto <agent|*> <时长> <分钟> — 让某 Agent 的请求在 N 分钟内自动批准',
-  '/auto off — 关闭自动审批',
+  'Console commands (never return any secret values):',
+  '/pending — list pending requests',
+  '/approve <request#> [once|1h|24h|7d|always] — approve',
+  '/deny <request#> — deny',
+  '/grants — list grants and their status',
+  '/extend <agent> <item> <days|permanent> — extend a grant',
+  '/revoke <agent> <item> [action] — revoke a grant',
+  '/status — overview',
+  '/asksettings — show the auto-approval rule',
+  '/auto <agent|*> <duration> <minutes> — auto-approve an Agent’s requests for N minutes',
+  '/auto off — turn off auto-approval',
   '',
-  '直接发文字会交给 AI 助手回答（只读）。',
-  '我不能读取、复制或分享密钥值，这不在能力范围内。',
+  'Any other text goes to the AI assistant (read-only).',
+  'I can’t read, copy or share secret values; that’s outside what I can do.',
 ].join('\n')
 
 // A short prefix for a pending entry, so /approve takes a number rather than a
@@ -53,25 +53,25 @@ export function pendingHandle(entry, index) {
 
 export function formatPendingList(state) {
   const entries = Object.values(state.pending ?? {})
-  if (!entries.length) return '没有待审批请求。'
+  if (!entries.length) return 'No pending requests.'
   const lines = entries.slice(0, 20).map((entry, index) => {
-    const action = entry.action === 'secret.fill' ? '网页填充' : entry.action === 'secret.use' ? '代持调用' : '读取明文'
-    return pendingHandle(entry, index) + ' ' + entry.agent + ' → ' + entry.name + '（' + action + '）'
+    const action = entry.action === 'secret.fill' ? 'web fill' : entry.action === 'secret.use' ? 'proxied call' : 'plaintext read'
+    return pendingHandle(entry, index) + ' ' + entry.agent + ' → ' + entry.name + ' (' + action + ')'
   })
-  return '待审批：\n' + lines.join('\n') + (entries.length > 20 ? '\n…还有 ' + (entries.length - 20) + ' 条' : '') + '\n\n用 /approve #1 或 /deny #1。'
+  return 'Pending:\n' + lines.join('\n') + (entries.length > 20 ? '\n…and ' + (entries.length - 20) + ' more' : '') + '\n\n/approve #1 or /deny #1 to answer.'
 }
 
 export function formatGrants(state) {
   const now = Date.now()
   const caps = Object.values(state.capabilities ?? {})
-  if (!caps.length) return '还没有任何授权。'
-  const actionLabel = { 'secret.read': '读明文', 'secret.use': '代持', 'secret.fill': '填充' }
+  if (!caps.length) return 'No grants yet.'
+  const actionLabel = { 'secret.read': 'read', 'secret.use': 'proxied', 'secret.fill': 'fill' }
   const lines = caps.slice(-20).map((cap) => {
-    const status = cap.revokedAt ? '已撤销' : (cap.expiresAt && cap.expiresAt <= now ? '已过期' : '有效')
-    const when = cap.expiresAt ? new Date(cap.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久'
-    return cap.subjectId + ' → ' + cap.itemName + '　' + (actionLabel[cap.action] || cap.action) + '　' + status + '　' + when
+    const status = cap.revokedAt ? 'Revoked' : (cap.expiresAt && cap.expiresAt <= now ? 'Expired' : 'Active')
+    const when = cap.expiresAt ? new Date(cap.expiresAt).toLocaleString('zh-CN', { hour12: false }) : 'Permanent'
+    return cap.subjectId + ' → ' + cap.itemName + ' · ' + (actionLabel[cap.action] || cap.action) + ' · ' + status + ' · ' + when
   })
-  return '授权（最近 ' + lines.length + ' 条）：\n' + lines.join('\n')
+  return 'Grants (latest ' + lines.length + '):\n' + lines.join('\n')
 }
 
 export function formatStatus(state) {
@@ -81,7 +81,7 @@ export function formatStatus(state) {
   const items = Object.keys(state.itemIds ?? {}).length
   const expired = Object.values(state.capabilities ?? {}).filter((cap) => !cap.revokedAt && cap.expiresAt && cap.expiresAt <= now).length
   const denied = Object.keys(state.deniedAttempts ?? {}).length
-  return ['概览：', 'Agent ' + agents + ' 个，条目 ' + items + ' 个', '待审批 ' + pending + ' 条', '已过期授权 ' + expired + ' 条', '被拦下的请求 ' + denied + ' 类'].join('\n')
+  return ['Overview:', 'Agent count: ' + agents + ', item count: ' + items + '', 'Pending: ' + pending + '', 'Expired grants: ' + expired + '', 'Blocked request types: ' + denied + ''].join('\n')
 }
 
 // Resolve '#1' or a raw id to a pending entry.
@@ -108,7 +108,7 @@ export function autoRuleActive(state, agent, now = Date.now()) {
 
 export function describeAutoRule(state, now = Date.now()) {
   const rule = state.settings?.telegramAuto
-  if (!rule || rule.until <= now) return '自动审批：关闭'
+  if (!rule || rule.until <= now) return 'Auto-approval: off'
   const minutesLeft = Math.max(0, Math.round((rule.until - now) / 60000))
-  return '自动审批：' + (rule.agent === '*' ? '所有 Agent' : rule.agent) + ' 的请求，还剩 ' + minutesLeft + ' 分钟'
+  return 'Auto-approval: requests from ' + (rule.agent === '*' ? 'every Agent' : rule.agent) + ', ' + minutesLeft + ' min left'
 }

@@ -271,7 +271,7 @@ function createGlobe(container, options) {
         })
       }
       if (showOperator && opLat !== null && opLon !== null) {
-        points.push({ lat: opLat, lng: opLon, size: 0.7, color: '#ffd166', agent: '我', isOperator: true })
+        points.push({ lat: opLat, lng: opLon, size: 0.7, color: '#ffd166', agent: 'You', isOperator: true })
       }
       globe.pointsData(points)
 

@@ -2,6 +2,11 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+> **This fork's `english` branch** is [upstream](https://github.com/otscup/secrets-broker-workers)
+> with the console, the server-rendered pages and the Worker's messages
+> translated into English. The CLI, desktop app and extension are unchanged.
+> To update, merge upstream's `main` and translate any new strings.
+
 **Try it without setting anything up:** <https://demo.otscup.com> — the real UI
 against a virtual vault. No NodeWarden, no real credentials, and its own OIDC
 provider, so the whole flow is clickable in a minute.

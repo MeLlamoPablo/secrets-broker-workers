@@ -7,7 +7,7 @@
  * is portable, the key is not.
  *
  * Comparing is read-only by construction: the diff decides what a merge would
- * do and writes nothing. The panel's "同步到本地" is a separate step
+ * do and writes nothing. The panel's "Sync to local" is a separate step
  * (/api/sync/apply) that only ever inserts rows this vault can decrypt — a row
  * whose name does not decrypt here belongs to another vault, and is refused.
  *
@@ -136,33 +136,33 @@ export function formatDiff(diff, { localUrl, remoteUrl, verbose = false } = {}) 
   lines.push(`local:  ${localUrl}`)
   lines.push(`remote: ${remoteUrl}`)
   lines.push('')
-  lines.push(`本地条目 ${rowsTotal} 与远端比对完成（去重后 ${rowsTotal} 个 id）`)
-  lines.push(`  将上传（只在本地 / 本地较新）: ${diff.push.length}`)
-  lines.push(`  将下载（只在远端 / 远端较新）: ${diff.pull.length}`)
-  lines.push(`  将删除（一侧是墓碑）:         ${diff.delete.length}`)
-  lines.push(`  冲突（同一时刻、内容不同）:   ${diff.conflict.length}`)
-  lines.push(`  一致:                         ${diff.equal}`)
-  if (diff.skipped) lines.push(`  忽略（只有墓碑、另一侧本来就没有）: ${diff.skipped}`)
+  lines.push(`Compared ${rowsTotal} local items with the remote (deduplicated by id: ${rowsTotal})`)
+  lines.push(`  To push (local only / newer locally):     ${diff.push.length}`)
+  lines.push(`  To pull (remote only / newer remotely):   ${diff.pull.length}`)
+  lines.push(`  To delete (tombstone on one side):        ${diff.delete.length}`)
+  lines.push(`  Conflicts (same time, different content): ${diff.conflict.length}`)
+  lines.push(`  Equal:                                    ${diff.equal}`)
+  if (diff.skipped) lines.push(`  Skipped (tombstone only, the other side never had it): ${diff.skipped}`)
   if (!diff.push.length && !diff.pull.length && !diff.delete.length && !diff.conflict.length) {
     lines.push('')
-    lines.push('两边已经一致，没有要同步的内容。')
+    lines.push('Both sides already match; nothing to sync.')
     return lines.join('\n')
   }
   const rows = [
-    ...diff.push.map((entry) => ['上传', entry.item, entry.why]),
-    ...diff.pull.map((entry) => ['下载', entry.item, entry.why]),
-    ...diff.delete.map((entry) => ['删除', entry.item, entry.side === 'remote' ? '远端有墓碑' : '本地有墓碑']),
-    ...diff.conflict.map((entry) => ['冲突', entry.local, entry.why]),
+    ...diff.push.map((entry) => ['push', entry.item, entry.why]),
+    ...diff.pull.map((entry) => ['pull', entry.item, entry.why]),
+    ...diff.delete.map((entry) => ['delete', entry.item, entry.side === 'remote' ? 'remote tombstone' : 'local tombstone']),
+    ...diff.conflict.map((entry) => ['conflict', entry.local, entry.why]),
   ]
   const shown = verbose ? rows : rows.slice(0, 20)
   lines.push('')
-  lines.push('方向  条目 id（密文，名字要用主密码才解得开）        更新时间')
+  lines.push('Dir    Item id    Updated                 Reason (ids are ciphertext; names need the master password)')
   for (const [direction, item, why] of shown) {
     const id = String(item.id ?? '').slice(0, 8)
     lines.push(`${direction.padEnd(6, ' ')} ${id.padEnd(10, ' ')} ${String(when(item)).padEnd(22, ' ')} ${why}`)
   }
-  if (rows.length > shown.length) lines.push(`… 还有 ${rows.length - shown.length} 条（加 --verbose 全部显示）`)
+  if (rows.length > shown.length) lines.push(`… ${rows.length - shown.length} more (add --verbose to show all)`)
   lines.push('')
-  lines.push('这是只读预览：两个 broker 都没有写入。')
+  lines.push('This is a read-only preview: neither broker was written to.')
   return lines.join('\n')
 }

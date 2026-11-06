@@ -1,5 +1,5 @@
 export const uiHtml = String.raw`<!doctype html>
-<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
 <link rel="icon" type="image/png" sizes="192x192" href="/logo.png?v=2">
 <link rel="apple-touch-icon" href="/logo.png?v=2">
@@ -950,112 +950,112 @@ nav{grid-area:tabs}
 }
 </style></head><body><div class="wrap">
 <div id="db-down" class="notice-bar hidden" data-level="critical"><span class="notice-dot"></span><span class="notice-text"></span></div>
-<header><div class="brand"><img id="site-logo" src="/logo.png" alt="" style="cursor:pointer"><h1 id="site-title" style="cursor:pointer">Secrets Broker</h1><span class="badge">Cloudflare Workers</span><span class="badge" id="header-version" title="应用版本">版本未知</span></div>
+<header><div class="brand"><img id="site-logo" src="/logo.png" alt="" style="cursor:pointer"><h1 id="site-title" style="cursor:pointer">Secrets Broker</h1><span class="badge">Cloudflare Workers</span><span class="badge" id="header-version" title="App version">Version unknown</span></div>
 <div class="hdr-actions">
-<button id="theme-cycle" class="theme-cycle" title="切换主题：浅色 / 深色 / 跟随系统" aria-label="切换主题（当前：浅色）">☀️</button>
-<button id="ai-help" class="small" title="用 AI 解释当前状态">问 AI</button>
+<button id="theme-cycle" class="theme-cycle" title="Switch theme: Light / Dark / System" aria-label="Switch theme (current: Light)">☀️</button>
+<button id="ai-help" class="small" title="Use AI to explain the current state">Ask AI</button>
 <a class="icon-btn" href="https://github.com/otscup/secrets-broker-workers" target="_blank" rel="noreferrer" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
-<button id="page-refresh" class="small" title="刷新当前页面">刷新</button>
-<div class="user-wrap"><span class="user"><span class="who-name" id="who"></span><button id="avatar" class="avatar" title="账户" aria-label="账户菜单" aria-haspopup="menu" aria-expanded="false">SB</button></span>
-<div id="account-menu" class="account-menu hidden"><button data-view="profile">个人资料</button><button data-view="settings">系统设置</button><button id="account-about">关于</button><button id="account-logout">退出登录</button><button id="lock" class="danger">锁定</button></div></div>
+<button id="page-refresh" class="small" title="Refresh this page">Refresh</button>
+<div class="user-wrap"><span class="user"><span class="who-name" id="who"></span><button id="avatar" class="avatar" title="Account" aria-label="Account menu" aria-haspopup="menu" aria-expanded="false">SB</button></span>
+<div id="account-menu" class="account-menu hidden"><button data-view="profile">Profile</button><button data-view="settings">Settings</button><button id="account-about">About</button><button id="account-logout">Log out</button><button id="lock" class="danger">Lock</button></div></div>
 </div>
-<nav id="nav"><button data-view="overview" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span>概览</span></button><button data-view="items"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.6"/><path d="M10.6 10.6 20 20"/><path d="M15.6 15.6l2-2"/><path d="M17.8 17.8l2-2"/></svg><span>密钥</span></button><button data-view="devices"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="1.6"/><path d="M9 20h6"/><path d="M12 16.5V20"/></svg><span>电脑</span></button><button data-view="agents"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.4" r="3"/><path d="M3.5 19c0-2.9 2.5-4.6 5.5-4.6s5.5 1.7 5.5 4.6"/><path d="M16.2 6.6a2.6 2.6 0 0 1 0 5"/><path d="M17.6 14.6c2 .6 3.4 2.2 3.4 4.4"/></svg><span>Agents</span></button><button data-view="grants"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 5 6.4v5c0 4.3 2.9 7.4 7 8.9 4.1-1.5 7-4.6 7-8.9v-5z"/><path d="M9 12.1l2.1 2.1 4-4.4"/></svg><span>授权</span></button><button data-view="logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.5h11"/><path d="M8.5 12h11"/><path d="M8.5 17.5h11"/><circle cx="4.6" cy="6.5" r="1.1"/><circle cx="4.6" cy="12" r="1.1"/><circle cx="4.6" cy="17.5" r="1.1"/></svg><span>日志</span></button></nav>
+<nav id="nav"><button data-view="overview" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span>Overview</span></button><button data-view="items"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.6"/><path d="M10.6 10.6 20 20"/><path d="M15.6 15.6l2-2"/><path d="M17.8 17.8l2-2"/></svg><span>Secrets</span></button><button data-view="devices"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="1.6"/><path d="M9 20h6"/><path d="M12 16.5V20"/></svg><span>Devices</span></button><button data-view="agents"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.4" r="3"/><path d="M3.5 19c0-2.9 2.5-4.6 5.5-4.6s5.5 1.7 5.5 4.6"/><path d="M16.2 6.6a2.6 2.6 0 0 1 0 5"/><path d="M17.6 14.6c2 .6 3.4 2.2 3.4 4.4"/></svg><span>Agents</span></button><button data-view="grants"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 5 6.4v5c0 4.3 2.9 7.4 7 8.9 4.1-1.5 7-4.6 7-8.9v-5z"/><path d="M9 12.1l2.1 2.1 4-4.4"/></svg><span>Grants</span></button><button data-view="logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.5h11"/><path d="M8.5 12h11"/><path d="M8.5 17.5h11"/><circle cx="4.6" cy="6.5" r="1.1"/><circle cx="4.6" cy="12" r="1.1"/><circle cx="4.6" cy="17.5" r="1.1"/></svg><span>Logs</span></button></nav>
 </header>
 
 <div id="auth-shell" class="auth hidden">
 <div class="auth__panel">
   <div class="auth__brand"><img id="auth-logo" src="/logo.png" alt=""><div><span class="auth__name" id="auth-site-name">Secrets Broker</span><span class="auth__tag">SELF-HOSTED SECRETS BROKER</span></div></div>
-  <p class="auth__lead">为 Agent 发放按时限、按范围的密钥读取授权，并把每一次读取记进审计日志。</p>
+  <p class="auth__lead">Give each Agent time-limited, scoped grants to read secrets, and record every read in the audit log.</p>
   <section id="login-card" class="auth__card card hidden" aria-labelledby="login-title">
-    <h2 id="login-title">登录管理控制台</h2>
-    <div class="hint">管理登录只保护这个控制台；Agent 使用另外签发的访问令牌。</div>
-    <label class="field" for="admin-password">管理登录密码</label><input id="admin-password" type="password" autocomplete="current-password" enterkeyhint="go">
-    <div id="totp-row" class="hidden"><label class="field" for="totp-code">两步验证码</label><input id="totp-code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 位验证码"></div>
-    <div class="row"><button class="primary" id="login">登录</button></div><div class="status" id="login-status" role="status" aria-live="polite"></div><div id="login-oidc"></div>
+    <h2 id="login-title">Log in to the admin console</h2>
+    <div class="hint">The console password only protects this console. Each Agent uses its own separately issued access token.</div>
+    <label class="field" for="admin-password">Console password</label><input id="admin-password" type="password" autocomplete="current-password" enterkeyhint="go">
+    <div id="totp-row" class="hidden"><label class="field" for="totp-code">Two-factor code</label><input id="totp-code" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code"></div>
+    <div class="row"><button class="primary" id="login">Log in</button></div><div class="status" id="login-status" role="status" aria-live="polite"></div><div id="login-oidc"></div>
   </section>
 
   <section id="unlock-card" class="auth__card card hidden" aria-labelledby="unlock-title">
-    <h2 id="unlock-title">解锁 Vault</h2><div class="hint">Vault 主密码是初始化 Vault 时设置的密码，不是管理登录密码。它只在本机做 PBKDF2/HKDF，服务器只收到派生出的会话密钥。</div>
-    <label class="field" for="master-password">Vault 主密码</label><input id="master-password" type="password" autocomplete="current-password" enterkeyhint="go">
-    <div id="unlock-totp-row" class="hidden"><label class="field" for="unlock-totp-code">两步验证码</label><input id="unlock-totp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位验证码" aria-label="两步验证码：显示条目名称需要输入手机上 6 位验证码"></div>
-    <label class="field" for="ttl">解锁有效期</label><select id="ttl"><option value="12h" selected>12 小时（默认）</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="device">长期（绑定本设备）</option></select>
-    <div class="hint" id="ttl-risk">时间越长，别处拿到这个会话就能读得越久。选「长期」时密钥会封存在本设备的浏览器存储里，不再长期留在服务端；只有撤销设备才会让它失效。</div>
-    <div class="row"><button class="primary" id="unlock">解锁</button><button id="lock2">锁定</button><button id="unlock-browse">先以锁定状态进入（审批可用）</button></div><div class="status" id="unlock-status" role="status" aria-live="polite"></div>
-    <div class="row auth__secondary"><button id="init-v2">初始化 Vault 2.0（至少 12 位）</button></div>
+    <h2 id="unlock-title">Unlock Vault</h2><div class="hint">The Vault master password is the one you set when initializing the Vault, not the console password. It only goes through PBKDF2/HKDF on this device; the server only receives the derived session key.</div>
+    <label class="field" for="master-password">Vault master password</label><input id="master-password" type="password" autocomplete="current-password" enterkeyhint="go">
+    <div id="unlock-totp-row" class="hidden"><label class="field" for="unlock-totp-code">Two-factor code</label><input id="unlock-totp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" aria-label="Two-factor code: enter the 6-digit code from your phone to show item names"></div>
+    <label class="field" for="ttl">Unlock duration</label><select id="ttl"><option value="12h" selected>12 hours (default)</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="device">Long-term (bound to this device)</option></select>
+    <div class="hint" id="ttl-risk">The longer the duration, the longer anyone who gets hold of this session can read. With “Long-term”, the key is sealed in this device’s browser storage instead of staying on the server; only revoking the device invalidates it.</div>
+    <div class="row"><button class="primary" id="unlock">Unlock</button><button id="lock2">Lock</button><button id="unlock-browse">Continue locked (approvals still work)</button></div><div class="status" id="unlock-status" role="status" aria-live="polite"></div>
+    <div class="row auth__secondary"><button id="init-v2">Initialize Vault 2.0 (at least 12 characters)</button></div>
   </section>
-  <p class="auth__trust"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 5.5 6v5.2c0 4 2.7 7 6.5 8.3 3.8-1.3 6.5-4.3 6.5-8.3V6z" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 11.8l2 2 4-4.2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>密钥保存在你自己的 Cloudflare Worker 中，不经过第三方托管；登录会话只存在这个浏览器里。</span></p>
-  <div class="auth__foot"><button id="auth-theme" class="auth__theme" type="button" aria-label="切换主题（当前：浅色）">切换主题</button></div>
+  <p class="auth__trust"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 5.5 6v5.2c0 4 2.7 7 6.5 8.3 3.8-1.3 6.5-4.3 6.5-8.3V6z" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 11.8l2 2 4-4.2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Your secrets stay in your own Cloudflare Worker, not with a third-party host; your login session exists only in this browser.</span></p>
+  <div class="auth__foot"><button id="auth-theme" class="auth__theme" type="button" aria-label="Switch theme (current: Light)">Switch theme</button></div>
 </div>
 </div>
 
 <section id="dashboard" class="hidden">
-  <div id="locked-bar" class="notice-bar hidden" data-level="notice" role="status" aria-live="polite"><span class="notice-dot"></span><span class="notice-text" id="locked-text">未解锁 · 条目名称已脱敏，审批仍可进行</span><button class="notice-more" id="locked-unlock" type="button">解锁</button></div>
+  <div id="locked-bar" class="notice-bar hidden" data-level="notice" role="status" aria-live="polite"><span class="notice-dot"></span><span class="notice-text" id="locked-text">Locked · item names are redacted, approvals still work</span><button class="notice-more" id="locked-unlock" type="button">Unlock</button></div>
   <section id="view-overview" class="view">
-    <div class="ov-head"><div class="ov-titles"><h2 class="ov-title">概览</h2><div class="ov-sub" id="ov-sub"></div><span class="hint" id="updated"></span></div><div class="ov-controls"><div class="seg" id="range-row"><button data-range="24h" class="on">24 小时</button><button data-range="7d">7 天</button><button data-range="30d">30 天</button></div><input id="global-search" class="gs-input ov-search" placeholder="搜索 Agent、密钥、授权、日志…" autocomplete="off" aria-label="全局搜索"></div></div>
+    <div class="ov-head"><div class="ov-titles"><h2 class="ov-title">Overview</h2><div class="ov-sub" id="ov-sub"></div><span class="hint" id="updated"></span></div><div class="ov-controls"><div class="seg" id="range-row"><button data-range="24h" class="on">24 hours</button><button data-range="7d">7 days</button><button data-range="30d">30 days</button></div><input id="global-search" class="gs-input ov-search" placeholder="Search Agent names, secrets, grants, logs…" autocomplete="off" aria-label="Global search"></div></div>
     <div id="global-search-results" class="gs-box hidden"></div>
-    <div id="notice-bar" class="notice-bar hidden" role="button" tabindex="0" title="点击查看全部通知"></div>
+    <div id="notice-bar" class="notice-bar hidden" role="button" tabindex="0" title="Click to see all notifications"></div>
     <div id="kpis" class="kpis"></div>
     <div class="dash">
-      <div class="card span2"><div class="card-head"><h2 id="trend-title">读取趋势</h2><div class="trend-nav"><button class="trend-arrow" id="trend-prev" title="上一张" aria-label="上一张">‹</button><span class="trend-count" id="trend-count">1/2</span><button class="trend-arrow" id="trend-next" title="下一张" aria-label="下一张">›</button></div></div><div class="hint" id="trend-hint" style="margin-bottom:6px">按时间聚合 · 悬停查看数值</div><div id="chart-box" class="trend-box"></div><div id="heat-box" class="hidden"></div></div>
-      <div class="card rank-card"><h2>条目读取排行</h2><div class="hint" style="margin-bottom:6px">按被读取次数排序</div><div id="top-box" class="rank-box"></div></div>
+      <div class="card span2"><div class="card-head"><h2 id="trend-title">Read trend</h2><div class="trend-nav"><button class="trend-arrow" id="trend-prev" title="Previous" aria-label="Previous">‹</button><span class="trend-count" id="trend-count">1/2</span><button class="trend-arrow" id="trend-next" title="Next" aria-label="Next">›</button></div></div><div class="hint" id="trend-hint" style="margin-bottom:6px">Grouped by time · hover for values</div><div id="chart-box" class="trend-box"></div><div id="heat-box" class="hidden"></div></div>
+      <div class="card rank-card"><h2>Most-read items</h2><div class="hint" style="margin-bottom:6px">Sorted by read count</div><div id="top-box" class="rank-box"></div></div>
       <div id="ov-actions" class="card ov-actions"></div>
-      <div class="card donut-card"><h2>Agent 读取占比</h2><div class="hint" style="margin-bottom:6px">按 agent 聚合 · 点击扇区查看</div><div id="donut-box" class="donut-wrap"></div></div>
+      <div class="card donut-card"><h2>Reads by Agent</h2><div class="hint" style="margin-bottom:6px">Grouped by agent · click a slice for details</div><div id="donut-box" class="donut-wrap"></div></div>
       <div class="card" id="aging-card" role="region" aria-labelledby="aging-title">
         <div class="card-head">
-          <h2 id="aging-title">到期与轮换</h2>
+          <h2 id="aging-title">Expiry and rotation</h2>
           <span class="aging-count" id="aging-count" aria-live="polite">—</span>
         </div>
         <div class="aging-wrap">
           <table class="aging-table" id="aging-table">
-            <caption>上次轮换、到期与剩余天数；健康卡只给聚合计数。</caption>
+            <caption>Last rotation, expiry and days left; the health card only shows aggregate counts.</caption>
             <thead><tr>
-              <th scope="col" data-sort-key="name" aria-sort="none"><button type="button" data-sort="name">条目<span class="aging-arrow" aria-hidden="true"></span></button></th>
-              <th scope="col" data-sort-key="rotated" aria-sort="none"><button type="button" data-sort="rotated">上次轮换<span class="aging-arrow" aria-hidden="true"></span></button></th>
-              <th scope="col" data-sort-key="expires" aria-sort="none"><button type="button" data-sort="expires">到期<span class="aging-arrow" aria-hidden="true"></span></button></th>
-              <th scope="col" data-sort-key="days" aria-sort="none"><button type="button" data-sort="days">剩余天数<span class="aging-arrow" aria-hidden="true"></span></button></th>
-              <th scope="col">状态</th>
+              <th scope="col" data-sort-key="name" aria-sort="none"><button type="button" data-sort="name">Item<span class="aging-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" data-sort-key="rotated" aria-sort="none"><button type="button" data-sort="rotated">Last rotated<span class="aging-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" data-sort-key="expires" aria-sort="none"><button type="button" data-sort="expires">Expires<span class="aging-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" data-sort-key="days" aria-sort="none"><button type="button" data-sort="days">Days left<span class="aging-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col">Status</th>
             </tr></thead>
-            <tbody id="aging-rows"><tr><td colspan="5" class="aging-msg"><b>正在读取条目…</b>清单只从这台服务器读取，不请求任何第三方。</td></tr></tbody>
+            <tbody id="aging-rows"><tr><td colspan="5" class="aging-msg"><b>Loading items…</b> The list comes only from this server; no third parties are contacted.</td></tr></tbody>
           </table>
         </div>
         <div class="aging-foot hidden" id="aging-foot">
           <span class="aging-more" id="aging-more"></span>
-          <button class="small" id="aging-all" type="button">查看全部</button>
+          <button class="small" id="aging-all" type="button">View all</button>
         </div>
       </div>
-      <div class="card span3 recent-card"><h2>最近活动</h2><div id="recent-box" class="recent"></div></div>
+      <div class="card span3 recent-card"><h2>Recent activity</h2><div id="recent-box" class="recent"></div></div>
     <div id="chart-tip" class="chart-tip"></div>
     </div>
   </section>
 
-  <section id="view-items" class="view hidden"><div class="card"><h2>密钥条目</h2><div class="hint">这里显示同步到本服务器的密钥条目。点开可查看明文、调整免审批或分享给 Agent；勾选多条可批量处理。</div><div class="row" style="margin-top:10px"><input id="item-filter" aria-label="搜索条目" placeholder="搜索名称、分组或网址…"><select id="item-sort" aria-label="排序方式" title="排序方式" style="flex:0 0 auto"><option value="name">按名称</option><option value="activity">按最近活动</option><option value="access">按授权数</option><option value="expiry">按到期时间</option></select><button id="item-density" aria-pressed="false" title="列表行距：在舒适与紧凑之间切换">行距：舒适</button><button id="items-refresh">刷新</button><button id="items-select">选择</button><button id="item-create">新增</button><button id="item-import">导入</button><button id="item-export">导出</button><input id="import-file" type="file" accept="application/json,.json" class="hidden"></div><div id="bulk-bar" class="row hidden" style="margin-top:8px;background:var(--btn);padding:8px;border-radius:10px"><span id="bulk-count" class="hint" style="flex:0 0 auto"></span><span id="bulk-progress" class="hint" role="status" aria-live="polite" style="flex:0 0 auto"></span><button id="bulk-share" class="primary">批量分享</button><button id="bulk-kind" title="把选中的凭据标记为 API Key 或网站登录">批量分类</button><button class="danger" id="bulk-delete">批量删除</button><button id="bulk-clear">清除选择</button></div><div id="items-box" class="table-wrap" style="margin-top:10px"></div><div id="item-status" class="status"></div></div>
-    <div class="card" id="card-vault2"><div class="row" style="justify-content:space-between;align-items:center"><div><h2 style="margin:0">Vault 2.0</h2><div class="hint" style="margin-top:4px">零知识库放在独立数据库里，和上面这一列密文库互不影响。解锁后这里能读出条目名称，锁上就只剩状态。</div></div><span id="v2-badge" class="kind-tag kind-none" style="flex:0 0 auto">读取中…</span></div><div id="v2-status" class="hint" style="margin-top:10px"></div><div class="row" id="v2-unlock-row" style="margin-top:10px"><input id="v2-password" type="password" placeholder="Vault 2.0 主密码（至少 12 位）"><button id="v2-unlock" class="primary">解锁</button><button id="v2-lock">锁定</button><input id="v2-legacy-password" type="password" placeholder="旧主密码（仅导入用）" autocomplete="off"><button id="v2-import">从旧库导入</button><button id="v2-refresh">刷新</button></div><div class="hint" style="margin-top:8px">已配对的电脑、在线状态和撤销按钮都在「电脑」标签页。</div><div class="hint" style="margin-top:6px">风险：解锁时间越长，被盗会话能读的窗口越长。「长期」不会让服务端长期持有钥匙，但本机浏览器会保存解封材料；只有撤销这台设备才会真正失效。</div><div id="v2-box" class="table-wrap scroll-list hidden" style="margin-top:10px"></div><div id="v2-msg" class="status"></div></div>
-<div class="card hidden" id="card-fill-policies" aria-hidden="true"><h2>已分类的凭据</h2><div class="hint">点列表里的 ⋮ 打开条目即可逐个设置，或勾选多个后点「批量分类」。标为 <b>api</b>（API Key）可按需允许 Agent 读取明文；标为 <b>web</b>（网站登录）只能被填充到指定网站，Agent 永远拿不到明文。未分类的凭据默认为拒绝读取。</div><div class="hint" id="fp-exec-note" style="margin-top:6px"></div><div id="fp-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
-    <div class="card" id="card-denied"><h2>被拦下的请求</h2><div class="hint">Agent 试图读取但没通过权限检查的条目。这里只是记录，没有放行任何东西；点「授权」才会真正放开。</div><div id="denied-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
+  <section id="view-items" class="view hidden"><div class="card"><h2>Secret items</h2><div class="hint">Secret items synced to this server. Open one to view its plaintext, set whether it skips approval, or share it with an Agent; select several for bulk actions.</div><div class="row" style="margin-top:10px"><input id="item-filter" aria-label="Search items" placeholder="Search name, group or URL…"><select id="item-sort" aria-label="Sort by" title="Sort by" style="flex:0 0 auto"><option value="name">By name</option><option value="activity">By recent activity</option><option value="access">By grant count</option><option value="expiry">By expiry</option></select><button id="item-density" aria-pressed="false" title="List spacing: switch between comfortable and compact">Spacing: comfortable</button><button id="items-refresh">Refresh</button><button id="items-select">Select</button><button id="item-create">New</button><button id="item-import">Import</button><button id="item-export">Export</button><input id="import-file" type="file" accept="application/json,.json" class="hidden"></div><div id="bulk-bar" class="row hidden" style="margin-top:8px;background:var(--btn);padding:8px;border-radius:10px"><span id="bulk-count" class="hint" style="flex:0 0 auto"></span><span id="bulk-progress" class="hint" role="status" aria-live="polite" style="flex:0 0 auto"></span><button id="bulk-share" class="primary">Share selected</button><button id="bulk-kind" title="Mark the selected credentials as API Key or website login">Classify selected</button><button class="danger" id="bulk-delete">Delete selected</button><button id="bulk-clear">Clear selection</button></div><div id="items-box" class="table-wrap" style="margin-top:10px"></div><div id="item-status" class="status"></div></div>
+    <div class="card" id="card-vault2"><div class="row" style="justify-content:space-between;align-items:center"><div><h2 style="margin:0">Vault 2.0</h2><div class="hint" style="margin-top:4px">The zero-knowledge vault lives in a separate database and is independent of the encrypted vault above. When unlocked it shows item names; when locked, only its status.</div></div><span id="v2-badge" class="kind-tag kind-none" style="flex:0 0 auto">Loading…</span></div><div id="v2-status" class="hint" style="margin-top:10px"></div><div class="row" id="v2-unlock-row" style="margin-top:10px"><input id="v2-password" type="password" placeholder="Vault 2.0 master password (at least 12 characters)"><button id="v2-unlock" class="primary">Unlock</button><button id="v2-lock">Lock</button><input id="v2-legacy-password" type="password" placeholder="Old master password (import only)" autocomplete="off"><button id="v2-import">Import from old vault</button><button id="v2-refresh">Refresh</button></div><div class="hint" style="margin-top:8px">Paired devices, their online status and revoke buttons are on the “Devices” tab.</div><div class="hint" style="margin-top:6px">Risk: the longer the unlock lasts, the longer a stolen session can read. “Long-term” doesn’t leave the key on the server, but this browser stores the unsealing material; only revoking this device truly invalidates it.</div><div id="v2-box" class="table-wrap scroll-list hidden" style="margin-top:10px"></div><div id="v2-msg" class="status"></div></div>
+<div class="card hidden" id="card-fill-policies" aria-hidden="true"><h2>Classified credentials</h2><div class="hint">Click ⋮ in the list to open an item and set it individually, or select several and click “Classify selected”. Mark as <b>api</b> (API Key) to optionally let an Agent read the plaintext; mark as <b>web</b> (website login) to allow filling into specific sites only, so an Agent never gets the plaintext. Unclassified credentials are denied reads by default.</div><div class="hint" id="fp-exec-note" style="margin-top:6px"></div><div id="fp-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
+    <div class="card" id="card-denied"><h2>Blocked requests</h2><div class="hint">Items an Agent tried to read that failed the permission check. This is only a record; nothing was let through. Click “Authorize” to actually allow access.</div><div id="denied-list" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
     
   </section>
 
-  <section id="view-devices" class="view hidden"><div class="card"><div class="row" style="justify-content:space-between;align-items:center"><div><h2 style="margin:0">电脑</h2><div class="hint" style="margin-top:4px">每台跑过 secrets-broker pair 的机器都在这里。在线状态按最近 5 分钟内的拉取判断；撤销只停止后续拉取，已经拿到的钥匙要重加密才会失效。</div></div><button id="devices-refresh">刷新</button></div><div id="devices-status" class="hint" style="margin-top:10px"></div><div id="v2-devices" class="hidden" style="margin-top:10px"></div><div id="devices-msg" class="status"></div></div><div class="card"><h2>配对新电脑</h2><div class="hint">在另一台机器的终端（PowerShell / CMD，不是浏览器控制台）运行下面这条命令；它会把批准链接、配对码和公钥指纹打印在终端里，然后等待批准。没有全局 secrets-broker 命令时，在仓库根目录把它换成 node cli/index.mjs。</div><div class="secret" id="pair-command" style="margin-top:8px">secrets-broker pair --url …</div><div class="hint" style="margin-top:8px">打开终端给出的链接，核对公钥指纹一致后点批准。配对码五分钟后失效；批准后设备会出现在上面的列表里，可在这里切换只读/可写或撤销。</div></div></section>
+  <section id="view-devices" class="view hidden"><div class="card"><div class="row" style="justify-content:space-between;align-items:center"><div><h2 style="margin:0">Devices</h2><div class="hint" style="margin-top:4px">Every machine that has run secrets-broker pair is listed here. A device counts as online if it pulled in the last 5 minutes. Revoking only stops future pulls; keys it already has stay valid until you re-encrypt.</div></div><button id="devices-refresh">Refresh</button></div><div id="devices-status" class="hint" style="margin-top:10px"></div><div id="v2-devices" class="hidden" style="margin-top:10px"></div><div id="devices-msg" class="status"></div></div><div class="card"><h2>Pair a new device</h2><div class="hint">Run this command in a terminal on the other machine (PowerShell / CMD, not the browser console). It prints an approval link, a pairing code and a public-key fingerprint, then waits for approval. If there is no global secrets-broker command, use node cli/index.mjs from the repo root instead.</div><div class="secret" id="pair-command" style="margin-top:8px">secrets-broker pair --url …</div><div class="hint" style="margin-top:8px">Open the link from the terminal, check that the public-key fingerprint matches, then click Approve. The pairing code expires after five minutes. Once approved, the device appears in the list above, where you can toggle read-only/read-write or revoke it.</div></div></section>
   <section id="view-agents" class="view hidden">
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
-        <div><h2 style="margin:0">Agents 管理中心</h2><div class="hint" style="margin-top:4px">最近活动依据审计记录计算，不等同于实时在线状态。</div></div>
-        <div class="row" style="gap:8px;flex:0 0 auto"><button id="agent-matrix">权限矩阵</button><button class="primary" id="agent-new">新建 Agent</button></div>
+        <div><h2 style="margin:0">Manage Agents</h2><div class="hint" style="margin-top:4px">Recent activity is based on the audit log, not live online status.</div></div>
+        <div class="row" style="gap:8px;flex:0 0 auto"><button id="agent-matrix">Permission matrix</button><button class="primary" id="agent-new">New Agent</button></div>
       </div>
       <div class="agent-stats" id="agent-stats"></div>
       <div class="row" style="margin-top:12px;gap:8px">
-        <input id="agent-search" placeholder="搜索名称、别名、备注…" style="flex:1;min-width:180px">
+        <input id="agent-search" placeholder="Search name, alias, notes…" style="flex:1;min-width:180px">
         <select id="agent-type-filter" style="flex:0 0 auto">
-          <option value="">全部类型</option>
+          <option value="">All types</option>
           <option value="oauth">OAuth</option>
           <option value="token">Token</option>
         </select>
         <select id="agent-sort" style="flex:0 0 auto">
-          <option value="default">默认排序</option>
-          <option value="expiry">按到期时间</option>
-          <option value="activity">按最近活动</option>
-          <option value="name">按名称</option>
-          <option value="rights">按可读条数</option>
+          <option value="default">Default order</option>
+          <option value="expiry">By expiry</option>
+          <option value="activity">By recent activity</option>
+          <option value="name">By name</option>
+          <option value="rights">By readable item count</option>
         </select>
       </div>
       <div id="agents-box" class="scroll-list" style="margin-top:var(--sp-3)"></div>
@@ -1064,133 +1064,133 @@ nav{grid-area:tabs}
   </section>
 
   <section id="view-grants" class="view hidden">
-    <div class="card" id="transfers-card"><h2>待复制到其他账户</h2><div class="hint">主账户分享后先进入队列；切回目标账户并解锁后自动复制到指定文件夹并生成授权。</div><div id="transfers-box" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
-    <div class="card"><h2>待批准请求</h2><div class="hint">点按钮即授权；同 Docker 版的 once/1h/24h/7d/永久。</div><div id="pending-box" class="scroll-list" style="margin-top:10px"></div></div>
-    <div class="card"><h2>有效授权</h2><div class="hint">到期的授权会在下次刷新时自动从列表移除（审计仍保留）；点该行的时长即可修改时长；「选择」可以批量删除或按时长批量恢复。</div><div class="row" style="margin-top:8px"><button id="grants-select">选择</button></div><div id="grants-bulk" class="row hidden" style="margin-top:8px;background:var(--fill);padding:8px;border-radius:10px;flex-wrap:wrap"><span id="grants-bulk-count" class="hint" style="flex:0 0 auto"></span><select id="grants-bulk-seconds" title="恢复后的时长（从现在起算）" style="flex:0 0 auto"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800" selected>7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><button id="grants-bulk-restore" class="primary">批量恢复</button><button class="danger" id="grants-bulk-delete">批量删除</button><button id="grants-bulk-clear">清除选择</button></div><div id="grants-box" class="scroll-list" style="margin-top:10px"></div></div>
+    <div class="card" id="transfers-card"><h2>Pending copies to other accounts</h2><div class="hint">Shares from the main account are queued first. Once you switch to the target account and unlock, they are copied to the chosen folder and a grant is created automatically.</div><div id="transfers-box" class="table-wrap scroll-list" style="margin-top:10px"></div></div>
+    <div class="card"><h2>Pending requests</h2><div class="hint">Click a button to authorize: once/1h/24h/7d/permanent, same as the Docker version.</div><div id="pending-box" class="scroll-list" style="margin-top:10px"></div></div>
+    <div class="card"><h2>Active grants</h2><div class="hint">Expired grants drop off the list on the next refresh (the audit log keeps them). Click a row’s duration to change it. Use “Select” to delete in bulk or restore in bulk with a new duration.</div><div class="row" style="margin-top:8px"><button id="grants-select">Select</button></div><div id="grants-bulk" class="row hidden" style="margin-top:8px;background:var(--fill);padding:8px;border-radius:10px;flex-wrap:wrap"><span id="grants-bulk-count" class="hint" style="flex:0 0 auto"></span><select id="grants-bulk-seconds" title="Duration after restore (from now)" style="flex:0 0 auto"><option value="3600">1 hour</option><option value="86400">24 hours</option><option value="604800" selected>7 days</option><option value="2592000">30 days</option><option value="0">Permanent</option></select><button id="grants-bulk-restore" class="primary">Restore selected</button><button class="danger" id="grants-bulk-delete">Delete selected</button><button id="grants-bulk-clear">Clear selection</button></div><div id="grants-box" class="scroll-list" style="margin-top:10px"></div></div>
   </section>
 
-  <section id="view-logs" class="view hidden"><div class="card"><h2>审计日志</h2><div class="hint">最近 500 条，数据在 Durable Object 中。</div>
+  <section id="view-logs" class="view hidden"><div class="card"><h2>Audit log</h2><div class="hint">Latest 500 entries, stored in the Durable Object.</div>
     <div class="row" style="margin-top:12px;gap:8px">
-      <select id="logs-item-filter" style="flex:0 0 auto"><option value="">全部条目</option></select>
-      <select id="logs-agent-filter" style="flex:0 0 auto"><option value="">全部 Agent</option></select>
-      <select id="logs-event-filter" style="flex:0 0 auto"><option value="">全部事件类型</option></select>
-      <input id="logs-search" placeholder="搜索事件、Agent、条目、原因…" style="flex:1;min-width:180px">
-      <label class="field" style="margin:0">从 <input id="logs-from" type="datetime-local" style="width:auto"></label>
-      <label class="field" style="margin:0">到 <input id="logs-to" type="datetime-local" style="width:auto"></label>
-      <button id="logs-reset" style="flex:0 0 auto">清空筛选</button>
-    <button id="logs-export" style="flex:0 0 auto">导出 CSV</button>
+      <select id="logs-item-filter" style="flex:0 0 auto"><option value="">Any item</option></select>
+      <select id="logs-agent-filter" style="flex:0 0 auto"><option value="">Any Agent</option></select>
+      <select id="logs-event-filter" style="flex:0 0 auto"><option value="">Any event type</option></select>
+      <input id="logs-search" placeholder="Search event, Agent, item, reason…" style="flex:1;min-width:180px">
+      <label class="field" style="margin:0">From <input id="logs-from" type="datetime-local" style="width:auto"></label>
+      <label class="field" style="margin:0">To <input id="logs-to" type="datetime-local" style="width:auto"></label>
+      <button id="logs-reset" style="flex:0 0 auto">Clear filters</button>
+    <button id="logs-export" style="flex:0 0 auto">Export CSV</button>
     </div>
     <div class="hint" id="logs-count" style="margin-top:8px"></div>
     <div id="logs-box" class="scroll-list" style="margin-top:var(--sp-3)"></div>
-    <div class="row" id="logs-more-wrap" style="margin-top:10px"><button id="logs-more" class="small">加载更多</button></div>
+    <div class="row" id="logs-more-wrap" style="margin-top:10px"><button id="logs-more" class="small">Load more</button></div>
   </div></section>
 
   <section id="view-profile" class="view hidden">
-    <div class="card"><h2>个人资料</h2><div class="hint">用于页面显示；OIDC 登录会同步姓名/邮箱/头像。</div>
-      <label class="field">名字</label><input id="profile-name" placeholder="你的名字">
-      <label class="field">邮箱</label><input id="profile-email" placeholder="you@example.com">
-      <label class="field">头像 URL</label><input id="profile-avatar" placeholder="https://...">
-      <div class="row" style="margin-top:10px"><button class="primary" id="profile-save">保存资料</button></div><div class="status" id="profile-status"></div>
+    <div class="card"><h2>Profile</h2><div class="hint">Shown in the console. OIDC login syncs name/email/avatar.</div>
+      <label class="field">Name</label><input id="profile-name" placeholder="Your name">
+      <label class="field">Email</label><input id="profile-email" placeholder="you@example.com">
+      <label class="field">Avatar URL</label><input id="profile-avatar" placeholder="https://...">
+      <div class="row" style="margin-top:10px"><button class="primary" id="profile-save">Save profile</button></div><div class="status" id="profile-status"></div>
     </div>
-    <div class="card"><h2>登录与账号绑定</h2><div class="hint">OIDC 登录会作为管理登录方式；配置后可直接点下方按钮。</div><div id="oidc-box" style="margin-top:10px"></div><div class="status" id="oidc-status"></div></div>
-    <div class="card"><h2>修改密码</h2><div class="hint" id="password-source"></div><label class="field">当前密码</label><input id="current-password" type="password" autocomplete="current-password"><label class="field">新密码（至少 8 位）</label><input id="new-password" type="password" autocomplete="new-password"><div style="margin-top:10px"><button class="primary" id="password-save">修改密码</button></div><div class="status" id="password-status"></div></div>
-    <div class="card"><h2>两步验证（TOTP）</h2><div id="totp-status" class="hint"></div><div id="totp-setup-box" class="hidden"><div class="hint">用验证器扫码/手动输入下面的密钥，然后输入 6 位验证码启用。</div><div class="secret" id="totp-secret"></div><label class="field">验证码</label><input id="totp-enable-code" inputmode="numeric" placeholder="6 位验证码"><div style="margin-top:10px"><button class="primary" id="totp-enable">启用两步验证</button></div></div><div class="row" style="margin-top:10px"><button id="totp-setup">生成/重新生成密钥</button><button class="danger hidden" id="totp-disable">关闭两步验证</button></div><div class="status" id="totp-message"></div></div>
+    <div class="card"><h2>Login and linked accounts</h2><div class="hint">OIDC can be used to log in to the console; once configured, just click a button below.</div><div id="oidc-box" style="margin-top:10px"></div><div class="status" id="oidc-status"></div></div>
+    <div class="card"><h2>Change password</h2><div class="hint" id="password-source"></div><label class="field">Current password</label><input id="current-password" type="password" autocomplete="current-password"><label class="field">New password (at least 8 characters)</label><input id="new-password" type="password" autocomplete="new-password"><div style="margin-top:10px"><button class="primary" id="password-save">Change password</button></div><div class="status" id="password-status"></div></div>
+    <div class="card"><h2>Two-factor authentication (TOTP)</h2><div id="totp-status" class="hint"></div><div id="totp-setup-box" class="hidden"><div class="hint">Scan the key below with your authenticator app or enter it manually, then enter the 6-digit code to enable it.</div><div class="secret" id="totp-secret"></div><label class="field">Code</label><input id="totp-enable-code" inputmode="numeric" placeholder="6-digit code"><div style="margin-top:10px"><button class="primary" id="totp-enable">Enable 2FA</button></div></div><div class="row" style="margin-top:10px"><button id="totp-setup">Generate/regenerate key</button><button class="danger hidden" id="totp-disable">Disable 2FA</button></div><div class="status" id="totp-message"></div></div>
 
-    <div class="card"><h2>本地写入白名单</h2><p class="hint">允许「把某个条目写进本地文件」的目标路径，一行一个。以 <code>/</code> 结尾表示整个目录。</p><textarea id="mat-paths" rows="3" placeholder="/srv/app/secrets.env"></textarea><div class="row" style="margin-top:10px"><button class="primary" id="mat-save">保存白名单</button></div><div class="status" id="mat-status"></div></div>
-    <div class="card"><h2>行为安全</h2><p class="hint">每一项的默认值都是最保守的答案。单独给某个 Agent 或某个条目配过权限的，以那条配置为准。</p>
-      <div class="ios-field"><label>允许读取网页登录的明文<div class="hint">关闭时，网站密码只能被填充进指定站点，任何 Agent 都拿不到明文。</div></label><input type="checkbox" class="ios-switch" id="bs-web"></div>
-      <div class="ios-field"><label>允许读取未分类条目的明文<div class="hint">关闭时，没有分类的凭据即使被授权也只返回拒绝。</div></label><input type="checkbox" class="ios-switch" id="bs-unclassified"></div>
-      <div class="ios-field"><label>允许 Agent 代调任意主机<div class="hint">关闭时只能调条目里登记过的站点；开启后仍要逐次批准。</div></label><input type="checkbox" class="ios-switch" id="bs-target"></div>
-      <div class="ios-field"><label>到期后禁止 Agent 读取<div class="hint">默认关闭：到期只做提醒。开启后 secret.read 会被拒绝，但填充/代调仍按各自策略，且这是显式的授权收紧，旧 Agent 也会立即受影响。</div></label><input type="checkbox" class="ios-switch" id="bs-expiry"></div>
-      <div class="ios-field"><label>多久未轮换就在健康卡提醒<div class="hint">只是提醒，不改变任何授权。默认 180 天；从未轮换过的条目按创建时间算。</div></label><input id="bs-rotate-days" type="number" min="30" max="3650" step="30" inputmode="numeric" placeholder="180"></div>
-      <div class="row" style="margin-top:10px"><button class="primary" id="bs-save">保存行为设置</button></div>
+    <div class="card"><h2>Local write allowlist</h2><p class="hint">Target paths allowed for “write an item to a local file”, one per line. End a path with <code>/</code> to allow the whole directory.</p><textarea id="mat-paths" rows="3" placeholder="/srv/app/secrets.env"></textarea><div class="row" style="margin-top:10px"><button class="primary" id="mat-save">Save allowlist</button></div><div class="status" id="mat-status"></div></div>
+    <div class="card"><h2>Safety settings</h2><p class="hint">Every option defaults to the most conservative choice. Permissions set on a specific Agent or item take precedence.</p>
+      <div class="ios-field"><label>Allow reading website login plaintext<div class="hint">When off, website passwords can only be filled into their specified sites, and no Agent can get the plaintext.</div></label><input type="checkbox" class="ios-switch" id="bs-web"></div>
+      <div class="ios-field"><label>Allow reading plaintext of unclassified items<div class="hint">When off, unclassified credentials are denied even if granted.</div></label><input type="checkbox" class="ios-switch" id="bs-unclassified"></div>
+      <div class="ios-field"><label>Allow Agent proxied calls to any host<div class="hint">When off, only sites registered in the item can be called. When on, each call still needs approval.</div></label><input type="checkbox" class="ios-switch" id="bs-target"></div>
+      <div class="ios-field"><label>Block Agent reads after expiry<div class="hint">Off by default: expiry only triggers a reminder. When on, secret.read is denied, but fill and proxied calls still follow their own policies. This explicitly tightens grants, so existing Agent grants are affected immediately.</div></label><input type="checkbox" class="ios-switch" id="bs-expiry"></div>
+      <div class="ios-field"><label>Days without rotation before a health card reminder<div class="hint">Only a reminder; it doesn’t change any grants. Default 180 days. Items never rotated count from when they were created.</div></label><input id="bs-rotate-days" type="number" min="30" max="3650" step="30" inputmode="numeric" placeholder="180"></div>
+      <div class="row" style="margin-top:10px"><button class="primary" id="bs-save">Save safety settings</button></div>
       <div class="status" id="bs-status"></div>
     </div>
-    <div class="card"><h2>在线客户端与登录记录</h2><div class="hint">当前浏览器会话在解锁后保持在线；最近登录来自审计记录。</div><div id="sessions-box" style="margin-top:10px"></div><div id="login-history" style="margin-top:10px"></div></div>
+    <div class="card"><h2>Online clients and login history</h2><div class="hint">This browser session stays online once unlocked; recent logins come from the audit log.</div><div id="sessions-box" style="margin-top:10px"></div><div id="login-history" style="margin-top:10px"></div></div>
   </section>
 
   <section id="view-settings" class="view hidden">
-    <div class="card"><h2>站点</h2><label class="field">站点名称</label><input id="site-name" placeholder="Secrets Broker"><div class="hint">显示在左上角，点击可回首页。</div></div>
-    <div class="card collapsible" id="card-ai"><h2 class="card-toggle" data-collapse="card-ai">AI 助手 <span class="card-caret">▾</span></h2>
+    <div class="card"><h2>Site</h2><label class="field">Site name</label><input id="site-name" placeholder="Secrets Broker"><div class="hint">Shown in the top-left corner; click it to go home.</div></div>
+    <div class="card collapsible" id="card-ai"><h2 class="card-toggle" data-collapse="card-ai">AI assistant <span class="card-caret">▾</span></h2>
       <div class="card-body">
-      <div class="hint">用来自动解释「为什么这个 Agent 读不到」「哪条授权过期了」。它只读汇总信息（Agent、条目名、授权状态、日志），<b>永远拿不到密钥值、用户名或 TOTP</b>，也<b>不能修改任何东西</b>——所有修复仍由你在界面上点。</div>
-      <label class="chk" style="margin-top:10px"><input type="checkbox" id="ai-enabled"> 启用 AI 助手</label>
+      <div class="hint">Explains things like “why can’t this Agent read it?” or “which grant expired?”. It only reads summaries (Agent, item names, grant status, logs), <b>never sees secret values, usernames or TOTP</b> and <b>can’t change anything</b>. You still make every fix yourself in the UI.</div>
+      <label class="chk" style="margin-top:10px"><input type="checkbox" id="ai-enabled"> Enable AI assistant</label>
       <div id="ai-custom-box">
-        <label class="field">接口地址（Base URL）</label><input id="ai-endpoint" placeholder="https://api.openai.com/v1">
-        <div class="hint">填到 <code>/v1</code> 即可，会自动加 <code>/chat/completions</code>；也可以直接填完整路径。</div>
-        <label class="field">API Key</label><input id="ai-apikey" type="password" placeholder="留空保留原值；填 null 清空">
+        <label class="field">Endpoint (Base URL)</label><input id="ai-endpoint" placeholder="https://api.openai.com/v1">
+        <div class="hint">Enter the URL up to <code>/v1</code> and <code>/chat/completions</code> is added automatically; you can also enter the full path.</div>
+        <label class="field">API Key</label><input id="ai-apikey" type="password" placeholder="Leave blank to keep the current value; enter null to clear">
         <div class="hint" id="ai-key-status"></div>
-        <label class="field">模型</label>
+        <label class="field">Model</label>
         <div class="row" style="gap:6px;margin-top:4px">
-          <input id="ai-model" list="ai-model-list" placeholder="点「拉取模型」自动列出" style="flex:1;min-width:0">
-          <button class="small" id="ai-model-fetch" style="flex:0 0 auto">拉取模型</button>
+          <input id="ai-model" list="ai-model-list" placeholder="Click “Fetch models” to list them" style="flex:1;min-width:0">
+          <button class="small" id="ai-model-fetch" style="flex:0 0 auto">Fetch models</button>
         </div>
         <datalist id="ai-model-list"></datalist>
-        <div class="hint" id="ai-model-status">先填好地址和 key，点「拉取模型」会向该接口请求 GET /models。</div>
+        <div class="hint" id="ai-model-status">Fill in the endpoint and key first; “Fetch models” then calls GET /models on it.</div>
       </div>
-      <label class="field">超时（毫秒）</label><input id="ai-timeout" type="number" min="5000" max="60000" value="25000">
-      <div class="row" style="margin-top:12px"><button class="primary" id="ai-save">保存 AI 设置</button><button id="ai-test">测试</button></div>
+      <label class="field">Timeout (ms)</label><input id="ai-timeout" type="number" min="5000" max="60000" value="25000">
+      <div class="row" style="margin-top:12px"><button class="primary" id="ai-save">Save AI settings</button><button id="ai-test">Test</button></div>
       <div class="status" id="ai-status"></div>
       </div></div>
-    <div class="card collapsible collapsed" id="card-notify-channels"><h2 class="card-toggle" data-collapse="card-notify-channels">通知渠道 <span class="card-caret">▸</span></h2><div class="hint">待批准请求会推送到这里。留空的 token 表示保留原值。关掉「启用此渠道」后，自动推送和「发送测试通知」都不会发到这个渠道。</div>
+    <div class="card collapsible collapsed" id="card-notify-channels"><h2 class="card-toggle" data-collapse="card-notify-channels">Notification channels <span class="card-caret">▸</span></h2><div class="hint">Pending requests are pushed to these channels. A blank token keeps the current value. With “Enable this channel” off, neither automatic pushes nor “Send test notification” go to that channel.</div>
       <div class="card-body">
       <div class="grid2" style="margin-top:10px">
-        <div><h2 style="font-size:13px">Telegram</h2><label class="chk"><input type="checkbox" id="tg-enabled"> 启用此渠道</label><label class="field">Bot Token</label><input id="tg-token" type="password" placeholder="留空保留原值"><label class="field">Chat ID</label><input id="tg-chat" placeholder="例如 123456789"><div class="hint" id="tg-status"></div></div>
-        <div><h2 style="font-size:13px">ntfy</h2><label class="chk"><input type="checkbox" id="ntfy-enabled"> 启用此渠道</label><label class="field">服务器 URL</label><input id="ntfy-url" placeholder="https://ntfy.example.com"><label class="field">Topic</label><input id="ntfy-topic" placeholder="secrets-broker-xxxx"><div class="hint" id="ntfy-status"></div></div>
-        <div><h2 style="font-size:13px">Gotify</h2><label class="chk"><input type="checkbox" id="gotify-enabled"> 启用此渠道</label><label class="field">服务器 URL</label><input id="gotify-url" placeholder="https://gotify.example.com"><label class="field">App Token</label><input id="gotify-token" type="password" placeholder="留空保留原值"><div class="hint" id="gotify-status"></div></div>
-        <div><h2 style="font-size:13px">Webhook（通用 / 兼容 wxpush）</h2><label class="chk"><input type="checkbox" id="wxpush-enabled"> 启用此渠道</label><label class="field">URL</label><input id="wxpush-url" placeholder="https://example.com/webhook"><label class="field">Token</label><input id="wxpush-token" type="password" placeholder="留空保留原值"><label class="field">发送格式</label><select id="wxpush-format"><option value="form">表单（wxpush 兼容）</option><option value="json">JSON + Bearer Token</option></select><div class="hint" id="wxpush-status"></div></div>
+        <div><h2 style="font-size:13px">Telegram</h2><label class="chk"><input type="checkbox" id="tg-enabled"> Enable this channel</label><label class="field">Bot Token</label><input id="tg-token" type="password" placeholder="Leave blank to keep current value"><label class="field">Chat ID</label><input id="tg-chat" placeholder="e.g. 123456789"><div class="hint" id="tg-status"></div></div>
+        <div><h2 style="font-size:13px">ntfy</h2><label class="chk"><input type="checkbox" id="ntfy-enabled"> Enable this channel</label><label class="field">Server URL</label><input id="ntfy-url" placeholder="https://ntfy.example.com"><label class="field">Topic</label><input id="ntfy-topic" placeholder="secrets-broker-xxxx"><div class="hint" id="ntfy-status"></div></div>
+        <div><h2 style="font-size:13px">Gotify</h2><label class="chk"><input type="checkbox" id="gotify-enabled"> Enable this channel</label><label class="field">Server URL</label><input id="gotify-url" placeholder="https://gotify.example.com"><label class="field">App Token</label><input id="gotify-token" type="password" placeholder="Leave blank to keep current value"><div class="hint" id="gotify-status"></div></div>
+        <div><h2 style="font-size:13px">Webhook (generic / wxpush-compatible)</h2><label class="chk"><input type="checkbox" id="wxpush-enabled"> Enable this channel</label><label class="field">URL</label><input id="wxpush-url" placeholder="https://example.com/webhook"><label class="field">Token</label><input id="wxpush-token" type="password" placeholder="Leave blank to keep current value"><label class="field">Format</label><select id="wxpush-format"><option value="form">Form (wxpush-compatible)</option><option value="json">JSON + Bearer Token</option></select><div class="hint" id="wxpush-status"></div></div>
       </div>
-      <div style="margin-top:12px"><button class="primary" id="settings-save">保存通知设置</button><button id="notify-test" style="margin-left:8px">发送测试通知</button><button id="notify-test-approval" style="margin-left:8px">发送模拟授权通知</button></div><div class="status" id="settings-status"></div>
+      <div style="margin-top:12px"><button class="primary" id="settings-save">Save notification settings</button><button id="notify-test" style="margin-left:8px">Send test notification</button><button id="notify-test-approval" style="margin-left:8px">Send sample approval request</button></div><div class="status" id="settings-status"></div>
       </div>
     </div>
-    <div class="card collapsible collapsed" id="card-notify-templates"><h2 class="card-toggle" data-collapse="card-notify-templates">通知模板 <span class="card-caret">▸</span></h2><div class="hint">四个渠道共用同一套审批模板，改完保存即生效、不用重新部署。占位符：审批用 {agent}、{name}、{time}、{origin}；提醒用 {lines}、{origin}。把某个字段清空并保存，即恢复内置默认文案。微信（wxpush）没有按钮，发送时会自动在正文后附上带签名的批准链接。</div>
+    <div class="card collapsible collapsed" id="card-notify-templates"><h2 class="card-toggle" data-collapse="card-notify-templates">Notification templates <span class="card-caret">▸</span></h2><div class="hint">All four channels share one set of approval templates. Changes apply as soon as you save, no redeploy needed. Placeholders: approvals use {agent}, {name}, {time}, {origin}; reminders use {lines}, {origin}. Clear a field and save to restore the built-in default text. WeChat (wxpush) has no buttons, so a signed approval link is appended to the body automatically.</div>
       <div class="card-body">
-      <h2 style="font-size:13px;margin-top:10px">授权审批通知</h2>
-      <label class="field">标题</label><input id="tpl-ap-title">
-      <label class="field">正文</label><textarea id="tpl-ap-body" rows="5" style="width:100%"></textarea>
+      <h2 style="font-size:13px;margin-top:10px">Grant approval notification</h2>
+      <label class="field">Title</label><input id="tpl-ap-title">
+      <label class="field">Body</label><textarea id="tpl-ap-body" rows="5" style="width:100%"></textarea>
       <div class="grid2">
-        <div><label class="field">按钮 · 仅本次</label><input id="tpl-lb-once"></div>
-        <div><label class="field">按钮 · 24 小时</label><input id="tpl-lb-24h"></div>
-        <div><label class="field">按钮 · 拒绝</label><input id="tpl-lb-deny"></div>
-        <div><label class="field">按钮 · 永久</label><input id="tpl-lb-always"></div>
+        <div><label class="field">Button · Once</label><input id="tpl-lb-once"></div>
+        <div><label class="field">Button · 24 hours</label><input id="tpl-lb-24h"></div>
+        <div><label class="field">Button · Deny</label><input id="tpl-lb-deny"></div>
+        <div><label class="field">Button · Permanent</label><input id="tpl-lb-always"></div>
       </div>
-      <h2 style="font-size:13px;margin-top:12px">授权到期提醒</h2>
-      <label class="field">标题</label><input id="tpl-rm-title">
-      <label class="field">正文</label><textarea id="tpl-rm-body" rows="5" style="width:100%"></textarea>
+      <h2 style="font-size:13px;margin-top:12px">Grant expiry reminder</h2>
+      <label class="field">Title</label><input id="tpl-rm-title">
+      <label class="field">Body</label><textarea id="tpl-rm-body" rows="5" style="width:100%"></textarea>
       </div>
     </div>
-    <div class="card"><h2>Bitwarden 文件夹</h2><div class="hint">只同步指定文件夹；留空表示全部。文件夹列表来自 NodeWarden folders。</div><div class="row" style="margin-top:8px"><select id="vault-folder" style="flex:1"><option value="">全部文件夹</option></select><button id="vault-folder-save" class="primary">保存文件夹</button></div><div class="hint" id="vault-folder-status" style="margin-top:8px"></div></div>
-    <div class="card"><h2>Bitwarden 账户</h2><div class="hint">选择读取哪个 NodeWarden 用户；切换后会清除当前解锁会话，需要用该用户主密码重新解锁。</div><div class="row" style="margin-top:8px"><select id="vault-email" style="flex:1"></select><button id="vault-switch" class="primary">切换账户</button></div><div class="hint" id="vault-email-status" style="margin-top:8px"></div></div>
-    <div class="card"><h2>OIDC 登录</h2><div class="hint">可以添加多个身份服务商。配置保存在 Durable Object，不需要重新部署；已保存的 client secret 不会回显，留空表示保留原值。</div>
+    <div class="card"><h2>Bitwarden folder</h2><div class="hint">Only the chosen folder is synced; leave blank for all. The folder list comes from NodeWarden folders.</div><div class="row" style="margin-top:8px"><select id="vault-folder" style="flex:1"><option value="">All folders</option></select><button id="vault-folder-save" class="primary">Save folder</button></div><div class="hint" id="vault-folder-status" style="margin-top:8px"></div></div>
+    <div class="card"><h2>Bitwarden account</h2><div class="hint">Choose which NodeWarden user to read from. Switching clears the current unlock session, so you’ll need to unlock again with that user’s master password.</div><div class="row" style="margin-top:8px"><select id="vault-email" style="flex:1"></select><button id="vault-switch" class="primary">Switch account</button></div><div class="hint" id="vault-email-status" style="margin-top:8px"></div></div>
+    <div class="card"><h2>OIDC login</h2><div class="hint">You can add several identity providers. Settings are stored in the Durable Object, so no redeploy is needed. A saved client secret is never shown again; leave it blank to keep the current value.</div>
       <div id="oidc-provider-list" style="margin-top:10px"></div>
-      <div style="margin-top:12px"><button id="oidc-new">添加服务商</button></div>
+      <div style="margin-top:12px"><button id="oidc-new">Add provider</button></div>
       <div id="oidc-provider-form" class="hidden" style="margin-top:12px">
-        <label class="field">ID（唯一，用于绑定和解绑）</label><input id="op-id" placeholder="corp">
-        <label class="field">显示名称</label><input id="op-label" placeholder="公司账号">
+        <label class="field">ID (unique, used to link and unlink)</label><input id="op-id" placeholder="corp">
+        <label class="field">Display name</label><input id="op-label" placeholder="Company account">
         <label class="field">Issuer</label><input id="op-issuer" placeholder="https://auth.example.com">
         <label class="field">Client ID</label><input id="op-client-id" placeholder="client_xxx">
-        <label class="field">Client Secret（public client 可留空）</label><input id="op-client-secret" type="password" placeholder="留空保留原值">
+        <label class="field">Client Secret (can be blank for a public client)</label><input id="op-client-secret" type="password" placeholder="Leave blank to keep current value">
         <label class="field">Redirect URI</label><input id="op-redirect" placeholder="https://your-worker/oidc/callback">
         <label class="field">Scope</label><input id="op-scope" placeholder="openid profile email">
-        <label class="field">Authorization Endpoint（高级，留空自动发现）</label><input id="op-authorization" placeholder="https://auth.example.com/authorize">
+        <label class="field">Authorization Endpoint (advanced; leave blank to auto-discover)</label><input id="op-authorization" placeholder="https://auth.example.com/authorize">
         <label class="field">Token Endpoint</label><input id="op-token" placeholder="https://auth.example.com/token">
         <label class="field">Userinfo Endpoint</label><input id="op-userinfo" placeholder="https://auth.example.com/userinfo">
         <label class="field">JWKS URI</label><input id="op-jwks" placeholder="https://auth.example.com/jwks">
-        <label class="chk" style="display:block;margin-top:8px"><input type="checkbox" id="op-enabled" checked> 启用这个服务商</label>
-        <div style="margin-top:10px"><button id="op-discover">从 Issuer 自动发现并填充</button><button id="op-probe">检测这个服务商</button><button class="primary" id="op-save" style="margin-left:8px">保存</button><button id="op-cancel" style="margin-left:8px">取消</button></div>
+        <label class="chk" style="display:block;margin-top:8px"><input type="checkbox" id="op-enabled" checked> Enable this provider</label>
+        <div style="margin-top:10px"><button id="op-discover">Auto-fill from Issuer</button><button id="op-probe">Test this provider</button><button class="primary" id="op-save" style="margin-left:8px">Save</button><button id="op-cancel" style="margin-left:8px">Cancel</button></div>
         <div class="hint" id="op-status" style="margin-top:8px"></div>
         <div id="op-probe-result" style="margin-top:8px"></div>
       </div>
     </div>
-    <div class="card"><h2>浏览器通知</h2><div class="hint" id="browser-notify-status"></div><div class="hint" id="webpush-status"></div><div style="margin-top:10px"><button id="enable-browser-notify">启用浏览器通知</button><button id="test-browser-notify">发送测试通知</button><button id="enable-webpush">启用后台推送</button><button id="test-webpush">测试后台推送</button></div></div>
-    <div class="card"><h2>MCP 接入</h2><div class="hint">HTTP MCP 地址（用 Agent Bearer token）：</div><div class="secret" id="mcp-url"></div><div class="hint" style="margin-top:8px">工具：list_secrets / request_access / get_secret。Codex、Hermes 可直接配置 HTTP MCP。</div></div>
+    <div class="card"><h2>Browser notifications</h2><div class="hint" id="browser-notify-status"></div><div class="hint" id="webpush-status"></div><div style="margin-top:10px"><button id="enable-browser-notify">Enable browser notifications</button><button id="test-browser-notify">Send test notification</button><button id="enable-webpush">Enable background push</button><button id="test-webpush">Test background push</button></div></div>
+    <div class="card"><h2>MCP access</h2><div class="hint">HTTP MCP URL (use an Agent Bearer token):</div><div class="secret" id="mcp-url"></div><div class="hint" style="margin-top:8px">Tools: list_secrets / request_access / get_secret. Codex and Hermes can use HTTP MCP directly.</div></div>
   </section>
 </section>
 
-<div id="app-version" class="app-version" aria-live="polite">版本未知</div>
+<div id="app-version" class="app-version" aria-live="polite">Version unknown</div>
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div><div id="live-alert" class="sr-only" role="alert"></div>
-<section id="item-page" class="page hidden" tabindex="-1" aria-label="条目详情"><div class="page-nav"><button class="page-back" id="item-page-back" aria-label="返回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>返回</button><div class="page-title" id="item-page-title"></div><button class="page-action" id="item-page-edit">编辑</button><button class="page-close" id="item-page-close" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="page-state" id="item-page-state" role="status" aria-live="polite"></div><div class="page-body" id="item-page-body"></div></section><div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="card"><button class="modal-x" id="modal-close-x" title="关闭" aria-label="关闭">×</button><h2 id="modal-title"></h2><div id="modal-body"></div><div style="margin-top:12px"><button id="modal-close">关闭</button></div></div></div>
+<section id="item-page" class="page hidden" tabindex="-1" aria-label="Item details"><div class="page-nav"><button class="page-back" id="item-page-back" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Back</button><div class="page-title" id="item-page-title"></div><button class="page-action" id="item-page-edit">Edit</button><button class="page-close" id="item-page-close" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="page-state" id="item-page-state" role="status" aria-live="polite"></div><div class="page-body" id="item-page-body"></div></section><div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="card"><button class="modal-x" id="modal-close-x" title="Close" aria-label="Close">×</button><h2 id="modal-title"></h2><div id="modal-body"></div><div style="margin-top:12px"><button id="modal-close">Close</button></div></div></div>
 <script>
 const $ = (id) => document.getElementById(id)
 const enc = new TextEncoder()
@@ -1201,12 +1201,12 @@ const cat = (a, b) => { const out = new Uint8Array(a.length + b.length); out.set
 async function hmac(keyBytes, data) { const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); return new Uint8Array(await crypto.subtle.sign('HMAC', key, data)) }
 async function pbkdf2(password, salt, iterations) { const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']); return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(salt), iterations }, key, 256)) }
 async function hkdf(prk, info, length) { const key = await crypto.subtle.importKey('raw', prk, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); const infoBytes = enc.encode(info); const out = new Uint8Array(length); let prev = new Uint8Array(0), offset = 0, counter = 1; while (offset < length) { const input = new Uint8Array(prev.length + infoBytes.length + 1); input.set(prev); input.set(infoBytes, prev.length); input[input.length - 1] = counter; prev = new Uint8Array(await crypto.subtle.sign('HMAC', key, input)); const n = Math.min(prev.length, length - offset); out.set(prev.slice(0, n), offset); offset += n; counter++ } return out }
-async function decryptBw(text, encKey, macKey) { const dot = text.indexOf('.'); const type = Number(text.slice(0, dot)); const parts = text.slice(dot + 1).split('|'); const iv = unb64(parts[0]), ct = unb64(parts[1]); if (type === 1 || type === 2) { if (!macKey || !parts[2]) throw new Error('缺少 MAC'); const expected = await hmac(macKey, cat(iv, ct)); const mac = unb64(parts[2]); if (!expected.every((b, i) => b === mac[i])) throw new Error('MAC 校验失败') } else if (type !== 0 && type !== 4) { throw new Error('不支持的密文类型') } const key = await crypto.subtle.importKey('raw', encKey, { name: 'AES-CBC' }, false, ['decrypt']); return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, key, ct)) }
+async function decryptBw(text, encKey, macKey) { const dot = text.indexOf('.'); const type = Number(text.slice(0, dot)); const parts = text.slice(dot + 1).split('|'); const iv = unb64(parts[0]), ct = unb64(parts[1]); if (type === 1 || type === 2) { if (!macKey || !parts[2]) throw new Error('Missing MAC'); const expected = await hmac(macKey, cat(iv, ct)); const mac = unb64(parts[2]); if (!expected.every((b, i) => b === mac[i])) throw new Error('MAC check failed') } else if (type !== 0 && type !== 4) { throw new Error('Unsupported ciphertext type') } const key = await crypto.subtle.importKey('raw', encKey, { name: 'AES-CBC' }, false, ['decrypt']); return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, key, ct)) }
 function setDbDown(message) {
   const el = document.getElementById('db-down')
   if (!el) return
   const text = el.querySelector('.notice-text')
-  if (text) text.textContent = '数据库暂时不可用，条目与保管库的读写已降级；页面其他功能仍可使用。' + (message ? ' ' + message : '')
+  if (text) text.textContent = 'Database temporarily unavailable; item and vault reads and writes are degraded. The rest of the page still works.' + (message ? ' ' + message : '')
   el.classList.remove('hidden')
 }
 function clearDbDown() {
@@ -1224,9 +1224,9 @@ async function api(path, options = {}) {
     if (typeof message !== 'string') message = ''
     if (!message.trim()) message = 'HTTP ' + response.status
     if (response.status === 401 && message === 'unauthorized') {
-      message = '登录状态已失效，或页面域名与接口域名不一致。请重新登录；如果反复出现，确认地址栏是 ' + location.origin + '，而不是别名域名。'
+      message = 'Your login session has expired, or the page domain doesn’t match the API domain. Log in again. If this keeps happening, check that the address bar shows ' + location.origin + ', not an alias domain.'
     }
-    if (response.status === 423) message = 'Vault 已锁定，请先在「Vault 2.0」解锁后再操作。' + (body.error && body.error !== 'locked' ? '（' + message + '）' : '')
+    if (response.status === 423) message = 'Vault is locked. Unlock it in “Vault 2.0” first.' + (body.error && body.error !== 'locked' ? ' (' + message + ')' : '')
     const error = new Error(message)
     error.status = response.status
     error.data = body
@@ -1303,13 +1303,13 @@ let toastTimer = null
 // confirm() is silently refused inside a sandboxed iframe or a webview without
 // allow-modals: the click does nothing at all and the row stays. Ask in the page
 // instead - a bar above the tab bar, resolved by whichever button is pressed.
-function askYes(message, { yes = '删除', no = '取消' } = {}) {
+function askYes(message, { yes = 'Delete', no = 'Cancel' } = {}) {
   return new Promise((resolve) => {
     const previous = document.activeElement
     const wrap = document.createElement('div')
     wrap.className = 'ask'
     wrap.setAttribute('role', 'group')
-    wrap.setAttribute('aria-label', '确认操作')
+    wrap.setAttribute('aria-label', 'Confirm action')
     wrap.innerHTML = '<div class="ask__text"></div><div class="ask__row"><button class="ask__no"></button><button class="ask__yes danger"></button></div>'
     wrap.querySelector('.ask__text').textContent = message
     wrap.querySelector('.ask__no').textContent = no
@@ -1328,14 +1328,14 @@ function askYes(message, { yes = '删除', no = '取消' } = {}) {
 // Same in-page prompt as askYes, but returns the typed value. prompt() itself
 // is unreliable inside the desktop WebView, and the plaintext item list needs a
 // 6-digit code the first time it is opened in an unlock session.
-function askCode(message, { type = 'text', inputmode = 'numeric', placeholder = '6 位验证码', maxlength = 6, label = '', trim = true } = {}) {
+function askCode(message, { type = 'text', inputmode = 'numeric', placeholder = '6-digit code', maxlength = 6, label = '', trim = true } = {}) {
   return new Promise((resolve) => {
     const previous = document.activeElement
     const wrap = document.createElement('div')
     wrap.className = 'ask'
     wrap.setAttribute('role', 'group')
-    wrap.setAttribute('aria-label', '输入验证信息')
-    wrap.innerHTML = '<div class="ask__text"></div><input class="ask__code"><div class="ask__row"><button class="ask__no">取消</button><button class="ask__yes">确定</button></div>'
+    wrap.setAttribute('aria-label', 'Verification')
+    wrap.innerHTML = '<div class="ask__text"></div><input class="ask__code"><div class="ask__row"><button class="ask__no">Cancel</button><button class="ask__yes">OK</button></div>'
     wrap.querySelector('.ask__text').textContent = message
     const input = wrap.querySelector('.ask__code')
     input.type = type
@@ -1365,14 +1365,14 @@ async function askConfirm(reason) {
   let totp = false
   try { totp = (await api('/api/security')).totpEnabled === true } catch {}
   const value = totp
-    ? await askCode(reason + '：请输入 6 位动态验证码', { label: '动态验证码' })
-    : await askCode(reason + '：请输入管理密码', { type: 'password', inputmode: 'text', placeholder: '管理密码', maxlength: 128, label: '管理密码', trim: false })
+    ? await askCode(reason + ': enter the 6-digit code from your authenticator app', { label: 'Authenticator code' })
+    : await askCode(reason + ': enter the console password', { type: 'password', inputmode: 'text', placeholder: 'Console password', maxlength: 128, label: 'Console password', trim: false })
   if (!value) return null
   return totp ? { confirmCode: value } : { confirmPassword: value }
 }
 async function sensitiveRequest(url, method, payload, reason) {
   const confirm = await askConfirm(reason)
-  if (!confirm) throw new Error('已取消')
+  if (!confirm) throw new Error('Cancelled')
   return api(url, { method, body: JSON.stringify({ ...payload, ...confirm }) })
 }
 async function sensitivePost(url, payload, reason) {
@@ -1397,7 +1397,7 @@ function toast(text, error = false) {
 }
 
 // The version endpoint ships with the worker half, which may not be deployed
-// yet: a 404 must degrade to "版本未知" and never block the About dialog.
+// yet: a 404 must degrade to "Version unknown" and never block the About dialog.
 let versionInfo = null
 let versionRequest = null
 function loadVersion(force = false) {
@@ -1415,30 +1415,30 @@ function loadVersion(force = false) {
 function versionLabel() {
   const info = versionInfo || {}
   const number = info.version || info.appVersion || ''
-  if (!number) return '版本未知'
+  if (!number) return 'Version unknown'
   const deployed = info.workerVersion || ''
-  return 'v' + number + (deployed ? ' · 部署 ' + String(deployed).slice(0, 8) : '')
+  return 'v' + number + (deployed ? ' · deploy ' + String(deployed).slice(0, 8) : '')
 }
 function renderVersion() {
   const label = versionLabel()
   const foot = $('app-version')
   if (foot) foot.textContent = label
   const header = $('header-version')
-  if (header) header.textContent = versionInfo && (versionInfo.version || versionInfo.appVersion) ? 'v' + (versionInfo.version || versionInfo.appVersion) : '版本未知'
+  if (header) header.textContent = versionInfo && (versionInfo.version || versionInfo.appVersion) ? 'v' + (versionInfo.version || versionInfo.appVersion) : 'Version unknown'
   const slot = $('about-version')
   if (!slot) return
   const info = versionInfo || {}
-  const rows = [['版本', info.version || info.appVersion || '未知']]
-  if (info.commit) rows.push(['提交', String(info.commit).slice(0, 7)])
+  const rows = [['Version', info.version || info.appVersion || 'Unknown']]
+  if (info.commit) rows.push(['Commit', String(info.commit).slice(0, 7)])
   if (info.deployedAt) {
     const built = new Date(info.deployedAt)
-    rows.push(['构建时间', Number.isNaN(built.getTime()) ? String(info.deployedAt) : built.toLocaleString('zh-CN', { hour12: false })])
+    rows.push(['Build time', Number.isNaN(built.getTime()) ? String(info.deployedAt) : built.toLocaleString('en-GB', { hour12: false })])
   }
-  if (info.workerVersion) rows.push(['部署版本', String(info.workerVersion)])
+  if (info.workerVersion) rows.push(['Deployment version', String(info.workerVersion)])
   slot.innerHTML = rows.map(([label, value]) => '<div class="about-row"><span>' + esc(label) + '</span><b>' + esc(String(value)) + '</b></div>').join('')
 }
 function openAbout() {
-  openModal('关于', '<div class="hint">Secrets Broker 把密钥留在你自己的 Cloudflare 账户里，按需、按时限发给 Agent，并记录每一次读取。</div><div id="about-version" style="margin-top:10px"></div><div class="hint" style="margin-top:10px"><a href="https://github.com/otscup/secrets-broker-workers" target="_blank" rel="noreferrer">github.com/otscup/secrets-broker-workers</a></div>')
+  openModal('About', '<div class="hint">Secrets Broker keeps your secrets in your own Cloudflare account, releases them to an Agent on demand and for a limited time, and logs every read.</div><div id="about-version" style="margin-top:10px"></div><div class="hint" style="margin-top:10px"><a href="https://github.com/otscup/secrets-broker-workers" target="_blank" rel="noreferrer">github.com/otscup/secrets-broker-workers</a></div>')
   loadVersion(true).catch(() => {})
 }
 
@@ -1511,7 +1511,7 @@ async function bindThisDevice() {
   const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
   const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey)
   const privateJwk = await crypto.subtle.exportKey('jwk', pair.privateKey)
-  const paired = await api('/api/v2/device/self-pair', { method: 'POST', body: JSON.stringify({ name: '本机浏览器', publicJwk }) })
+  const paired = await api('/api/v2/device/self-pair', { method: 'POST', body: JSON.stringify({ name: 'This browser', publicJwk }) })
   await deviceSet({ deviceId: paired.deviceId, token: paired.token, privateJwk, createdAt: Date.now() })
   return paired
 }
@@ -1540,13 +1540,13 @@ function renderLockedSurface() {
     // Only a zero-knowledge vault has names worth hiding; a legacy vault keeps
     // them in plaintext at rest, so the bar must not claim a mask it never applied.
     $('locked-text').textContent = app.data?.masked === true
-      ? '未解锁 · 条目名称已脱敏，审批和查看仍可进行；读明文前再解锁'
-      : '未解锁 · 审批仍可进行；查看密钥和明文前再解锁'
-    $('locked-unlock').textContent = '就地解锁'
+      ? 'Locked · Item names are redacted. Approvals and viewing still work; unlock before reading plaintext'
+      : 'Locked · Approvals still work; unlock to view secrets and plaintext'
+    $('locked-unlock').textContent = 'Unlock here'
     $('locked-unlock').dataset.mode = 'unlock'
   } else if (plainGate) {
-    $('locked-text').textContent = '已解锁 · 显示条目名称需要一次验证码，本次解锁内只问一次'
-    $('locked-unlock').textContent = '验证并显示'
+    $('locked-text').textContent = 'Unlocked · Showing item names needs a code, asked only once per unlock'
+    $('locked-unlock').textContent = 'Verify and show'
     $('locked-unlock').dataset.mode = 'plain'
   }
 }
@@ -1566,19 +1566,19 @@ async function refreshCurrent() {
     else if (view === 'logs') { await loadState(); await refreshLogs() }
     else if (view === 'profile') await Promise.all([loadProfile(), loadState()])
     else if (view === 'settings') await loadSettings()
-    toast('已刷新')
+    toast('Refreshed')
   } catch (error) { toast(error.message, true) }
 }
 async function loadOidcLogin() {
   try {
     const data = await api('/api/oidc/status')
-    if (!data.enabled) { $('login-oidc').innerHTML = '<span class="hint">未配置 OIDC</span>'; return }
+    if (!data.enabled) { $('login-oidc').innerHTML = '<span class="hint">OIDC not configured</span>'; return }
     // One button per provider, so the operator picks the identity to use.
     const providers = data.providers || []
     const buttons = []
     for (const provider of providers) {
       const label = provider.label || provider.id
-      buttons.push('<a href="/oidc/login?provider=' + encodeURIComponent(provider.id) + '" style="margin-right:8px"><button class="primary">使用 ' + esc(label) + ' 登录</button></a>')
+      buttons.push('<a href="/oidc/login?provider=' + encodeURIComponent(provider.id) + '" style="margin-right:8px"><button class="primary">Log in with ' + esc(label) + '</button></a>')
     }
     $('login-oidc').innerHTML = buttons.join('')
   } catch {}
@@ -1586,30 +1586,30 @@ async function loadOidcLogin() {
 function when(value) {
   if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-CN', { hour12: false })
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('en-GB', { hour12: false })
 }
 $('mat-save').onclick = async () => {
   try {
     const paths = $('mat-paths').value.split('\n').map((line) => line.trim()).filter(Boolean)
-    status('mat-status', '保存中…')
+    status('mat-status', 'Saving…')
     await api('/api/settings', { method: 'POST', body: JSON.stringify({ materializePaths: paths }) })
-    status('mat-status', '已保存 ' + paths.length + ' 条路径', 'ok')
+    status('mat-status', 'Saved ' + paths.length + ' paths', 'ok')
   } catch (error) { status('mat-status', error.message, 'error') }
 }
 $('bs-save').onclick = async () => {
   try {
-    status('bs-status', '保存中…')
+    status('bs-status', 'Saving…')
     await api('/api/settings', { method: 'POST', body: JSON.stringify({ webPlaintext: $('bs-web').checked, unclassifiedPlaintext: $('bs-unclassified').checked, useAnyTarget: $('bs-target').checked, expiryBlocksReads: $('bs-expiry').checked, rotateReminderDays: Number($('bs-rotate-days').value) || 0 }) })
-    status('bs-status', '已保存', 'ok')
+    status('bs-status', 'Saved', 'ok')
   } catch (error) { status('bs-status', error.message, 'error') }
 }
 $('login').onclick = async () => {
   const button = $('login')
   button.disabled = true
   button.dataset.idle = button.textContent
-  button.textContent = '登录中…'
+  button.textContent = 'Logging in…'
   button.setAttribute('aria-busy', 'true')
-  status('login-status', '登录中…')
+  status('login-status', 'Logging in…')
   try {
     await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('admin-password').value, code: $('totp-code').value }) })
     $('admin-password').value = ''
@@ -1621,7 +1621,7 @@ $('login').onclick = async () => {
     // instead of leaving the operator to guess which box to fill next.
     if (error.status === 401 && error.data?.totpRequired) {
       show('totp-row', true)
-      status('login-status', error.data.error || '请输入两步验证码', 'error')
+      status('login-status', error.data.error || 'Enter your two-factor code', 'error')
       $('totp-code').focus()
     } else {
       status('login-status', error.message, 'error')
@@ -1639,8 +1639,8 @@ $('account-about').onclick = () => { show('account-menu', false); openAbout() }
 document.addEventListener('click', (event) => { if (!$('account-menu').classList.contains('hidden') && !event.target.closest('#account-menu') && !event.target.closest('#avatar')) show('account-menu', false) })
 document.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-revoke-session]'); if (!button) return
-  if (!(await askYes('强制下线这个客户端？'))) return
-  try { await api('/api/sessions/revoke', { method: 'POST', body: JSON.stringify({ id: button.dataset.revokeSession }) }); await loadProfile(); toast('已下线') } catch (error) { toast(error.message, true) }
+  if (!(await askYes('Log this client out?'))) return
+  try { await api('/api/sessions/revoke', { method: 'POST', body: JSON.stringify({ id: button.dataset.revokeSession }) }); await loadProfile(); toast('Logged out') } catch (error) { toast(error.message, true) }
 })
 $('account-logout').onclick = async () => { try { await api('/api/logout', { method: 'POST' }) } catch {} location.reload() }
 document.querySelectorAll('#account-menu [data-view]').forEach((button) => { button.onclick = async () => { if (!(await confirmDiscard())) return; if (editor.dirty) closeItemPage(); show('account-menu', false); document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', false)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + button.dataset.view)); syncGlobeToView(button.dataset.view); if (button.dataset.view === 'settings') loadSettings(); if (button.dataset.view === 'profile') loadProfile() } })
@@ -1648,10 +1648,10 @@ function applyTheme(mode) {
   const next = mode || localStorage.getItem('theme') || 'light'
   const effective = next === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : (next === 'dark' ? 'dark' : 'light')
   document.documentElement.dataset.theme = effective; localStorage.setItem('theme', next)
-  const label = next === 'light' ? '浅色' : next === 'dark' ? '深色' : '跟随系统'
-  const button = $('theme-cycle'); if (button) { button.textContent = next === 'light' ? '☀️' : next === 'dark' ? '🌙' : '💻'; button.title = '当前：' + label + '（点击切换）' }
+  const label = next === 'light' ? 'Light' : next === 'dark' ? 'Dark' : 'System'
+  const button = $('theme-cycle'); if (button) { button.textContent = next === 'light' ? '☀️' : next === 'dark' ? '🌙' : '💻'; button.title = 'Current: ' + label + ' (click to switch)' }
   // The sign-in screen hides the app bar, so it carries its own theme control.
-  const authButton = $('auth-theme'); if (authButton) { authButton.textContent = label + ' · 切换'; authButton.setAttribute('aria-label', '切换主题（当前：' + label + '）') }
+  const authButton = $('auth-theme'); if (authButton) { authButton.textContent = label + ' · Switch'; authButton.setAttribute('aria-label', 'Switch theme (current: ' + label + ')') }
 }
 const cycleTheme = () => { const current = localStorage.getItem('theme') || 'auto'; applyTheme(current === 'light' ? 'dark' : current === 'dark' ? 'auto' : 'light') }
 $('theme-cycle').onclick = cycleTheme
@@ -1695,7 +1695,7 @@ function applyTierAvailability() {
   if (!option) return
   const supported = app.v2?.initialized === true
   option.disabled = !supported
-  option.textContent = supported ? '长期（绑定本设备）' : '长期（仅 Vault 2.0 可用）'
+  option.textContent = supported ? 'Long-term (bind this device)' : 'Long-term (Vault 2.0 only)'
   if (!supported && select.value === 'device') select.value = '12h'
 }
 function legacyTtlSeconds(tier) {
@@ -1714,14 +1714,14 @@ async function finishUnlock(options = {}) {
   if (options.inline) show('modal', false)
   renderLockedSurface()
   await loadAll()
-  if (!options.inline) status('unlock-status', '已解锁', 'ok')
+  if (!options.inline) status('unlock-status', 'Unlocked', 'ok')
   // Callers that were mid-approval use this to continue the action they
   // started instead of sending the operator back to find the card again.
   if (typeof options.after === 'function') await options.after()
 }
 async function unlockV2(password, options = {}) {
   const tier = options.tier || $('ttl')?.value || '12h'
-  // "长期" is not a longer server cache: it pairs this browser, then asks the
+  // "Long-term" is not a longer server cache: it pairs this browser, then asks the
   // server cache for one hour at a time. The other tiers are real expiry values.
   const ttlMs = tier === '7d' ? 7 * 24 * 60 * 60 * 1000
     : tier === '30d' ? 30 * 24 * 60 * 60 * 1000
@@ -1737,7 +1737,7 @@ async function unlockV2(password, options = {}) {
   // instead of waiting for the next /api/v2/status poll to agree.
   if (typeof result?.plainOk === 'boolean') app.plainOk = result.plainOk
   if (tier === 'device') {
-    try { await bindThisDevice() } catch (error) { toast('设备绑定失败：' + error.message, true) }
+    try { await bindThisDevice() } catch (error) { toast('Couldn’t bind this device: ' + error.message, true) }
   }
   $('master-password').value = ''
   await finishUnlock(options)
@@ -1747,7 +1747,7 @@ async function unlockLegacy(password, ttl = '12h', options = {}) {
   // the default window instead of quietly expiring after an hour.
   if (ttl === 'device') ttl = '12h'
   const info = await api('/api/bootstrap')
-  if (info.kdfType !== 0) throw new Error('这个账户使用 Argon2 KDF（常见于从 NodeWarden/Bitwarden 导入），当前控制台只支持 PBKDF2。')
+  if (info.kdfType !== 0) throw new Error('This account uses Argon2 KDF (common for imports from NodeWarden/Bitwarden); this console only supports PBKDF2.')
   const masterKey = await pbkdf2(password, String(info.email).toLowerCase(), info.kdfIterations)
   const encKey = await hkdf(masterKey, 'enc', 32), macKey = await hkdf(masterKey, 'mac', 32)
   const userKey = await decryptBw(info.profileKey, encKey, macKey)
@@ -1757,19 +1757,19 @@ async function unlockLegacy(password, ttl = '12h', options = {}) {
 // The unlock prompt that appears where the user is working. One field, the same
 // tier list, and no page swap: approval work continues underneath it.
 function inlineUnlockSheet(after) {
-  openModal('就地解锁', '<p class="hint">解锁只影响名称与明文的可见性，当前页面不会跳转。审批可以继续。</p>'
-    + '<label class="field" for="inline-password">Vault 主密码</label><input id="inline-password" type="password" autocomplete="current-password" enterkeyhint="go">'
-    + '<label class="field" for="inline-ttl">解锁有效期</label><select id="inline-ttl"><option value="12h" selected>12 小时（默认）</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="device">长期（绑定本设备）</option></select>'
-    + '<div class="hint">时间越长，别处拿到这个会话就能读得越久；「长期」把密钥封存在本设备，撤销设备才会失效。</div>'
-    + '<div class="row"><button class="primary" id="inline-unlock-submit">解锁</button></div><div class="status" id="inline-unlock-status" role="status" aria-live="polite"></div>')
+  openModal('Unlock here', '<p class="hint">Unlocking only changes whether names and plaintext are visible; you stay on this page, and approvals keep working.</p>'
+    + '<label class="field" for="inline-password">Vault master password</label><input id="inline-password" type="password" autocomplete="current-password" enterkeyhint="go">'
+    + '<label class="field" for="inline-ttl">Unlock for</label><select id="inline-ttl"><option value="12h" selected>12 hours (default)</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="device">Long-term (bind this device)</option></select>'
+    + '<div class="hint">The longer it lasts, the longer anyone who gets hold of this session can read; “Long-term” seals the key on this device until the device is revoked.</div>'
+    + '<div class="row"><button class="primary" id="inline-unlock-submit">Unlock</button></div><div class="status" id="inline-unlock-status" role="status" aria-live="polite"></div>')
   $('inline-password').focus()
   $('inline-password').onkeydown = (event) => { if (event.key === 'Enter') $('inline-unlock-submit').click() }
   $('inline-unlock-submit').onclick = async () => {
     const button = $('inline-unlock-submit')
     const password = $('inline-password').value
-    if (!password) { status('inline-unlock-status', '先输入 Vault 主密码', 'error'); $('inline-password').focus(); return }
-    button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '解锁中…'
-    status('inline-unlock-status', '正在本地派生密钥…')
+    if (!password) { status('inline-unlock-status', 'Enter the Vault master password first', 'error'); $('inline-password').focus(); return }
+    button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = 'Unlocking…'
+    status('inline-unlock-status', 'Deriving the key locally…')
     try {
       const v2 = app.v2 || await api('/api/v2/status').catch(() => null)
       if (v2?.initialized) await unlockV2(password, { inline: true, tier: $('inline-ttl').value, after })
@@ -1778,7 +1778,7 @@ function inlineUnlockSheet(after) {
       status('inline-unlock-status', error.message, 'error')
       $('inline-password').focus()
     } finally {
-      button.disabled = false; button.removeAttribute('aria-busy'); button.textContent = '解锁'
+      button.disabled = false; button.removeAttribute('aria-busy'); button.textContent = 'Unlock'
     }
   }
 }
@@ -1790,12 +1790,12 @@ $('unlock').onclick = async () => {
   const code = needsCode ? String(codeField?.value || '').replace(/\s+/g, '') : ''
   // An empty field used to do literally nothing: no message, no focus, no sign
   // that the click was seen. Say what is missing and put the cursor there.
-  if (!password) { status('unlock-status', '先输入 Vault 主密码', 'error'); $('master-password').focus(); return }
-  if (needsCode && !/^\d{6}$/.test(code)) { status('unlock-status', '请输入手机上 6 位验证码', 'error'); codeField?.focus(); return }
+  if (!password) { status('unlock-status', 'Enter the Vault master password first', 'error'); $('master-password').focus(); return }
+  if (needsCode && !/^\d{6}$/.test(code)) { status('unlock-status', 'Enter the 6-digit code from your phone', 'error'); codeField?.focus(); return }
   button.disabled = true
   button.setAttribute('aria-busy', 'true')
-  button.textContent = '解锁中…'
-  status('unlock-status', '正在浏览器本地派生密钥…（约 0.3–1 秒）')
+  button.textContent = 'Unlocking…'
+  status('unlock-status', 'Deriving the key locally in your browser… (about 0.3–1 seconds)')
   try {
     // Vault 2.0 has its own password envelope. If it is active, unlock it
     // directly instead of requiring the legacy NodeWarden KDF metadata.
@@ -1807,14 +1807,14 @@ $('unlock').onclick = async () => {
   } catch (error) {
     // A wrong code must not cost the typed password: say what to fix and send
     // the cursor to the code field instead of the password field.
-    const badCode = needsCode && /验证码/.test(error.message || '')
-    status('unlock-status', badCode ? '验证码错误：请重新输入 6 位验证码（密码不用重填）' : error.message, 'error')
+    const badCode = needsCode && /verification code/i.test(error.message || '')
+    status('unlock-status', badCode ? 'Wrong verification code: enter the 6-digit code again (no need to retype the password)' : error.message, 'error')
     if (badCode) codeField?.focus()
     else $('master-password').focus()
   } finally {
     button.disabled = false
     button.removeAttribute('aria-busy')
-    button.textContent = '解锁'
+    button.textContent = 'Unlock'
   }
 }
 $('master-password').onkeydown = (event) => { if (event.key === 'Enter') $('unlock').click() }
@@ -1823,8 +1823,8 @@ $('admin-password').onkeydown = (event) => { if (event.key === 'Enter') $('login
 $('totp-code').onkeydown = (event) => { if (event.key === 'Enter') $('login').click() }
 $('init-v2').onclick = async () => {
   const password = $('master-password').value
-  if (password.length < 12) return status('unlock-status', '初始化密码至少 12 位', 'error')
-  if (!(await askYes('初始化 Vault 2.0？这会新建一套独立的数据密钥；旧 NodeWarden 条目不会自动迁移。'))) return
+  if (password.length < 12) return status('unlock-status', 'Password must be at least 12 characters', 'error')
+  if (!(await askYes('Initialize Vault 2.0? This creates a separate set of data keys; existing NodeWarden items are not migrated automatically.'))) return
   try {
     await api('/api/v2/init', { method: 'POST', body: JSON.stringify({ password }) })
     await unlockV2(password, { code: $('unlock-totp-code')?.value || '' })
@@ -1834,7 +1834,7 @@ api('/api/v2/status').then((v2) => { if (v2.initialized) $('init-v2').classList.
 async function lock() {
   // prompt() is silently refused inside the desktop WebView, so the lock
   // button did nothing there. Ask in the page instead.
-  const password = await askCode('锁定后：当前 vault 会话会被清除，所有 Agent 立即无法读取；再次使用需要用该账户主密码重新解锁。', { type: 'password', inputmode: 'text', placeholder: '输入当前管理密码', maxlength: 0, label: '管理密码' })
+  const password = await askCode('Locking clears the current vault session, and every Agent loses read access at once. To use it again, unlock with the account’s master password.', { type: 'password', inputmode: 'text', placeholder: 'Current console password', maxlength: 0, label: 'Console password' })
   if (!password) return
   try {
     await api('/api/lock', { method: 'POST', body: JSON.stringify({ password }) })
@@ -1845,7 +1845,7 @@ async function lock() {
     try { sessionStorage.setItem('broker-lock-intent', '1') } catch {}
     app.locked = true; app.plainOk = app.v2?.initialized === true ? false : true
     if (app.me) app.me.unlocked = false
-    renderLockedSurface(); toast('已锁定：名称已脱敏，审批仍可进行')
+    renderLockedSurface(); toast('Locked: names are redacted, approvals still work')
     await loadAll()
   } catch (error) { toast(error.message, true) }
 }
@@ -1898,15 +1898,15 @@ function globalSearch(query) {
   const add = (label, view, list) => { if (list.length) groups.push({ label, view, list }) }
   add('Agent', 'agents', (app.data.agents || []).filter((agent) => hit(agent.name, agent.alias, agent.note))
     .map((agent) => ({ title: agentDisplayName(agent), sub: agent.name, name: agent.name })))
-  add('密钥', 'items', (app.items || []).filter((item) => hit(item.name, item.group, item.url))
+  add('Secrets', 'items', (app.items || []).filter((item) => hit(item.name, item.group, item.url))
     .map((item) => ({ title: item.name, sub: item.group || item.url || '', name: item.name })))
-  add('授权', 'grants', (app.data.grants || []).filter((grant) => hit(agentLabel(grant.agent), grant.agent, grant.name))
+  add('Grants', 'grants', (app.data.grants || []).filter((grant) => hit(agentLabel(grant.agent), grant.agent, grant.name))
     .map((grant) => ({ title: grant.name, sub: agentLabel(grant.agent) })))
-  add('待审批', 'grants', (app.data.pending || []).filter((request) => hit(agentLabel(request.agent), request.agent, request.name))
+  add('Pending approval', 'grants', (app.data.pending || []).filter((request) => hit(agentLabel(request.agent), request.agent, request.name))
     .map((request) => ({ title: request.name, sub: agentLabel(request.agent) })))
-  add('日志', 'logs', (app.data.audit || []).filter((entry) => hit(entry.event, entry.agent, entry.name))
+  add('Logs', 'logs', (app.data.audit || []).filter((entry) => hit(entry.event, entry.agent, entry.name))
     .map((entry) => ({ title: describeEvent(entry) || entry.event, sub: [agentLabel(entry.agent), entry.name].filter(Boolean).join(' · ') })))
-  add('被拦下的请求', 'grants', (app.data.deniedAttempts || []).filter((entry) => hit(entry.agent, entry.name))
+  add('Blocked requests', 'grants', (app.data.deniedAttempts || []).filter((entry) => hit(entry.agent, entry.name))
     .map((entry) => ({ title: entry.name, sub: agentLabel(entry.agent) + (entry.reason ? ' · ' + entry.reason : '') })))
   return groups
 }
@@ -1927,9 +1927,9 @@ function renderGlobalSearch() {
     for (const row of shown) {
       html.push('<button class="gs-row" data-goto="' + esc(group.view) + '"' + (row.name ? ' data-name="' + esc(row.name) + '"' : '') + '><b>' + esc(row.title) + '</b>' + (row.sub ? ' <span class="gs-sub">' + esc(row.sub) + '</span>' : '') + '</button>')
     }
-    if (group.list.length > shown.length) html.push('<div class="gs-more">还有 ' + (group.list.length - shown.length) + ' 条</div>')
+    if (group.list.length > shown.length) html.push('<div class="gs-more">' + (group.list.length - shown.length) + ' more</div>')
   }
-  box.innerHTML = html.length ? html.join('') : '<div class="hint">没有找到匹配「' + esc(query) + '」的内容</div>'
+  box.innerHTML = html.length ? html.join('') : '<div class="hint">Nothing matches “' + esc(query) + '”</div>'
   box.classList.remove('hidden')
 }
 if ($('global-search')) {
@@ -1950,7 +1950,7 @@ $('global-search-results').addEventListener('click', (event) => {
 })
 $('trend-prev').onclick = () => { trendFace = (trendFace + trendFaces.length - 1) % trendFaces.length; renderTrendFace() }
 $('trend-next').onclick = () => { trendFace = (trendFace + 1) % trendFaces.length; renderTrendFace() }
-$('items-refresh').onclick = loadItems; $('items-select').onclick = () => { itemsSelecting = !itemsSelecting; if (!itemsSelecting) selectedItems.clear(); $('items-select').textContent = itemsSelecting ? '完成' : '选择'; renderItems() }; $('item-filter').oninput = () => { if ($('item-filter').value.trim()) localStorage.setItem('sb-item-filter', $('item-filter').value); else localStorage.removeItem('sb-item-filter'); renderItems() }; $('item-sort').onchange = () => { localStorage.setItem('sb-item-sort', $('item-sort').value); renderItems() }; $('item-density').onclick = () => { const dense = $('item-density').getAttribute('aria-pressed') !== 'true'; if (dense) localStorage.setItem('sb-item-density', 'compact'); else localStorage.removeItem('sb-item-density'); setItemDensity(dense) }; $('item-create').onclick = createItemMenu; $('item-import').onclick = () => $('import-file').click(); $('import-file').onchange = importItems; $('item-export').onclick = exportItems; $('bulk-share').onclick = openBulkShare; $('bulk-kind').onclick = openBulkKind; $('bulk-delete').onclick = bulkDelete; $('bulk-clear').onclick = () => { selectedItems.clear(); renderItems() }; $('settings-save').onclick = saveSettings; $('ai-save').onclick = saveAiSettings; $('ai-model-fetch').onclick = fetchCustomModels; $('ai-help').onclick = () => openAiHelp();; $('ai-test').onclick = async () => { try { status('ai-status', '测试中…'); const d = await api('/api/ai/ask', { method: 'POST', body: JSON.stringify({ question: '用一个句子说明你能看到什么，并列出当前最需要处理的一件事。' }) }); status('ai-status', d.ok ? ('可用（' + ('自建 API') + '）：' + d.text.slice(0, 120)) : ('不可用：' + (d.error || '')), d.ok ? 'ok' : 'error') } catch (e) { status('ai-status', e.message, 'error') } }; $('notify-test').onclick = testNotifications; $('notify-test-approval').onclick = () => testNotifications(true); $('oidc-new').onclick = () => showOidcProviderForm(); $('op-save').onclick = saveOidcProvider; $('op-cancel').onclick = () => $('oidc-provider-form').classList.add('hidden'); $('op-discover').onclick = discoverOidcProvider; $('op-probe').onclick = probeOidcProvider; $('profile-save').onclick = saveProfile; $('password-save').onclick = changePassword; $('totp-setup').onclick = setup2fa; $('totp-enable').onclick = enable2fa; $('totp-disable').onclick = disable2fa; $('enable-browser-notify').onclick = enableBrowserNotifications; $('enable-webpush').onclick = enableWebPush; $('test-webpush').onclick = testWebPush; $('test-browser-notify').onclick = () => showBrowserNotification('测试通知', '浏览器通知工作正常'); $('vault-switch').onclick = switchAccount; $('vault-folder-save').onclick = saveFolder
+$('items-refresh').onclick = loadItems; $('items-select').onclick = () => { itemsSelecting = !itemsSelecting; if (!itemsSelecting) selectedItems.clear(); $('items-select').textContent = itemsSelecting ? 'Done' : 'Select'; renderItems() }; $('item-filter').oninput = () => { if ($('item-filter').value.trim()) localStorage.setItem('sb-item-filter', $('item-filter').value); else localStorage.removeItem('sb-item-filter'); renderItems() }; $('item-sort').onchange = () => { localStorage.setItem('sb-item-sort', $('item-sort').value); renderItems() }; $('item-density').onclick = () => { const dense = $('item-density').getAttribute('aria-pressed') !== 'true'; if (dense) localStorage.setItem('sb-item-density', 'compact'); else localStorage.removeItem('sb-item-density'); setItemDensity(dense) }; $('item-create').onclick = createItemMenu; $('item-import').onclick = () => $('import-file').click(); $('import-file').onchange = importItems; $('item-export').onclick = exportItems; $('bulk-share').onclick = openBulkShare; $('bulk-kind').onclick = openBulkKind; $('bulk-delete').onclick = bulkDelete; $('bulk-clear').onclick = () => { selectedItems.clear(); renderItems() }; $('settings-save').onclick = saveSettings; $('ai-save').onclick = saveAiSettings; $('ai-model-fetch').onclick = fetchCustomModels; $('ai-help').onclick = () => openAiHelp();; $('ai-test').onclick = async () => { try { status('ai-status', 'Testing…'); const d = await api('/api/ai/ask', { method: 'POST', body: JSON.stringify({ question: 'In one sentence, say what you can see and name the one thing that most needs attention right now.' }) }); status('ai-status', d.ok ? ('Working (' + ('custom API') + '): ' + d.text.slice(0, 120)) : ('Not working: ' + (d.error || '')), d.ok ? 'ok' : 'error') } catch (e) { status('ai-status', e.message, 'error') } }; $('notify-test').onclick = testNotifications; $('notify-test-approval').onclick = () => testNotifications(true); $('oidc-new').onclick = () => showOidcProviderForm(); $('op-save').onclick = saveOidcProvider; $('op-cancel').onclick = () => $('oidc-provider-form').classList.add('hidden'); $('op-discover').onclick = discoverOidcProvider; $('op-probe').onclick = probeOidcProvider; $('profile-save').onclick = saveProfile; $('password-save').onclick = changePassword; $('totp-setup').onclick = setup2fa; $('totp-enable').onclick = enable2fa; $('totp-disable').onclick = disable2fa; $('enable-browser-notify').onclick = enableBrowserNotifications; $('enable-webpush').onclick = enableWebPush; $('test-webpush').onclick = testWebPush; $('test-browser-notify').onclick = () => showBrowserNotification('Test notification', 'Browser notifications are working'); $('vault-switch').onclick = switchAccount; $('vault-folder-save').onclick = saveFolder
 // A reload should not silently reset how the list was being looked at: the
 // filter, the sort and the density are view state, not one-off input.
 { const savedFilter = localStorage.getItem('sb-item-filter'); if (savedFilter && $('item-filter')) $('item-filter').value = savedFilter }
@@ -1972,7 +1972,7 @@ $('v2-devices').addEventListener('click', async (event) => {
     try {
       await api('/api/v2/devices/' + encodeURIComponent(write.dataset.v2Write), { method: 'PATCH', body: JSON.stringify({ canWrite: !on }) })
       await loadVault2(false)
-      $('devices-msg').textContent = on ? '已改为只读：这台设备不能再用 push 写入' : '已允许写入：这台设备可以 push 了'
+      $('devices-msg').textContent = on ? 'Now read-only: this device can no longer write with push' : 'Writes allowed: this device can push now'
     } catch (error) { $('devices-msg').textContent = error.message; write.disabled = false }
     return
   }
@@ -1981,34 +1981,34 @@ $('v2-devices').addEventListener('click', async (event) => {
     const name = purge.closest('[data-device]')?.querySelector('b')?.textContent || ''
     // The desktop WebView drops native confirm(), and the row silently survived
     // the click. Ask in the page: same wording, danger-weighted confirmation.
-    if (!(await askYes('删除设备「' + name + '」的记录？\n\n只对已撤销的设备可用，删掉后这条记录和它留下的钥匙信封都不再保留，无法恢复。', { yes: '删除记录', no: '取消' }))) return
+    if (!(await askYes('Delete the record for device “' + name + '”?\n\n“Delete record” only works on revoked devices. The record and the key envelopes it left behind are removed for good and can’t be recovered.', { yes: 'Delete record', no: 'Cancel' }))) return
     purge.disabled = true
     try {
       await api('/api/v2/devices/' + encodeURIComponent(purge.dataset.v2Purge) + '?purge=1', { method: 'DELETE' })
       await loadVault2(false)
-      $('devices-msg').textContent = '已删除「' + name + '」的记录'
+      $('devices-msg').textContent = 'Deleted the record for “' + name + '”'
     } catch (error) { $('devices-msg').textContent = error.message; purge.disabled = false }
     return
   }
   const button = event.target.closest('[data-v2-revoke]')
   if (!button) return
   const name = button.closest('[data-device]')?.querySelector('b')?.textContent || ''
-  if (!(await askYes('撤销设备「' + name + '」？\n\n撤销后它不能再拉取条目；它已经拿到的钥匙，只有跑一次重加密才会失效。', { yes: '撤销', no: '取消' }))) return
+  if (!(await askYes('Revoke device “' + name + '”?\n\n“Revoke” stops it from pulling items. Keys it already holds keep working until you run a re-encryption.', { yes: 'Revoke', no: 'Cancel' }))) return
   button.disabled = true
   try {
-    await sensitiveRequest('/api/v2/devices/' + encodeURIComponent(button.dataset.v2Revoke), 'DELETE', {}, '撤销设备')
+    await sensitiveRequest('/api/v2/devices/' + encodeURIComponent(button.dataset.v2Revoke), 'DELETE', {}, 'Revoke device')
     // Revoking this browser's own credential must also drop the local copy,
     // otherwise the console would keep trying a token the server already killed.
     const local = await deviceGet()
     if (local && local.deviceId === button.dataset.v2Revoke) await deviceClear()
     await loadVault2(false)
-    $('devices-msg').textContent = '已撤销「' + name + '」'
+    $('devices-msg').textContent = 'Revoked “' + name + '”'
   } catch (error) { $('devices-msg').textContent = error.message; button.disabled = false }
 })
 $('v2-unlock').onclick = async () => {
   const password = $('v2-password').value
-  const initialising = $('v2-unlock').textContent === '初始化'
-  if (!password) { $('v2-msg').textContent = '先输入主密码'; return }
+  const initialising = $('v2-unlock').textContent === 'Initialize'
+  if (!password) { $('v2-msg').textContent = 'Enter the master password first'; return }
   try {
     await api(initialising ? '/api/v2/init' : '/api/v2/unlock', { method: 'POST', body: JSON.stringify({ password, ttlMs: 12 * 60 * 60 * 1000, duration: '12h' }) })
     $('v2-password').value = ''
@@ -2016,7 +2016,7 @@ $('v2-unlock').onclick = async () => {
     if (app.me) app.me.unlocked = true
     renderLockedSurface()
     await Promise.all([loadVault2(), loadItems()])
-    $('v2-msg').textContent = initialising ? '已初始化并解锁' : '已解锁'
+    $('v2-msg').textContent = initialising ? 'Initialized and unlocked' : 'Unlocked'
   } catch (error) { $('v2-msg').textContent = error.message }
 }
 $('v2-lock').onclick = async () => {
@@ -2024,18 +2024,18 @@ $('v2-lock').onclick = async () => {
 }
 $('v2-import').onclick = async () => {
   const oldPassword = $('v2-legacy-password').value
-  if (!oldPassword) { $('v2-msg').textContent = '先输入旧密文库的主密码'; return }
+  if (!oldPassword) { $('v2-msg').textContent = 'Enter the old vault’s master password first'; return }
   // Import copies the whole legacy vault, so the confirmation stays in-page for
   // the same reason as the device buttons: a refused native dialog looks like a
   // dead button.
-  if (!(await askYes('用旧主密码解锁一次旧密文库，把条目复制一份到 Vault 2.0？原来的密文库不会被动。', { yes: '开始导入', no: '取消' }))) return
-  $('v2-msg').textContent = '正在解锁旧密文库并导入…'
+  if (!(await askYes('Unlock the old vault once with its master password and copy its items into Vault 2.0? The original vault is left untouched.', { yes: 'Start import', no: 'Cancel' }))) return
+  $('v2-msg').textContent = 'Unlocking the old vault and importing…'
   try {
     await unlockLegacy(oldPassword)
     const result = await api('/api/v2/import', { method: 'POST' })
     $('v2-legacy-password').value = ''
     await Promise.all([loadVault2(), loadItems()])
-    $('v2-msg').textContent = '导入 ' + result.imported + ' 条，跳过 ' + result.skipped + ' 条（共 ' + result.total + ' 条）'
+    $('v2-msg').textContent = 'Imported ' + result.imported + ' items, skipped ' + result.skipped + ' (' + result.total + ' total)'
   } catch (error) { $('v2-msg').textContent = error.message }
 }
 // Collapsible settings cards. One delegated handler covers every card, so a
@@ -2046,7 +2046,7 @@ document.addEventListener('click', (event) => {
   const card = $(toggle.dataset.collapse)
   if (card) card.classList.toggle('collapsed')
 })
-const copyTokenBtn = $('copy-token'); if (copyTokenBtn) copyTokenBtn.onclick = async () => { try { await navigator.clipboard.writeText(app.token); toast('已复制 token') } catch { toast('复制失败', true) } }
+const copyTokenBtn = $('copy-token'); if (copyTokenBtn) copyTokenBtn.onclick = async () => { try { await navigator.clipboard.writeText(app.token); toast('Copied the token') } catch { toast('Copy failed', true) } }
 $('modal-close').onclick = () => show('modal', false)
 $('modal-body').addEventListener('click', (event) => { const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); } })
 $('modal-close-x').onclick = () => show('modal', false)
@@ -2055,8 +2055,8 @@ $('modal').addEventListener('click', (event) => { if (event.target === $('modal'
 // listeners are on document, so without this guard one key press would take
 // the confirmation *and* the dialog underneath.
 document.addEventListener('keydown', (event) => { if (event.key !== 'Escape') return; if (document.querySelector('.ask')) return; if (!$('modal').classList.contains('hidden')) show('modal', false) })
-// 被拦下的请求 lives in its own card, not inside items-box, so the handler is
-// bound to that table. Binding it to items-box was why 授权 and 忽略 did nothing.
+// “Blocked requests” lives in its own card, not inside items-box, so the handler is
+// bound to that table. Binding it to items-box was why the Grant and Ignore buttons did nothing.
 $('denied-list').addEventListener('click', async (event) => {
   const allowDenied = event.target.closest('[data-allow-denied]')
   if (allowDenied) { openAllowDenied(allowDenied.dataset.agent, allowDenied.dataset.name, allowDenied.dataset.action); return }
@@ -2068,14 +2068,14 @@ $('denied-list').addEventListener('click', async (event) => {
     const agentName = scopeDenied.dataset.agent
     const name = scopeDenied.dataset.name
     const agent = ((app.data && app.data.agents) || []).find((entry) => entry.name === agentName)
-    if (!agent) { toast('找不到这个 Agent，先确认它还在', true); return }
-    if (agent.allowAll) { toast('这个 Agent 已可申请全部条目，不需要再开入口', true); return }
+    if (!agent) { toast('Can’t find this Agent; check that it still exists', true); return }
+    if (agent.allowAll) { toast('This Agent can already request every item; nothing to add', true); return }
     const allow = Array.from(new Set([...(agent.allow || []), name]))
     scopeDenied.disabled = true
     try {
       await api('/api/agents/update', { method: 'POST', body: JSON.stringify({ name: agent.name, allow }) })
       await refreshAll()
-      toast('已把「' + name + '」加入「' + agentName + '」的可申请范围，下一步再授权')
+      toast('Added “' + name + '” to the requestable scope of “' + agentName + '”; authorize it next')
     } catch (error) { toast(error.message, true); scopeDenied.disabled = false }
     return
   }
@@ -2085,7 +2085,7 @@ $('denied-list').addEventListener('click', async (event) => {
     try {
       await api('/api/fill/read-policy', { method: 'POST', body: JSON.stringify({ item: allowPlaintext.dataset.name, allow: true, ttlDays: days }) })
       await refreshAll()
-      toast('已允许读取明文 ' + days + ' 天')
+      toast('Plaintext reads allowed for ' + days + ' day(s)')
     } catch (error) { toast(error.message, true) }
     return
   }
@@ -2095,12 +2095,12 @@ $('denied-list').addEventListener('click', async (event) => {
   if (dismissDenied) {
     try {
       await api('/api/denied/dismiss', { method: 'POST', body: JSON.stringify({ agent: dismissDenied.dataset.agent, name: dismissDenied.dataset.name, action: dismissDenied.dataset.action }) })
-      await refreshAll(); toast('已忽略')
+      await refreshAll(); toast('Dismissed')
     } catch (error) { toast(error.message, true) }
   }
 })
 $('items-box').addEventListener('click', async (event) => {
-  const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); return } const menu = event.target.closest('[data-item-menu]'); if (menu) { if (!(await confirmDiscard())) return; openItemMenu(menu.dataset.itemMenu); return } const toggle = event.target.closest('[data-policy]'); if (toggle) { const item = app.items.find((entry) => entry.name === toggle.dataset.policy); if (!item) return; try { await sensitivePost('/api/policies', { name: item.name, noApproval: !item.noApproval }, '修改免审批策略'); await loadItems(); toast('已更新免审批策略') } catch (error) { toast(error.message, true) } return } const read = event.target.closest('[data-read]'); if (read) reveal(read.dataset.read) })
+  const grantEdit = event.target.closest('[data-item-grant]'); if (grantEdit) { openGrantMenu(grantEdit.dataset.agent, grantEdit.dataset.name); return } const menu = event.target.closest('[data-item-menu]'); if (menu) { if (!(await confirmDiscard())) return; openItemMenu(menu.dataset.itemMenu); return } const toggle = event.target.closest('[data-policy]'); if (toggle) { const item = app.items.find((entry) => entry.name === toggle.dataset.policy); if (!item) return; try { await sensitivePost('/api/policies', { name: item.name, noApproval: !item.noApproval }, 'Change no-approval policy'); await loadItems(); toast('No-approval policy updated') } catch (error) { toast(error.message, true) } return } const read = event.target.closest('[data-read]'); if (read) reveal(read.dataset.read) })
 // The row body is a div with role="button". A click opens it, so Enter and
 // Space have to do the same or the row is visible but unreachable by keyboard.
 $('items-box').addEventListener('keydown', async (event) => {
@@ -2173,7 +2173,7 @@ function pickListValues(id) {
   return [...document.querySelectorAll('.' + id + ':checked')].map((box) => box.value)
 }
 // The names and groups that exist right now, for the pickers. app.items is only
-// populated by the 密钥 page, so an Agent dialog opened first would show an empty
+// populated by the Secrets page, so an Agent dialog opened first would show an empty
 // picker and silently save an empty allow list. Callers await ensureItems().
 function knownItemNames() {
   return ((app.items || []).map((item) => item.name)).filter(Boolean).sort((a, b) => a.localeCompare(b))
@@ -2192,28 +2192,28 @@ async function ensureItems() {
 // Creation moved into a modal so it no longer pushes the list down.
 async function openAgentCreate() {
   await ensureItems()
-  openModal('新建 Agent', '<div class="hint">Token 只在创建后显示一次。</div>' +
-    '<label class="field">名称</label><input id="ac-name" placeholder="如 dsh">' +
-    '<label class="field">显示名（可选）</label><input id="ac-alias" placeholder="便于识别的名字">' +
-    '<label class="field">备注（可选）</label><input id="ac-note" placeholder="用途说明">' +
-    '<label class="field">可申请条目（勾选，不勾=连申请都会被拒绝）</label>' + pickListHtml('ac-allow', knownItemNames(), [], '密钥库里还没有条目，先去「密钥」页新建。') +
-    '<label class="field">可申请分组（勾选，不勾=不限）</label>' + pickListHtml('ac-groups', knownGroups(), [], '还没有任何分组。分组在新增条目时填写，或在条目菜单里改。') +
-    '<label class="chk" style="margin-top:8px"><input type="checkbox" id="ac-allowall"> 允许全部条目</label>' +
-    '<label class="chk" style="margin-top:8px"><input type="checkbox" id="ac-write"> 允许写入（可调 /agent/items/save）</label>' +
-    '<div class="row" style="margin-top:14px"><button class="primary" id="ac-create">创建</button></div>' +
+  openModal('New Agent', '<div class="hint">Token is shown only once, right after creation.</div>' +
+    '<label class="field">Name</label><input id="ac-name" placeholder="e.g. dsh">' +
+    '<label class="field">Display name (optional)</label><input id="ac-alias" placeholder="An easy-to-recognize name">' +
+    '<label class="field">Notes (optional)</label><input id="ac-note" placeholder="What it’s for">' +
+    '<label class="field">Requestable items (none checked = every request is denied)</label>' + pickListHtml('ac-allow', knownItemNames(), [], 'No items yet. Create one on the “Secrets” page first.') +
+    '<label class="field">Requestable groups (none checked = any group)</label>' + pickListHtml('ac-groups', knownGroups(), [], 'No groups yet. Set a group when adding an item, or change it in the item menu.') +
+    '<label class="chk" style="margin-top:8px"><input type="checkbox" id="ac-allowall"> Allow all items</label>' +
+    '<label class="chk" style="margin-top:8px"><input type="checkbox" id="ac-write"> Allow writes (can call /agent/items/save)</label>' +
+    '<div class="row" style="margin-top:14px"><button class="primary" id="ac-create">Create</button></div>' +
     '<div class="status" id="ac-status"></div><div class="secret hidden" id="ac-token"></div>')
   $('ac-create').onclick = async () => {
     const name = $('ac-name').value.trim()
-    if (!name) return status('ac-status', '请输入名称', 'error')
+    if (!name) return status('ac-status', 'Enter a name', 'error')
     try {
-      status('ac-status', '创建中…')
+      status('ac-status', 'Creating…')
       const allow = pickListValues('ac-allow')
       const groups = pickListValues('ac-groups')
       const payload = { name, alias: $('ac-alias').value.trim(), note: $('ac-note').value.trim(), allow, groups, allowAll: $('ac-allowall').checked, write: $('ac-write').checked }
       // Write is an elevated capability, so it is the one checkbox that asks for
       // a fresh proof before the token is minted.
       const result = payload.write
-        ? await sensitivePost('/api/agents/create', payload, '给 Agent 新增写权限')
+        ? await sensitivePost('/api/agents/create', payload, 'Give the Agent write access')
         : await api('/api/agents/create', { method: 'POST', body: JSON.stringify(payload) })
       $('ac-token').classList.remove('hidden')
       $('ac-token').textContent = result.token
@@ -2221,8 +2221,8 @@ async function openAgentCreate() {
       // requestable set. Say what that implies and where the next step is, so
       // the agent is not stranded on its first request.
       const scopeEmpty = !payload.allowAll && !allow.length && !groups.length
-      const nextStep = scopeEmpty ? '。可申请范围为空：请在 Agent 列表点「权限矩阵」给它加入可申请条目，否则它连申请都会被拒绝' : ''
-      try { await navigator.clipboard.writeText(result.token); status('ac-status', '已创建，token 已复制到剪贴板' + nextStep, 'ok') } catch { status('ac-status', '已创建，请手动复制 token' + nextStep, 'ok') }
+      const nextStep = scopeEmpty ? '. The requestable scope is empty: in the Agent list, open “Permission matrix” and add requestable items, otherwise even its requests will be denied' : ''
+      try { await navigator.clipboard.writeText(result.token); status('ac-status', 'Created; token copied to clipboard' + nextStep, 'ok') } catch { status('ac-status', 'Created; copy the token manually' + nextStep, 'ok') }
       await refreshAll()
     } catch (error) { status('ac-status', error.message, 'error') }
   }
@@ -2232,15 +2232,15 @@ async function openAgentCreate() {
 // decides", and "cannot even ask". The fifth is an authority that exists but
 // no longer works, which would otherwise look like a grant.
 const PM_STATES = {
-  granted: { label: '完全授权', tone: 'on' },
-  noapproval: { label: '免审批直读', tone: 'plain' },
-  requestable: { label: '可申请', tone: 'warn' },
-  none: { label: '无权限', tone: '' },
-  blocked: { label: '已失效', tone: 'bad' },
-  mixed: { label: '混合', tone: '' },
+  granted: { label: 'Full grant', tone: 'on' },
+  noapproval: { label: 'No approval needed', tone: 'plain' },
+  requestable: { label: 'Requestable', tone: 'warn' },
+  none: { label: 'No access', tone: '' },
+  blocked: { label: 'Lapsed', tone: 'bad' },
+  mixed: { label: 'Mixed', tone: '' },
 }
-const PM_SOURCES = { capability: 'capability', 'action-grant': 'grant', 'legacy-scope': 'legacy scope', scope: '可申请范围', none: '不在范围' }
-const PM_ACTION_LABEL = { read: '读取明文', use: '代持调用', fill: '网页填充' }
+const PM_SOURCES = { capability: 'capability', 'action-grant': 'grant', 'legacy-scope': 'legacy scope', scope: 'requestable scope', none: 'not in scope' }
+const PM_ACTION_LABEL = { read: 'Read plaintext', use: 'Proxied call', fill: 'Web fill' }
 const PM_ACTION_KEY = { read: 'secret.read', use: 'secret.use', fill: 'secret.fill' }
 function pmCellHtml(agent, items, data, action) {
   const states = items.map((item) => ((data.cells?.[agent.name] || {})[item.id] || {})[action]).filter(Boolean)
@@ -2260,11 +2260,11 @@ async function openPermissionMatrix() {
   const groups = []
   const byGroup = new Map()
   for (const item of data.items || []) {
-    const key = item.group || '未分组'
+    const key = item.group || 'Ungrouped'
     if (!byGroup.has(key)) { byGroup.set(key, []); groups.push(key) }
     byGroup.get(key).push(item)
   }
-  openModal('Agent 权限矩阵', '<div id="pm-body"></div>')
+  openModal('Agent permission matrix', '<div id="pm-body"></div>')
   const modalCard = document.querySelector('#modal > .card'); if (modalCard) modalCard.classList.add('pm-wide')
   const box = $('pm-body')
   const findAgent = (name) => (data.agents || []).find((agent) => agent.name === name)
@@ -2279,44 +2279,44 @@ async function openPermissionMatrix() {
       const cell = ((data.cells?.[agent.name] || {})[item.id] || {})[action] || { state: 'none' }
       const meta = PM_STATES[cell.state] || PM_STATES.none
       const source = PM_SOURCES[cell.source] || cell.source || '—'
-      const expiry = typeof cell.expiresAt === 'number' ? ' · ' + new Date(cell.expiresAt).toLocaleString('zh-CN', { hour12: false }) + ' 到期' : ''
-      const note = cell.state === 'blocked' ? ' · 授权已撤销/用尽/过期，需要重新授权' : ''
+      const expiry = typeof cell.expiresAt === 'number' ? ' · expires ' + new Date(cell.expiresAt).toLocaleString('en-GB', { hour12: false }) + '' : ''
+      const note = cell.state === 'blocked' ? ' · Grant revoked, used up or expired; grant again' : ''
       let button = ''
-      if (locked) button = '<button class="small" data-inline-unlock>解锁后修改</button>'
-      else if (cell.state === 'granted' || cell.state === 'noapproval') button = '<button class="small danger" data-pm-do="revoke" data-agent="' + esc(agent.name) + '" data-item-id="' + esc(item.id) + '" data-action="' + esc(action) + '">撤销</button>'
-      else if (cell.state === 'requestable') button = '<button class="small primary" data-pm-do="grant" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '" data-action="' + esc(action) + '">直接授权 7 天</button>'
-      else if (cell.state === 'blocked') button = '<button class="small primary" data-pm-do="grant" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '" data-action="' + esc(action) + '">重新授权 7 天</button>'
-      else button = '<button class="small" data-pm-do="scope" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '">先加入可申请范围</button>'
+      if (locked) button = '<button class="small" data-inline-unlock>Unlock to edit</button>'
+      else if (cell.state === 'granted' || cell.state === 'noapproval') button = '<button class="small danger" data-pm-do="revoke" data-agent="' + esc(agent.name) + '" data-item-id="' + esc(item.id) + '" data-action="' + esc(action) + '">Revoke</button>'
+      else if (cell.state === 'requestable') button = '<button class="small primary" data-pm-do="grant" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '" data-action="' + esc(action) + '">Grant for 7 days</button>'
+      else if (cell.state === 'blocked') button = '<button class="small primary" data-pm-do="grant" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '" data-action="' + esc(action) + '">Re-grant for 7 days</button>'
+      else button = '<button class="small" data-pm-do="scope" data-agent="' + esc(agent.name) + '" data-item="' + esc(item.name) + '">Add to requestable scope first</button>'
       return '<div class="pm-detail-row"><div class="pm-detail-meta">'
         + '<b>' + esc(item.name) + '</b><span class="ios-pill ' + meta.tone + '">' + esc(meta.label) + '</span>'
-        + '<span class="pm-sub">来源 ' + esc(source) + expiry + note + '</span></div>' + button + '</div>'
+        + '<span class="pm-sub">Source: ' + esc(source) + expiry + note + '</span></div>' + button + '</div>'
     }
     box.innerHTML = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
       + '<div><b>' + esc(agentDisplayName(agent)) + '</b><div class="pm-sub">' + esc(groups[detail.index]) + ' · ' + PM_ACTION_LABEL[action] + '</div></div>'
-      + '<button data-pm-back>返回矩阵</button></div>'
-      + (locked ? '<div class="notice-bar" data-level="notice" style="margin-top:10px"><span class="notice-dot"></span><span class="notice-text">当前是锁定态，矩阵只读；解锁后才能修改。</span></div>' : '')
-      + '<div style="margin-top:10px">' + (items.length ? items.map(rowOf).join('') : '<div class="hint">这个分组里没有条目</div>') + '</div>'
+      + '<button data-pm-back>Back to matrix</button></div>'
+      + (locked ? '<div class="notice-bar" data-level="notice" style="margin-top:10px"><span class="notice-dot"></span><span class="notice-text">Locked, so the matrix is read-only; unlock to make changes.</span></div>' : '')
+      + '<div style="margin-top:10px">' + (items.length ? items.map(rowOf).join('') : '<div class="hint">No items in this group</div>') + '</div>'
   }
   const renderMatrix = () => {
     const agents = data.agents || []
-    const head = '<tr><th>Agent</th>' + groups.map((group) => '<th>' + esc(group) + '<div class="pm-sub">' + byGroup.get(group).length + ' 条</div></th>').join('') + '</tr>'
+    const head = '<tr><th>Agent</th>' + groups.map((group) => '<th>' + esc(group) + '<div class="pm-sub">' + byGroup.get(group).length + ' items</div></th>').join('') + '</tr>'
     const rows = agents.map((agent) => {
       const cells = groups.map((group, index) => {
         const cell = pmCellHtml(agent, byGroup.get(group), data, action)
         return '<td class="pm-cell" data-pm-cell="' + esc(agent.name) + '" data-pm-index="' + index + '" title="' + esc(cell.detail) + '">'
           + '<span class="ios-pill ' + cell.tone + '">' + cell.label + '</span></td>'
       }).join('')
-      const rowSub = [agent.oauth ? 'OAuth' : agent.legacy ? 'legacy' : 'token', agent.scopeEmpty ? '可申请范围为空' : ''].filter(Boolean).join(' · ')
+      const rowSub = [agent.oauth ? 'OAuth' : agent.legacy ? 'legacy' : 'token', agent.scopeEmpty ? 'requestable scope is empty' : ''].filter(Boolean).join(' · ')
       return '<tr><td><div class="pm-agent"><b>' + esc(agentDisplayName(agent)) + '</b><div class="pm-sub">'
         + esc(rowSub) + '</div></div></td>' + cells + '</tr>'
     }).join('')
     const legend = '<div class="pm-legend">' + Object.entries(PM_STATES).filter(([key]) => key !== 'mixed').map(([, meta]) => '<span class="ios-pill ' + meta.tone + '">' + meta.label + '</span>').join('')
-      + '<span>来源：' + Object.entries(PM_SOURCES).map(([key, label]) => key + '=' + label).join(' · ') + '</span></div>'
+      + '<span>Sources: ' + Object.entries(PM_SOURCES).map(([key, label]) => key + '=' + label).join(' · ') + '</span></div>'
     box.innerHTML = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
       + '<div class="row" style="gap:6px">' + Object.entries(PM_ACTION_LABEL).map(([key, label]) => '<button class="small' + (key === action ? ' primary' : '') + '" data-pm-action="' + key + '">' + label + '</button>').join('') + '</div>'
-      + '<span class="pm-sub">' + (data.masked ? '锁定态 · 只读' : '已解锁 · 点格子修改') + (data.expiryBlocksReads ? ' · 到期后禁止读取已开启' : '') + '</span></div>'
-      + (data.masked ? '<div class="hint" style="margin-top:8px">名称已脱敏；解锁后显示完整名称并可修改。</div>' : '')
-      + '<div class="pm-scroll scroll-list" style="max-height:60vh;margin-top:10px"><table class="pm-table"><thead>' + head + '</thead><tbody>' + (rows || '<tr><td colspan="' + (groups.length + 1) + '" class="hint">还没有 Agent 或条目</td></tr>') + '</tbody></table></div>'
+      + '<span class="pm-sub">' + (data.masked ? 'Locked · read-only' : 'Unlocked · click a cell to change') + (data.expiryBlocksReads ? ' · Block reads after expiry: on' : '') + '</span></div>'
+      + (data.masked ? '<div class="hint" style="margin-top:8px">Names are redacted; unlock to see full names and make changes.</div>' : '')
+      + '<div class="pm-scroll scroll-list" style="max-height:60vh;margin-top:10px"><table class="pm-table"><thead>' + head + '</thead><tbody>' + (rows || '<tr><td colspan="' + (groups.length + 1) + '" class="hint">Nothing yet: add an Agent or an item</td></tr>') + '</tbody></table></div>'
       + legend
   }
   box.addEventListener('click', async (event) => {
@@ -2335,16 +2335,16 @@ async function openPermissionMatrix() {
     try {
       if (doIt.dataset.pmDo === 'revoke') {
         await api('/api/action-grants/revoke', { method: 'POST', body: JSON.stringify({ agent: agentName, itemId: doIt.dataset.itemId, action: PM_ACTION_KEY[doIt.dataset.action] }) })
-        toast('已撤销')
+        toast('Revoked')
       } else if (doIt.dataset.pmDo === 'scope') {
         // Scope is the separate question "may this agent even ask"; granting
         // before that would fail, so this button is the missing first step.
         const allow = Array.from(new Set([...(agent.allow || []), doIt.dataset.item]))
         await api('/api/agents/update', { method: 'POST', body: JSON.stringify({ name: agentName, allow }) })
-        toast('已加入可申请范围，下一步直接授权')
+        toast('Added to requestable scope; grant it next')
       } else {
         await api('/api/action-grants', { method: 'POST', body: JSON.stringify({ agent: agentName, item: doIt.dataset.item, actions: [PM_ACTION_KEY[doIt.dataset.action]], terms: { [PM_ACTION_KEY[doIt.dataset.action]]: { duration: '7d' } } }) })
-        toast('已授权 7 天')
+        toast('Granted for 7 days')
       }
       const next = await api('/api/permission-matrix')
       data = next
@@ -2356,33 +2356,33 @@ async function openPermissionMatrix() {
   })
   renderMatrix()
 }
-// Detail view: 概况 / 权限 / 授权 / 活动. Read-only display plus the existing actions.
+// Detail view: Overview / Permissions / Grants / Activity. Read-only display plus the existing actions.
 async function openAgentDetail(name) {
   const agent = ((app.data && app.data.agents) || []).find((entry) => entry.name === name)
   if (!agent) return
   const last = lastActivityFor(name)
   const health = agentHealth(agent, last)
   const kind = agent.oauth ? 'OAuth Agent' : 'Token Agent'
-  const scope = agent.allowAll ? '全部条目' : (agent.allow && agent.allow.length ? agent.allow.join(', ') : (agent.groups && agent.groups.length ? '分组：' + agent.groups.join(', ') : '无权限'))
-  const expiry = typeof agent.expiresAt === 'number' ? new Date(agent.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '长期有效'
-  const created = agent.createdAt ? new Date(agent.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-'
+  const scope = agent.allowAll ? 'All items' : (agent.allow && agent.allow.length ? agent.allow.join(', ') : (agent.groups && agent.groups.length ? 'Groups: ' + agent.groups.join(', ') : 'No access'))
+  const expiry = typeof agent.expiresAt === 'number' ? new Date(agent.expiresAt).toLocaleString('en-GB', { hour12: false }) : 'Long-term'
+  const created = agent.createdAt ? new Date(agent.createdAt).toLocaleString('en-GB', { hour12: false }) : '-'
   // The agent's five latest events come from the full trail; the state slice
   // only holds the 20 newest rows of the whole vault.
   let recent = ((app.data && app.data.audit) || []).filter((entry) => entry.agent === name).slice(0, 5)
   try { const data = await auditPage({ agent: name, limit: 5 }); recent = data.entries || recent } catch {}
-  const activityRows = recent.length ? recent.map((entry) => '<div class="hint">' + esc(new Date(entry.time).toLocaleString('zh-CN', { hour12: false })) + ' · ' + esc(entry.event || '') + (entry.name ? ' · ' + esc(entry.name) : '') + '</div>').join('') : '<div class="hint">暂无读取记录</div>'
+  const activityRows = recent.length ? recent.map((entry) => '<div class="hint">' + esc(new Date(entry.time).toLocaleString('en-GB', { hour12: false })) + ' · ' + esc(entry.event || '') + (entry.name ? ' · ' + esc(entry.name) : '') + '</div>').join('') : '<div class="hint">No reads yet</div>'
   openModal(agentDisplayName(agent), '<div class="row" style="justify-content:space-between;align-items:center"><div><b>' + esc(agentDisplayName(agent)) + '</b><div class="hint">' + kind + (agentDisplayNote(agent) ? ' · ' + esc(agentDisplayNote(agent)) : '') + '</div></div><span class="agent-health ' + (health.level === 'ok' ? 'ok' : (health.level === 'warn' ? 'warn' : 'bad')) + '">' + esc(health.label) + '</span></div>' +
     '<div class="agent-detail-grid" style="margin-top:14px">' +
-    '<div><span>账户</span><b>' + esc(agent.account || '-') + '</b></div>' +
-    '<div><span>连接方式</span><b>' + (agent.oauth ? 'OAuth' : 'Token') + '</b></div>' +
-    '<div><span>可申请范围</span><b>' + esc(scope) + '</b></div>' +
-    '<div><span>写入权限</span><b>' + (agent.write ? '允许' : '不允许') + '</b></div>' +
-    '<div><span>授权到期</span><b>' + esc(expiry) + '</b></div>' +
-    '<div><span>最近读取记录</span><b>' + esc(relativeTime(last)) + '</b></div>' +
-    '<div><span>创建时间</span><b>' + esc(created) + '</b></div>' +
+    '<div><span>Account</span><b>' + esc(agent.account || '-') + '</b></div>' +
+    '<div><span>Connection</span><b>' + (agent.oauth ? 'OAuth' : 'Token') + '</b></div>' +
+    '<div><span>requestable scope</span><b>' + esc(scope) + '</b></div>' +
+    '<div><span>Write access</span><b>' + (agent.write ? 'Allowed' : 'Not allowed') + '</b></div>' +
+    '<div><span>Grant expires</span><b>' + esc(expiry) + '</b></div>' +
+    '<div><span>Last read</span><b>' + esc(relativeTime(last)) + '</b></div>' +
+    '<div><span>Created</span><b>' + esc(created) + '</b></div>' +
     '</div>' +
-    '<div style="margin-top:14px"><b>最近活动</b>' + activityRows + '</div>' +
-    '<div class="row" style="margin-top:14px"><button class="primary" id="ad-extend">延长授权</button><button id="ad-edit">编辑配置</button><button id="ad-menu">更多操作</button></div>')
+    '<div style="margin-top:14px"><b>Recent activity</b>' + activityRows + '</div>' +
+    '<div class="row" style="margin-top:14px"><button class="primary" id="ad-extend">Extend grant</button><button id="ad-edit">Edit settings</button><button id="ad-menu">More actions</button></div>')
   $('ad-extend').onclick = () => openExtendMenu(name)
   $('ad-edit').onclick = () => openAgentMenu(name)
   $('ad-menu').onclick = () => openAgentMenu(name)
@@ -2392,11 +2392,11 @@ async function extendAgent(name, days) {
     const result = await api('/api/agents/extend', { method: 'POST', body: JSON.stringify({ name, days }) })
     show('modal', false)
     await refreshAll()
-    toast(result.permanent ? '已设为永久' : '已延长到 ' + new Date(result.expiresAt).toLocaleString('zh-CN', { hour12: false }))
+    toast(result.permanent ? 'Set to permanent' : 'Extended to ' + new Date(result.expiresAt).toLocaleString('en-GB', { hour12: false }))
   } catch (error) {
     // Never leave an empty red banner: if the server sends no usable text,
     // fall back to the status code so the operator can tell what happened.
-    const message = (error && error.message) || ('延长授权失败（HTTP ' + ((error && error.status) || '未知') + '）')
+    const message = (error && error.message) || ('Couldn’t extend the grant (HTTP ' + ((error && error.status) || 'unknown') + ')')
     const box = $('extend-error')
     if (box) { box.textContent = message; box.classList.remove('hidden') }
     toast(message, true)
@@ -2405,9 +2405,9 @@ async function extendAgent(name, days) {
 function openExtendMenu(name) {
   const agent = (app.data.agents || []).find((entry) => entry.name === name)
   if (!agent) return
-  const opts = [['1', '1 天'], ['7', '7 天'], ['30', '30 天'], ['90', '90 天'], ['365', '365 天'], ['permanent', '永久']]
-  const now = typeof agent.expiresAt === 'number' ? new Date(agent.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久'
-  openModal('延长授权 · ' + name, '<div class="hint">当前到期：' + now + (agent.oauth ? '（OAuth 连接）' : '') + '</div><div class="hint" style="margin-top:6px">从<strong>现在</strong>起算，重新计时。</div><div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">' + opts.map(([value, label]) => '<button class="small" data-extend-days="' + value + '">' + label + '</button>').join('') + '</div><div id="extend-error" class="extend-error hidden" role="alert" aria-live="assertive"></div>')
+  const opts = [['1', '1 day'], ['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['365', '365 days'], ['permanent', 'Permanent']]
+  const now = typeof agent.expiresAt === 'number' ? new Date(agent.expiresAt).toLocaleString('en-GB', { hour12: false }) : 'Permanent'
+  openModal('Extend grant · ' + name, '<div class="hint">Current expiry: ' + now + (agent.oauth ? ' (OAuth connection)' : '') + '</div><div class="hint" style="margin-top:6px">Counted from <strong>now</strong>; the clock restarts.</div><div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">' + opts.map(([value, label]) => '<button class="small" data-extend-days="' + value + '">' + label + '</button>').join('') + '</div><div id="extend-error" class="extend-error hidden" role="alert" aria-live="assertive"></div>')
   document.querySelectorAll('[data-extend-days]').forEach((button) => {
     button.onclick = () => extendAgent(name, button.dataset.extendDays === 'permanent' ? 'permanent' : Number(button.dataset.extendDays))
   })
@@ -2434,9 +2434,9 @@ const agingAll = $('aging-all')
 if (agingAll) agingAll.onclick = openAgingAll
 document.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-kpi-decide]'); if (!button) return
-  try { await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id: button.dataset.id, decision: button.dataset.decision }) }); show('modal', false); await loadAll(); toast('已处理') } catch (error) { toast(error.message, true) }
+  try { await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id: button.dataset.id, decision: button.dataset.decision }) }); show('modal', false); await loadAll(); toast('Done') } catch (error) { toast(error.message, true) }
 })
-$('pending-box').addEventListener('click', async (event) => { const button = event.target.closest('[data-decide]'); if (!button) return; try { await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id: button.dataset.id, decision: button.dataset.decide }) }); await Promise.all([loadState(), loadStats(), loadItems()]); toast('已处理') } catch (error) { toast(error.message, true) } })
+$('pending-box').addEventListener('click', async (event) => { const button = event.target.closest('[data-decide]'); if (!button) return; try { await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id: button.dataset.id, decision: button.dataset.decide }) }); await Promise.all([loadState(), loadStats(), loadItems()]); toast('Done') } catch (error) { toast(error.message, true) } })
 // Connection controls live in the overview queue, the pending sheet and the
 // banner, so they are delegated once on the document.
 document.addEventListener('click', (event) => {
@@ -2464,7 +2464,7 @@ $('grants-box').addEventListener('click', (event) => {
   const menu = event.target.closest('[data-grant-menu]')
   if (menu) openGrantMenu(menu.dataset.agent, menu.dataset.name)
 })
-// Bulk actions. 恢复 really restores: the server rebuilds the grant row and its
+// Bulk actions. “Restore” really restores: the server rebuilds the grant row and its
 // read capability, which is what the single-row button always did.
 $('grants-select').onclick = () => { grantsSelecting = !grantsSelecting; if (!grantsSelecting) selectedGrants.clear(); renderGrants() }
 $('grants-box').addEventListener('change', (event) => {
@@ -2477,26 +2477,26 @@ $('grants-box').addEventListener('change', (event) => {
 $('grants-bulk-clear').onclick = () => { selectedGrants.clear(); renderGrants() }
 $('grants-bulk-delete').onclick = async () => {
   const keys = selectedGrantList()
-  if (!keys.length) return toast('先勾选要删除的授权', true)
-  if (!(await askYes('删除选中的 ' + keys.length + ' 条授权？被撤销的也会一起清掉。'))) return
+  if (!keys.length) return toast('Select the grants to delete first', true)
+  if (!(await askYes('Delete the ' + keys.length + ' selected grants? Revoked ones are cleared too.'))) return
   try {
     const result = await api('/api/grants/batch', { method: 'POST', body: JSON.stringify({ action: 'delete', keys }) })
-    selectedGrants.clear(); await refreshAll(); toast('已删除 ' + result.changed + ' 条')
+    selectedGrants.clear(); await refreshAll(); toast('Grants deleted: ' + result.changed + '')
   } catch (error) { toast(error.message, true) }
 }
 $('grants-bulk-restore').onclick = async () => {
   const keys = selectedGrantList()
-  if (!keys.length) return toast('先勾选要恢复的授权', true)
+  if (!keys.length) return toast('Select the grants to restore first', true)
   const pick = $('grants-bulk-seconds')
   const seconds = Number(pick.value)
-  if (!(await askYes('把选中的 ' + keys.length + ' 条授权恢复为「' + pick.selectedOptions[0].textContent + '」？读取次数会归零。'))) return
+  if (!(await askYes('Restore the ' + keys.length + ' selected grants as “' + pick.selectedOptions[0].textContent + '”? Read counts reset to zero.'))) return
   try {
     const result = await api('/api/grants/batch', { method: 'POST', body: JSON.stringify({ action: 'restore', keys, seconds }) })
     selectedGrants.clear(); await refreshAll()
-    toast('已恢复 ' + result.changed + ' 条' + (result.missing?.length ? '，' + result.missing.length + ' 条没找到' : ''))
+    toast('Grants restored: ' + result.changed + '' + (result.missing?.length ? ', ' + result.missing.length + ' not found' : ''))
   } catch (error) { toast(error.message, true) }
 }
-// "修改" on a classified credential opens that item's own editor.
+// "Edit" on a classified credential opens that item's own editor.
 $('fp-list').addEventListener('click', (event) => {
   const button = event.target.closest('[data-fp-edit]')
   if (button && button.dataset.fpEdit) openItemMenu(button.dataset.fpEdit)
@@ -2510,21 +2510,21 @@ $('grants-box').addEventListener('click', async (event) => {
     const name = regrant.dataset.name || ''
     try {
       await api('/api/legacy/regrant', { method: 'POST', body: JSON.stringify({ agent, item: name, action: 'secret.read', duration: '7d' }) })
-      toast('已重新授权 ' + name + '（7 天）')
+      toast('Re-granted ' + name + ' (7 days)')
       await refreshAll()
-    } catch (error) { toast(error.message || '重新授权失败', true) }
+    } catch (error) { toast(error.message || 'Re-grant failed', true) }
     return
   }
   const remove = event.target.closest('[data-legacy-delete]')
   if (remove) {
     const agent = remove.dataset.agent || ''
     const name = remove.dataset.name || ''
-    if (!(await askYes('删除 ' + agent + ' → ' + name + ' 这条旧授权？'))) return
+    if (!(await askYes('Delete the old grant ' + agent + ' → ' + name + '?'))) return
     try {
       await api('/api/grants/delete', { method: 'POST', body: JSON.stringify({ agent, name }) })
-      toast('已删除')
+      toast('Deleted')
       await refreshAll()
-    } catch (error) { toast(error.message || '删除失败', true) }
+    } catch (error) { toast(error.message || 'Delete failed', true) }
   }
 })
 async function loadAll() {
@@ -2540,20 +2540,20 @@ const PENDING_POLL_MS = 30000
 const PENDING_POLL_HIDDEN_MS = 120000
 let knownPending = new Set()
 let pendingInitialized = false
-function updateBrowserNotifyStatus() { const el = $('browser-notify-status'); if (!el) return; el.textContent = typeof Notification === 'undefined' ? '此浏览器不支持通知' : '当前权限：' + Notification.permission }
+function updateBrowserNotifyStatus() { const el = $('browser-notify-status'); if (!el) return; el.textContent = typeof Notification === 'undefined' ? 'This browser doesn’t support notifications' : 'Current permission: ' + Notification.permission }
 function showBrowserNotification(title, body, tag) { if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return; try { const notification = new Notification(title, { body, tag }); notification.onclick = () => { window.focus(); location.hash = '#pending'; openPendingSheet(); notification.close() } } catch {} }
-async function enableBrowserNotifications() { if (typeof Notification === 'undefined') return status('settings-status', '此浏览器不支持通知', 'error'); const permission = await Notification.requestPermission(); updateBrowserNotifyStatus(); if (permission === 'granted') { status('settings-status', '浏览器通知已启用', 'ok'); startPendingPolling() } else status('settings-status', '未获得通知权限', 'error') }
+async function enableBrowserNotifications() { if (typeof Notification === 'undefined') return status('settings-status', 'This browser doesn’t support notifications', 'error'); const permission = await Notification.requestPermission(); updateBrowserNotifyStatus(); if (permission === 'granted') { status('settings-status', 'Browser notifications enabled', 'ok'); startPendingPolling() } else status('settings-status', 'Notification permission not granted', 'error') }
 function b64urlBytes(value) {
   const normalized = String(value).replace(/-/g, '+').replace(/_/g, '/')
   return Uint8Array.from(atob(normalized + '='.repeat((4 - normalized.length % 4) % 4)), (char) => char.charCodeAt(0))
 }
 async function enableWebPush(options = {}) {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('此浏览器不支持后台推送')
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('This browser doesn’t support background push')
     const registration = await navigator.serviceWorker.register('/sw.js')
     const permission = await Notification.requestPermission()
     updateBrowserNotifyStatus()
-    if (permission !== 'granted') throw new Error('未获得通知权限')
+    if (permission !== 'granted') throw new Error('Notification permission not granted')
     const { publicKey } = await api('/api/push/vapid')
     const existing = await registration.pushManager.getSubscription()
     const subscription = existing || await registration.pushManager.subscribe({
@@ -2561,19 +2561,19 @@ async function enableWebPush(options = {}) {
       applicationServerKey: b64urlBytes(publicKey),
     })
     await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: subscription.toJSON() }) })
-    status('webpush-status', '后台推送已启用，关闭页面也能收到审批请求', 'ok')
-    if (options.fromBar) toast('后台推送已开启：关闭页面也能收到审批请求')
+    status('webpush-status', 'Background push enabled; approval requests arrive even when the page is closed', 'ok')
+    if (options.fromBar) toast('Background push is on: approval requests arrive even when the page is closed')
     return true
   } catch (error) {
     status('webpush-status', error.message, 'error')
-    if (options.fromBar) toast(error.message || '后台推送未开启', true)
+    if (options.fromBar) toast(error.message || 'Background push not enabled', true)
     return false
   }
 }
 async function testWebPush() {
   try {
     const result = await api('/api/push/test', { method: 'POST' })
-    status('webpush-status', result.sent ? '已发送 ' + result.sent + ' 条后台推送' : '没有已订阅的浏览器', result.sent ? 'ok' : 'error')
+    status('webpush-status', result.sent ? 'Background pushes sent: ' + result.sent + '' : 'No subscribed browsers', result.sent ? 'ok' : 'error')
   } catch (error) { status('webpush-status', error.message, 'error') }
 }
 async function checkPendingNotifications() {
@@ -2594,16 +2594,16 @@ async function checkPendingNotifications() {
     const pendingMoved = fresh.length > 0 || ids.size !== knownPending.size
     if (!wasInitialized && fresh.length) notifyPendingBatch(fresh)
     else for (const entry of fresh) {
-      if (entry.name) showBrowserNotification('Secrets Broker 授权请求', (pendingAgentLabel(entry)) + ' 请求读取「' + entry.name + '」', entry.id)
-      else showBrowserNotification('Secrets Broker 连接请求', (entry.agent || 'Agent') + ' 请求首次连接', 'connection:' + entry.id)
+      if (entry.name) showBrowserNotification('Secrets Broker access request', (pendingAgentLabel(entry)) + ' wants to read “' + entry.name + '”', entry.id)
+      else showBrowserNotification('Secrets Broker connection request', (entry.agent || 'Agent') + ' wants to connect for the first time', 'connection:' + entry.id)
     }
     knownPending = ids; pendingInitialized = true
     // The tab already has a browser notification path for the background case,
     // so the in-page toast is only for someone actually looking at the page.
     if (fresh.length && !document.hidden) {
       const first = fresh[0]
-      const label = first.name ? pendingAgentLabel(first) + ' 请求读取「' + first.name + '」' : (first.agent || 'Agent') + ' 请求首次连接'
-      toast(fresh.length === 1 ? label : label + '，等 ' + fresh.length + ' 条新审批请求')
+      const label = first.name ? pendingAgentLabel(first) + ' wants to read “' + first.name + '”' : (first.agent || 'Agent') + ' wants to connect for the first time'
+      toast(fresh.length === 1 ? label : label + ' (' + fresh.length + ' new approval requests)')
     }
     if (app.data) {
       // Re-render only what moved: rebuilding the log list every 30s would throw
@@ -2648,9 +2648,9 @@ function notifyPendingBatch(entries) {
   if (!entries.length) return
   const connection = entries.some((entry) => !entry.name)
   const body = entries.length === 1
-    ? (connection ? (entries[0].agent || 'Agent') + ' 请求首次连接' : pendingAgentLabel(entries[0]) + ' 请求读取「' + (entries[0].name || '') + '」')
-    : entries.length + ' 条审批请求等待处理'
-  showBrowserNotification('Secrets Broker 有待审批', body, 'pending-batch')
+    ? (connection ? (entries[0].agent || 'Agent') + ' wants to connect for the first time' : pendingAgentLabel(entries[0]) + ' wants to read “' + (entries[0].name || '') + '”')
+    : entries.length + ' approval requests waiting'
+  showBrowserNotification('Secrets Broker: pending approvals', body, 'pending-batch')
 }
 // loadAll already fetched /api/state and loadState already rendered the queue.
 // Seeding the known set from that result removes the duplicate boot request,
@@ -2694,12 +2694,12 @@ let globeBooted = false
 function renderGlobeCap() {
   const el = $('globe-cap')
   if (!el) return
-  if (app.locked === true) { el.textContent = '已锁定 · 名称已脱敏，审批仍可用'; return }
-  if (!app.itemsLoaded) { el.textContent = '正在读取条目…'; return }
+  if (app.locked === true) { el.textContent = 'Locked · names redacted, approvals still work'; return }
+  if (!app.itemsLoaded) { el.textContent = 'Loading items…'; return }
   const agents = new Set()
   ;((app.data && app.data.grants) || []).forEach((grant) => { if (grant && grant.agent) agents.add(grant.agent) })
   const pending = ((app.data && app.data.pending) || []).length
-  const text = (app.items || []).length + ' 条条目 · ' + agents.size + ' 个 Agent 可读 · ' + pending + ' 待审批'
+  const text = (app.items || []).length + ' items · ' + agents.size + ' Agent readers · ' + pending + ' pending'
   if (el.textContent !== text) el.textContent = text
 }
 function applyGlobeAvailability(geoOn) {
@@ -2708,14 +2708,14 @@ function applyGlobeAvailability(geoOn) {
   card.classList.toggle('globe-off', !geoOn)
   const note = $('globe-status')
   if (!note) return
-  if (!geoOn) note.textContent = '实时访问未启用 · 设置 GEO_ENABLED=1 后显示实时连接'
-  else if (note.textContent.indexOf('实时访问未启用') === 0) note.textContent = ''
+  if (!geoOn) note.textContent = 'Live access is off · Set GEO_ENABLED=1 to show live connections'
+  else if (note.textContent.indexOf('Live access is off') === 0) note.textContent = ''
 }
-async function loadState() { try { app.data = await api('/api/state'); app.stateLoaded = true; app.stateError = ''; app.locked = app.data.masked === true || app.me?.unlocked !== true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderAging(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { app.stateError = (error && error.message) || '读取状态失败'; renderAging(); if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
-async function loadItems() { status('item-status', '加载中…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; app.locked = false; renderItems(); renderAging(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '共 ' + app.items.length + ' 个条目'); if (result.completedTransfers?.length) { toast('已自动复制：' + result.completedTransfers.join('、')); await loadState() } } catch (error) { if (error.status === 423) { app.locked = true; app.items = []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderAging(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', app.data?.masked === true ? '已锁定：条目名称已脱敏，审批仍可进行' : '已锁定：查看条目需要解锁') } else { app.itemsError = error.message; renderItems(); renderAging(); status('item-status', error.message, 'error') } } }
+async function loadState() { try { app.data = await api('/api/state'); app.stateLoaded = true; app.stateError = ''; app.locked = app.data.masked === true || app.me?.unlocked !== true; app.plainOk = app.locked ? false : (app.v2?.initialized === true ? app.plainOk !== false : true); const geoOn = app.data.geoEnabled === true; applyGlobeAvailability(geoOn); renderGlobeCap(); renderLockedSurface(); renderNoticeBar(); renderAgents(); renderPending(); renderAging(); renderGrants(); renderFillPolicies(); renderTransfers(); renderRecent(); renderLogs(); if ((app.items || []).length) renderItems() } catch (error) { app.stateError = (error && error.message) || 'Couldn’t load state'; renderAging(); if (error.status === 423) { app.locked = true; renderLockedSurface() } } }
+async function loadItems() { status('item-status', 'Loading…'); try { const result = await api('/api/items'); app.items = result.items || []; app.itemsLoaded = true; app.itemsError = ''; app.locked = false; renderItems(); renderAging(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', '' + app.items.length + ' items'); if (result.completedTransfers?.length) { toast('Copied automatically: ' + result.completedTransfers.join(', ')); await loadState() } } catch (error) { if (error.status === 423) { app.locked = true; app.items = []; app.itemsLoaded = true; app.itemsError = ''; renderItems(); renderAging(); renderOverviewActions(); renderGlobeCap(); renderLockedSurface(); status('item-status', app.data?.masked === true ? 'Locked: item names are redacted, approvals still work' : 'Locked: unlock to view items') } else { app.itemsError = error.message; renderItems(); renderAging(); status('item-status', error.message, 'error') } } }
 async function loadStats() { try { app.stats = await api('/api/stats?range=' + app.range); renderStats() } catch {} }
 // One operator action changes the logs, the counts and the item rows at once.
-// Reloading them together is cheaper than making the operator press 刷新 to
+// Reloading them together is cheaper than making the operator press Refresh to
 // believe the action worked.
 // The zero-knowledge listing used to load (and prompt for TOTP) on every boot,
 // even when the operator never opened that card. Status-only now; the explicit
@@ -2747,10 +2747,10 @@ async function loadOidcProviders() {
   const list = $('oidc-provider-list')
   if (!list) return
   let data = { providers: [] }
-  try { data = await api('/api/oidc/providers') } catch (error) { list.innerHTML = '<div class="hint">读取失败：' + esc(error.message) + '</div>'; return }
+  try { data = await api('/api/oidc/providers') } catch (error) { list.innerHTML = '<div class="hint">Failed to load: ' + esc(error.message) + '</div>'; return }
   const providers = data.providers || []
   if (!providers.length) {
-    list.innerHTML = '<div class="hint">还没有配置身份服务商。点下面的「添加服务商」新建一个。</div>'
+    list.innerHTML = '<div class="hint">No identity providers configured yet. Click “Add provider” below to create one.</div>'
     return
   }
   const rows = []
@@ -2758,9 +2758,9 @@ async function loadOidcProviders() {
     const name = provider.label || provider.id
     rows.push('<div class="row" style="justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">')
     rows.push('<div><b>' + esc(name) + '</b> <span class="hint">' + esc(provider.id) + '</span><br><span class="hint">' + esc(provider.issuer || '') + (provider.clientId ? ' · ' + esc(provider.clientId) : '') + '</span>')
-    if (provider.secretConfigured) rows.push(' <span class="hint">secret 已保存</span>')
-    if (provider.enabled === false) rows.push(' <span class="hint">已停用</span>')
-    rows.push('</div><div><button data-op-edit="' + esc(provider.id) + '">编辑</button><button data-op-del="' + esc(provider.id) + '" class="danger">删除</button></div>')
+    if (provider.secretConfigured) rows.push(' <span class="hint">secret saved</span>')
+    if (provider.enabled === false) rows.push(' <span class="hint">Disabled</span>')
+    rows.push('</div><div><button data-op-edit="' + esc(provider.id) + '">Edit</button><button data-op-del="' + esc(provider.id) + '" class="danger">Delete</button></div>')
     rows.push('</div>')
   }
   list.innerHTML = rows.join('')
@@ -2782,12 +2782,12 @@ function openOidcProvider(id, providers) {
   $('op-userinfo').value = provider.userinfoEndpoint || ''
   $('op-jwks').value = provider.jwksUri || ''
   $('op-enabled').checked = provider.enabled !== false
-  $('op-status').textContent = provider.secretConfigured ? '这个服务商已保存 client secret，留空表示保留原值。' : ''
+  $('op-status').textContent = provider.secretConfigured ? 'This provider already has a client secret saved; leave blank to keep it.' : ''
   $('oidc-provider-form').classList.remove('hidden')
 }
 async function saveOidcProvider() {
   const id = $('op-id').value.trim()
-  if (!id) { status('op-status', 'ID 必填', 'error'); return }
+  if (!id) { status('op-status', 'ID is required', 'error'); return }
   const body = {
     id, label: $('op-label').value.trim(),
     issuer: $('op-issuer').value.trim(),
@@ -2806,20 +2806,20 @@ async function saveOidcProvider() {
     $('op-client-secret').value = ''
     $('oidc-provider-form').classList.add('hidden')
     await loadOidcProviders()
-    status('op-status', '已保存', 'ok')
+    status('op-status', 'Saved', 'ok')
   } catch (error) { status('op-status', error.message, 'error') }
 }
 async function deleteOidcProvider(id) {
-  if (!(await askYes('删除这个身份服务商？已绑定的账号也会一并解绑。'))) return
+  if (!(await askYes('Delete this identity provider? Accounts linked to it will be unlinked too.'))) return
   try {
     await api('/api/oidc/providers', { method: 'DELETE', body: JSON.stringify({ id }) })
     await loadOidcProviders()
-    toast('已删除')
+    toast('Deleted')
   } catch (error) { toast(error.message, true) }
 }
 async function discoverOidcProvider() {
   const issuer = $('op-issuer').value.trim()
-  if (!issuer) { status('op-status', '请先填 Issuer', 'error'); return }
+  if (!issuer) { status('op-status', 'Fill in the Issuer first', 'error'); return }
   try {
     const data = await api('/api/oidc/discover?issuer=' + encodeURIComponent(issuer))
     if (data.authorizationEndpoint) $('op-authorization').value = data.authorizationEndpoint
@@ -2827,7 +2827,7 @@ async function discoverOidcProvider() {
     if (data.userinfoEndpoint) $('op-userinfo').value = data.userinfoEndpoint
     if (data.jwksUri) $('op-jwks').value = data.jwksUri
     if (data.scope) $('op-scope').value = data.scope
-    status('op-status', '已自动填充，保存后生效', 'ok')
+    status('op-status', 'Filled in automatically; save to apply', 'ok')
   } catch (error) { status('op-status', error.message, 'error') }
 }
 
@@ -2838,41 +2838,41 @@ async function probeOidcProvider() {
   const box = $('op-probe-result')
   if (!box) return
   const id = $('op-id').value.trim()
-  if (!id) { status('op-status', '先填写并保存 ID，再检测', 'error'); return }
-  box.innerHTML = '<div class="hint">检测中…</div>'
+  if (!id) { status('op-status', 'Fill in and save the ID before checking', 'error'); return }
+  box.innerHTML = '<div class="hint">Checking…</div>'
   try {
     const report = await api('/api/oidc/probe?provider=' + encodeURIComponent(id))
     const lines = []
-    lines.push('<div class="hint">issuer：<code>' + esc(report.issuer) + '</code></div>')
-    lines.push('<div class="hint">client id：<code>' + esc(report.clientId) + '</code></div>')
-    lines.push('<div class="hint">redirect：<code>' + esc(report.redirectUri) + '</code></div>')
-    lines.push('<div class="hint">client secret：' + (report.hasSecret ? '已保存' : '未配置（public client 可留空）') + '</div>')
-    if (report.signingAlgs) lines.push('<div class="hint">id_token 签名算法：' + esc((report.signingAlgs || []).join(', ') || '未声明') + '</div>')
+    lines.push('<div class="hint">issuer: <code>' + esc(report.issuer) + '</code></div>')
+    lines.push('<div class="hint">client id: <code>' + esc(report.clientId) + '</code></div>')
+    lines.push('<div class="hint">redirect: <code>' + esc(report.redirectUri) + '</code></div>')
+    lines.push('<div class="hint">client secret: ' + (report.hasSecret ? 'saved' : 'not configured (can be blank for a public client)') + '</div>')
+    if (report.signingAlgs) lines.push('<div class="hint">id_token signing algorithms: ' + esc((report.signingAlgs || []).join(', ') || 'not declared') + '</div>')
     if (report.problems && report.problems.length) {
       for (const problem of report.problems) {
         lines.push('<div class="hint" style="color:var(--danger)">✗ ' + esc(problem) + '</div>')
       }
     } else {
-      lines.push('<div class="hint" style="color:var(--ok)">✓ 端点、client id 和签名算法都可用</div>')
+      lines.push('<div class="hint" style="color:var(--ok)">✓ Endpoints, client id and signing algorithms all work</div>')
     }
     box.innerHTML = lines.join('')
   } catch (error) {
-    box.innerHTML = '<div class="hint" style="color:var(--danger)">检测失败：' + esc(error.message) + '</div>'
+    box.innerHTML = '<div class="hint" style="color:var(--danger)">Check failed: ' + esc(error.message) + '</div>'
   }
 }
 
 async function loadSettings() {
   try {
     const data = await api('/api/settings'); const n = data.notifications || {}
-    $('webpush-status').textContent = n.webpush?.subscriptions ? '已订阅 ' + n.webpush.subscriptions + ' 个浏览器后台推送' : '后台推送未启用'
+    $('webpush-status').textContent = n.webpush?.subscriptions ? 'Background push: ' + n.webpush.subscriptions + ' browsers subscribed' : 'Background push not enabled'
     $('tg-chat').value = n.telegram?.chatId || ''
-    $('tg-status').textContent = n.telegram?.configured ? '已配置（token 已保存）' : '未配置'
+    $('tg-status').textContent = n.telegram?.configured ? 'Configured (token saved)' : 'Not configured'
     $('ntfy-url').value = n.ntfy?.url || ''; $('ntfy-topic').value = n.ntfy?.topic || ''
-    $('ntfy-status').textContent = n.ntfy?.configured ? '已配置' : '未配置'
+    $('ntfy-status').textContent = n.ntfy?.configured ? 'Configured' : 'Not configured'
     $('gotify-url').value = n.gotify?.url || ''
-    $('gotify-status').textContent = n.gotify?.configured ? '已配置（token 已保存）' : '未配置'
+    $('gotify-status').textContent = n.gotify?.configured ? 'Configured (token saved)' : 'Not configured'
     $('wxpush-url').value = n.wxpush?.url || ''; $('wxpush-format').value = n.wxpush?.format || 'form'
-    $('wxpush-status').textContent = n.wxpush?.configured ? '已配置（token 已保存）' : '未配置'
+    $('wxpush-status').textContent = n.wxpush?.configured ? 'Configured (token saved)' : 'Not configured'
     $('tg-enabled').checked = n.telegram?.enabled !== false; $('ntfy-enabled').checked = n.ntfy?.enabled !== false
     $('gotify-enabled').checked = n.gotify?.enabled !== false; $('wxpush-enabled').checked = n.wxpush?.enabled !== false
     const tpl = n.templates || {}; const tplAp = tpl.approval || {}; const tplLb = tplAp.labels || {}; const tplRm = tpl.reminder || {}
@@ -2884,8 +2884,8 @@ async function loadSettings() {
     $('vault-folder').value = data.vaultFolder || ''
     $('site-name').value = data.siteName || 'Secrets Broker'
     renderAiSettings(data.ai)
-    try { const folders = (await api('/api/folders')).folders || []; $('vault-folder').innerHTML = '<option value="">全部文件夹</option>' + folders.map((folder) => '<option value="' + esc(folder.name) + '">' + esc(folder.name) + '</option>').join(''); $('vault-folder').value = data.vaultFolder || ''; $('vault-folder-status').textContent = data.vaultFolder ? '当前只读取：' + data.vaultFolder : '当前读取全部文件夹' } catch { $('vault-folder-status').textContent = '需要先解锁 vault 才能读取文件夹' }
-    try { const accounts = (await api('/api/accounts')).accounts || []; $('vault-email').innerHTML = accounts.map((account) => '<option value="' + esc(account.email) + '">' + esc(account.email) + '</option>').join(''); $('vault-email').value = data.vaultEmail || accounts[0]?.email || ''; $('vault-email-status').textContent = '当前账户：' + ($('vault-email').value || '-') } catch { $('vault-email-status').textContent = '无法读取账户列表' }
+    try { const folders = (await api('/api/folders')).folders || []; $('vault-folder').innerHTML = '<option value="">All folders</option>' + folders.map((folder) => '<option value="' + esc(folder.name) + '">' + esc(folder.name) + '</option>').join(''); $('vault-folder').value = data.vaultFolder || ''; $('vault-folder-status').textContent = data.vaultFolder ? 'Reading only: ' + data.vaultFolder : 'Reading all folders' } catch { $('vault-folder-status').textContent = 'Unlock the vault to load folders' }
+    try { const accounts = (await api('/api/accounts')).accounts || []; $('vault-email').innerHTML = accounts.map((account) => '<option value="' + esc(account.email) + '">' + esc(account.email) + '</option>').join(''); $('vault-email').value = data.vaultEmail || accounts[0]?.email || ''; $('vault-email-status').textContent = 'Current account: ' + ($('vault-email').value || '-') } catch { $('vault-email-status').textContent = 'Couldn’t load the account list' }
   } catch (error) { status('settings-status', error.message, 'error') }
 }
 async function saveSettings() {
@@ -2901,14 +2901,14 @@ async function saveSettings() {
       },
   }, vaultFolder: $('vault-folder').value, siteName: $('site-name').value, vaultEmail: $('vault-email').value }) })
     $('site-title').textContent = $('site-name').value.trim() || 'Secrets Broker'
-    status('settings-status', '已保存', 'ok'); await loadSettings()
+    status('settings-status', 'Saved', 'ok'); await loadSettings()
   } catch (error) { status('settings-status', error.message, 'error') }
 }
 // AI settings live on the same endpoint but save separately, so retyping a model
 // name cannot silently reset a notification template.
 async function saveAiSettings() {
   try {
-    status('ai-status', '保存中…')
+    status('ai-status', 'Saving…')
     const key = $('ai-apikey').value.trim()
     await api('/api/settings', { method: 'POST', body: JSON.stringify({ ai: {
       enabled: $('ai-enabled').checked,
@@ -2921,7 +2921,7 @@ async function saveAiSettings() {
       ...(key ? { apiKey: key } : {}),
     } }) })
     $('ai-apikey').value = ''
-    status('ai-status', '已保存', 'ok')
+    status('ai-status', 'Saved', 'ok')
     await loadSettings()
   } catch (error) { status('ai-status', error.message, 'error') }
 }
@@ -2931,13 +2931,13 @@ function renderAiSettings(ai) {
   $('ai-endpoint').value = ai.endpoint || ''
   $('ai-model').value = ai.model || ''
   $('ai-timeout').value = ai.timeoutMs || 25000
-  $('ai-key-status').textContent = ai.hasApiKey ? '已保存一个 key（留空则沿用）' : '还没有 key'
+  $('ai-key-status').textContent = ai.hasApiKey ? 'A key is saved (leave blank to keep it)' : 'No key yet'
 }
 // Fetch the custom endpoint's own model list into the datalist, so the field
 // suggests real ids instead of making the operator spell them.
 async function fetchCustomModels() {
   try {
-    status('ai-model-status', '拉取中…')
+    status('ai-model-status', 'Fetching…')
     // Send whatever is typed so it works before saving.
     await api('/api/settings', { method: 'POST', body: JSON.stringify({ ai: {
       endpoint: $('ai-endpoint').value.trim(),
@@ -2947,10 +2947,10 @@ async function fetchCustomModels() {
     const list = $('ai-model-list')
     list.innerHTML = (data.custom.models || []).map((id) => '<option value="' + esc(id) + '"></option>').join('')
     if (data.custom.ok) {
-      status('ai-model-status', '拉到 ' + data.custom.models.length + ' 个模型，点输入框可以看到列表', 'ok')
+      status('ai-model-status', 'Fetched ' + data.custom.models.length + ' models. Click the field to see the list', 'ok')
       if (!$('ai-model').value && data.custom.models.length) $('ai-model').value = data.custom.models[0]
     } else {
-      status('ai-model-status', '拉取失败：' + (data.custom.reason || '未知原因'), 'error')
+      status('ai-model-status', 'Fetch failed: ' + (data.custom.reason || 'unknown reason'), 'error')
     }
   } catch (error) { status('ai-model-status', error.message, 'error') }
 }
@@ -2980,7 +2980,7 @@ function aiThreadClear() {
 }
 
 function openAiHelp(preset) {
-  // Reuse the panel if it is already open, so clicking 问 AI again does not
+  // Reuse the panel if it is already open, so clicking Ask AI again does not
   // discard the conversation.
   const existing = $('ai-panel')
   if (existing) {
@@ -2991,14 +2991,14 @@ function openAiHelp(preset) {
   panel.id = 'ai-panel'
   panel.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);z-index:40;background:var(--card,#fff);border-left:1px solid var(--line);box-shadow:-8px 0 30px rgba(15,23,42,.12);display:flex;flex-direction:column;padding:14px'
   panel.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
-    + '<b style="flex:1;font-size:13.5px">问 AI</b>'
-    + '<button class="small" id="ai-clear" title="清空对话">清空</button>'
-    + '<button class="small" id="ai-panel-close" title="收起（对话会保留）">收起</button>'
+    + '<b style="flex:1;font-size:13.5px">Ask AI</b>'
+    + '<button class="small" id="ai-clear" title="Clear conversation">Clear</button>'
+    + '<button class="small" id="ai-panel-close" title="Hide (the conversation is kept)">Hide</button>'
     + '</div>'
-    + '<div class="hint" style="margin-bottom:8px">只读：能看到 Agent、条目名、授权和日志，拿不到密钥值，也不能修改东西。可以在后面继续操作网页，面板不会自己收起。</div>'
+    + '<div class="hint" style="margin-bottom:8px">Read-only: it sees Agent names, item names, grants and logs, never secret values, and it can’t change anything. You can keep working on the page behind it; the panel stays open.</div>'
     + '<div id="ai-chat" class="scroll-list" style="flex:1;min-height:0;overflow:auto;scrollbar-width:none;margin-bottom:8px"></div>'
-    + '<input id="ai-question" placeholder="例如：为什么 Muse 读不到 tavily-api-key？" value="' + esc(preset || '') + '">'
-    + '<div class="row" style="margin-top:8px;gap:6px"><button class="primary" id="ai-ask" style="flex:1">发送</button><button id="ai-insights">待处理项</button></div>'
+    + '<input id="ai-question" placeholder="e.g. Why can’t Muse read tavily-api-key?" value="' + esc(preset || '') + '">'
+    + '<div class="row" style="margin-top:8px;gap:6px"><button class="primary" id="ai-ask" style="flex:1">Send</button><button id="ai-insights">Needs attention</button></div>'
     + '<div class="hint" id="ai-chat-status" style="min-height:16px;margin-top:6px"></div>'
   document.body.appendChild(panel)
   const chat = $('ai-chat')
@@ -3008,13 +3008,13 @@ function openAiHelp(preset) {
     const node = document.createElement('div')
     node.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:12.5px;white-space:pre-wrap'
     node.style.background = role === 'user' ? 'var(--btn)' : 'transparent'
-    node.textContent = (role === 'user' ? '你：' : 'AI：') + text
+    node.textContent = (role === 'user' ? 'You: ' : 'AI: ') + text
     chat.appendChild(node)
     chat.scrollTop = chat.scrollHeight
   }
   // Redraw what was remembered, so reopening or reloading does not lose it.
   for (const turn of history) if (turn.content) bubble(turn.role === 'user' ? 'user' : 'ai', turn.content)
-  if (!history.length) bubble('ai', '可以问我：哪条授权过期了、为什么某个 Agent 读不到、需要先修什么。')
+  if (!history.length) bubble('ai', 'Ask me which grants have expired, why an Agent can’t read something, or what to fix first.')
 
   const renderInsights = (insights) => {
     if (!insights || !insights.length) return
@@ -3028,25 +3028,25 @@ function openAiHelp(preset) {
   }
 
   $('ai-panel-close').onclick = () => { panel.remove() }
-  $('ai-clear').onclick = () => { history = []; aiThreadClear(); chat.innerHTML = ''; bubble('ai', '已清空。') }
+  $('ai-clear').onclick = () => { history = []; aiThreadClear(); chat.innerHTML = ''; bubble('ai', 'Cleared.') }
   $('ai-insights').onclick = async () => {
     try {
       const data = await api('/api/ai/insights')
       chat.innerHTML = ''
       renderInsights(data.insights)
-      if (!(data.insights || []).length) chat.textContent = '没有发现需要处理的项。'
+      if (!(data.insights || []).length) chat.textContent = 'Nothing needs attention.'
     } catch (error) { status('ai-chat-status', error.message, 'error') }
   }
   const ask = async () => {
     const question = $('ai-question').value.trim()
-    if (!question) return status('ai-chat-status', '先写一个问题', 'error')
+    if (!question) return status('ai-chat-status', 'Type a question first', 'error')
     bubble('user', question)
     $('ai-question').value = ''
-    status('ai-chat-status', '思考中…')
+    status('ai-chat-status', 'Thinking…')
     try {
       const data = await api('/api/ai/ask', { method: 'POST', body: JSON.stringify({ question, history: history.slice(-6) }) })
       if (!data.ok) {
-        bubble('ai', '暂时回答不了：' + (data.error || '未知原因'))
+        bubble('ai', 'Can’t answer right now: ' + (data.error || 'unknown reason'))
         status('ai-chat-status', '')
         renderInsights(data.insights)
         return
@@ -3054,7 +3054,7 @@ function openAiHelp(preset) {
       bubble('ai', data.text)
       history.push({ role: 'user', content: question }, { role: 'assistant', content: data.text })
       aiThreadSave(history)
-      status('ai-chat-status', '由 ' + (data.provider === 'workers-ai' ? 'Workers AI' : '自建 API') + ' 回答')
+      status('ai-chat-status', 'Answered by ' + (data.provider === 'workers-ai' ? 'Workers AI' : 'self-hosted API') + '')
     } catch (error) { status('ai-chat-status', error.message, 'error') }
   }
   $('ai-ask').onclick = ask
@@ -3063,9 +3063,9 @@ function openAiHelp(preset) {
 }
 async function testNotifications(simulate = false) {
   try {
-    status('settings-status', simulate ? '发送模拟授权通知…' : '发送中…')
+    status('settings-status', simulate ? 'Sending a simulated approval request…' : 'Sending…')
     const result = await api('/api/notify/test', { method: 'POST', body: JSON.stringify({ simulateApproval: simulate }) })
-    status('settings-status', simulate ? '已发送模拟授权，检查 Telegram/ntfy 里的按钮' : '测试结果：' + JSON.stringify(result.results), 'ok')
+    status('settings-status', simulate ? 'Simulated approval sent. Check the buttons in Telegram/ntfy' : 'Test result: ' + JSON.stringify(result.results), 'ok')
     if (simulate) await loadState()
   } catch (error) { status('settings-status', error.message, 'error') }
 }
@@ -3075,21 +3075,21 @@ async function openKpiModal(kind) {
     // to read that range from /api/audit instead of the 20-row overview slice.
     let data = null
     try { data = await auditPage({ event: 'secret.read', from: rangeStartIso(), limit: 30 }) } catch (error) {
-      openModal('最近读取记录', '<div class="hint">读取记录失败：' + esc(error.message) + '</div>')
+      openModal('Recent reads', '<div class="hint">Couldn’t load reads: ' + esc(error.message) + '</div>')
       return
     }
     const reads = data.entries || []
     const total = data.total ?? reads.length
-    openModal('最近读取记录', reads.length ? '<div class="hint">当前区间共 ' + total + ' 条，显示最近 ' + reads.length + ' 条</div><table><tr><th>时间</th><th>Agent</th><th>条目</th><th>方式</th></tr>' + reads.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + '</td><td>' + esc(agentLabel(entry.agent)) + '</td><td><code>' + esc(entry.name) + '</code></td><td>' + esc(entry.mode || entry.channel || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">当前区间暂无读取记录</div>')
+    openModal('Recent reads', reads.length ? '<div class="hint">' + total + ' reads in this range, showing the latest ' + reads.length + '</div><table><tr><th>Time</th><th>Agent</th><th>Item</th><th>Method</th></tr>' + reads.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('en-GB', { hour12: false }) : '') + '</td><td>' + esc(agentLabel(entry.agent)) + '</td><td><code>' + esc(entry.name) + '</code></td><td>' + esc(entry.mode || entry.channel || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">No reads in this range</div>')
   } else if (kind === 'agents') {
     // Same aggregation the KPI and the donut use, not a count over the slice.
     const rows = (app.stats && app.stats.topAgents) || []
     const totalAgents = app.stats ? (app.stats.activeAgents ?? rows.length) : rows.length
-    const note = rows.length < totalAgents ? '<div class="hint">当前区间共 ' + totalAgents + ' 个活跃 Agent，下表为前 ' + rows.length + ' 个</div>' : ''
-    openModal('活跃 Agent', rows.length ? note + '<table><tr><th>Agent</th><th>读取次数</th></tr>' + rows.map((row) => '<tr><td>' + esc(agentLabel(row.name)) + '</td><td>' + row.count + '</td></tr>').join('') + '</table>' : '<div class="hint">当前区间暂无活跃 Agent</div>')
+    const note = rows.length < totalAgents ? '<div class="hint">Agent activity: ' + totalAgents + ' active in this range, showing the top ' + rows.length + '</div>' : ''
+    openModal('Agent activity', rows.length ? note + '<table><tr><th>Agent</th><th>Reads</th></tr>' + rows.map((row) => '<tr><td>' + esc(agentLabel(row.name)) + '</td><td>' + row.count + '</td></tr>').join('') + '</table>' : '<div class="hint">No Agent activity in this range</div>')
   } else if (kind === 'grants') {
     const now = Date.now(); const active = (app.data.grants || []).filter((grant) => !grant.revokedAt && (!grant.expiresAt || grant.expiresAt > now) && (!grant.maxReads || (grant.reads ?? 0) < grant.maxReads))
-    openModal('有效授权', active.length ? '<table><tr><th>Agent</th><th>条目</th><th>到期</th><th>读取</th></tr>' + active.map((grant) => '<tr><td>' + esc(agentLabel(grant.agent)) + '</td><td><code>' + esc(grant.name) + '</code></td><td>' + (grant.expiresAt ? new Date(grant.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久') + '</td><td>' + (grant.reads ?? 0) + '/' + (grant.maxReads || '∞') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无有效授权</div>')
+    openModal('Active grants', active.length ? '<table><tr><th>Agent</th><th>Item</th><th>Expires</th><th>Reads</th></tr>' + active.map((grant) => '<tr><td>' + esc(agentLabel(grant.agent)) + '</td><td><code>' + esc(grant.name) + '</code></td><td>' + (grant.expiresAt ? new Date(grant.expiresAt).toLocaleString('en-GB', { hour12: false }) : 'Permanent') + '</td><td>' + (grant.reads ?? 0) + '/' + (grant.maxReads || '∞') + '</td></tr>').join('') + '</table>' : '<div class="hint">No active grants</div>')
   } else if (kind === 'pending') {
     // The card and the banner both land on this one sheet, so an approval is
     // read in one place while the two counters stay in agreement.
@@ -3104,10 +3104,10 @@ function renderOverviewActions() {
   const sub = $('ov-sub')
   if (sub) {
     const me = app.me || {}
-    const bits = [me.email || '', me.unlocked ? '已解锁' : '未解锁', (app.items || []).length + ' 条密钥', ((app.data && app.data.agents) || []).length + ' 个 Agent']
+    const bits = [me.email || '', me.unlocked ? 'Unlocked' : 'Locked', (app.items || []).length + ' secrets', ((app.data && app.data.agents) || []).length + ' Agents']
     sub.textContent = bits.filter(Boolean).join(' · ')
   }
-  box.innerHTML = '<h2>密钥健康</h2>' + healthRowsHtml()
+  box.innerHTML = '<h2>Secret health</h2>' + healthRowsHtml()
   box.querySelectorAll('[data-health]').forEach((button) => {
     button.onclick = () => {
       const list = button.parentElement.querySelector('.health-list')
@@ -3126,9 +3126,9 @@ function renderOverviewActions() {
 // ranking and a donut; this is the dimension nobody could see.
 function healthRowsHtml() {
   // Before /api/items answers there are no items to count, and every row would
-  // read 0 with its all-clear hint ("都分类了", "全部需要批准") — a security card
+  // read 0 with its all-clear hint ("All classified", "All need approval") — a security card
   // claiming everything is fine because it has not looked yet.
-  if (!app.itemsLoaded) return '<div class="hint">正在读取密钥…</div>'
+  if (!app.itemsLoaded) return '<div class="hint">Loading secrets…</div>'
   const items = app.items || []
   const data = app.data || {}
   const now = Date.now()
@@ -3137,7 +3137,7 @@ function healthRowsHtml() {
     return map
   }, {})
   const policies = data.policies || {}
-  // "可直接读取" means an Agent holds a live read grant for it, not "this is an
+  // "Readable in plaintext" means an Agent holds a live read grant for it, not "this is an
   // api credential". Counting the classification said 8 while 22 items were
   // readable, because a grant is what lets a value out.
   const readableIds = new Set()
@@ -3173,7 +3173,7 @@ function healthRowsHtml() {
   for (const item of items) {
     const kind = kinds[item.id] || ''
     if (readableIds.has(item.id)) bucketsOf.readable.push(item)
-    // An API key was falling into 未分类 with everything unclassified, so the
+    // An API key was falling into Unclassified with everything unclassified, so the
     // expanded list disagreed with the counter above it.
     if (kind === 'web') bucketsOf.web.push(item)
     else if (kind !== 'api') bucketsOf.none.push(item)
@@ -3195,23 +3195,23 @@ function healthRowsHtml() {
     + '</button>'
     + (value ? '<div class="health-list hidden">' + bucketsOf[key].slice(0, 8).map((item) => '<button class="health-cred" data-item-menu="' + esc(item.name) + '">'
       + '<b>' + esc(item.name) + '</b><span>' + esc(item.group || '') + '</span></button>').join('')
-      + (bucketsOf[key].length > 8 ? '<div class="health-more">还有 ' + (bucketsOf[key].length - 8) + ' 条</div>' : '')
+      + (bucketsOf[key].length > 8 ? '<div class="health-more">' + (bucketsOf[key].length - 8) + ' more</div>' : '')
       + '</div>' : '')
     + '</div>'
   return '<div class="health">'
-    + row('readable', '可直接读取明文', bucketsOf.readable.length, bucketsOf.readable.length ? '有读取授权的条目，含免审批' : '没有任何读取授权', 'blue')
-    + row('web', '只能填充', web, web ? '网页登录，值不出站' : '没有网页登录', 'purple')
-    + row('none', '未分类', none, none ? '默认拒绝读取' : '都分类了', none ? 'orange' : 'green')
-    + row('noApproval', '免审批', noApproval, noApproval ? 'Agent 读它不用问' : '全部需要批准', 'green')
-    + row('expiry', '7 天内到期', soon + past, past ? past + ' 条已过期' : soon ? soon + ' 条将在 7 天内到期，去处理' : '近期没有到期', soon || past ? 'orange' : 'green')
-    + row('rotate', '超过 ' + rotateDays + ' 天未轮换', staleRotate, staleRotate ? staleRotate + ' 条该换密钥了，点条目去处理' : '都在 ' + rotateDays + ' 天提醒周期内', staleRotate ? 'orange' : 'green')
+    + row('readable', 'Readable in plaintext', bucketsOf.readable.length, bucketsOf.readable.length ? 'Items with a read grant, incl. no-approval ones' : 'No read grants', 'blue')
+    + row('web', 'Fill only', web, web ? 'Web logins; values never leave' : 'No web logins', 'purple')
+    + row('none', 'Unclassified', none, none ? 'Reads denied by default' : 'All classified', none ? 'orange' : 'green')
+    + row('noApproval', 'No approval needed', noApproval, noApproval ? 'Agent reads skip approval' : 'All need approval', 'green')
+    + row('expiry', 'Expires within 7 days', soon + past, past ? past + ' expired' : soon ? soon + ' expiring within 7 days; review them' : 'Nothing expiring soon', soon || past ? 'orange' : 'green')
+    + row('rotate', 'Not rotated for over ' + rotateDays + ' days', staleRotate, staleRotate ? staleRotate + ' due for rotation; click an item to handle it' : 'All within the ' + rotateDays + '-day reminder window', staleRotate ? 'orange' : 'green')
     + '</div>'
 }
 // Week × hour, for the same reason the trend exists but at a scale a single
 // day hides: "read a lot on Tuesday morning" is the pattern people act on.
 function heatGridHtml() {
   const entries = (app.data && app.data.audit) || []
-  const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const grid = Array.from({ length: 7 }, () => new Array(24).fill(0))
   for (const entry of entries) {
     if (!/^secret\.(read|use|fill)/.test(String(entry.event || ''))) continue
@@ -3225,16 +3225,16 @@ function heatGridHtml() {
   const rows = grid.map((row, day) => '<div class="heat__day">' + days[day] + '</div>' + row.map((count, hour) => {
     const level = count / max
     return '<div class="heat__cell" data-count="' + count + '"' + (count ? ' style="background:color-mix(in srgb,var(--blue) ' + Math.round(12 + level * 88) + '%,transparent)"' : '')
-      + ' title="' + days[day] + ' ' + String(hour).padStart(2, '0') + ':00 · ' + count + ' 次">' + (count && level > 0.72 ? count : '') + '</div>'
+      + ' title="' + days[day] + ' ' + String(hour).padStart(2, '0') + ':00 · ' + count + ' reads">' + (count && level > 0.72 ? count : '') + '</div>'
   }).join('')).join('')
   const total = grid.flat().reduce((sum, n) => sum + n, 0)
   return '<div class="heat">' + head + rows + '</div>'
-    + '<div class="heat__legend"><span>少</span>' + [12, 30, 50, 70, 100].map((a) => '<i style="background:color-mix(in srgb,var(--blue) ' + a + '%,transparent)"></i>').join('') + '<span>多</span><span class="heat__total">审计里的 ' + entries.length + ' 条记录 · 共 ' + total + ' 次读取</span></div>'
+    + '<div class="heat__legend"><span>Less</span>' + [12, 30, 50, 70, 100].map((a) => '<i style="background:color-mix(in srgb,var(--blue) ' + a + '%,transparent)"></i>').join('') + '<span>More</span><span class="heat__total">' + entries.length + ' audit log entries · ' + total + ' reads total</span></div>'
 }
 
 const trendFaces = [
-  { id: 'chart', title: '读取趋势', hint: '按时间聚合 · 悬停查看数值' },
-  { id: 'heat', title: '读取热力图', hint: '星期 × 小时 · 越深越频繁' },
+  { id: 'chart', title: 'Read trend', hint: 'Grouped by time · hover for values' },
+  { id: 'heat', title: 'Read heatmap', hint: 'Weekday × hour · darker means more' },
 ]
 let trendFace = 0
 
@@ -3258,7 +3258,7 @@ function renderStats() {
   // pending + reminders as one figure, which is how "3 / 4 / 3" happened.
   const pendingCount = ((app.data && app.data.pending) || []).length + pendingConnections().length
   const reminderCount = ((app.data && app.data.reminders) || []).length
-  const cards = [{ l: '读取次数', v: stats.totalReads, sub: '当前区间 · 点开查看', view: 'reads' }, { l: '活跃 Agent', v: stats.activeAgents, sub: '有读取记录', view: 'agents' }, { l: '待审批', v: pendingCount, sub: reminderCount ? '提醒 ' + reminderCount + ' 条 · 点开处理' : '点开处理', warn: pendingCount > 0, view: 'pending' }, { l: '有效授权', v: stats.activeGrants, sub: '含免审批', view: 'grants' }]
+  const cards = [{ l: 'Reads', v: stats.totalReads, sub: 'This range · click to view', view: 'reads' }, { l: 'Active Agents', v: stats.activeAgents, sub: 'With reads', view: 'agents' }, { l: 'Pending approvals', v: pendingCount, sub: reminderCount ? 'Reminders: ' + reminderCount + ' · click to handle' : 'Click to handle', warn: pendingCount > 0, view: 'pending' }, { l: 'Active grants', v: stats.activeGrants, sub: 'Incl. no-approval', view: 'grants' }]
   // No sparkline in the KPI: its series is the same one the trend card draws
   // two rows below, so it only restated the chart at 20px tall.
   $('kpis').innerHTML = cards.map((card) => '<div class="kpi' + (card.warn ? ' warn' : '') + '" data-kpi="' + card.view + '"' + (card.event ? ' data-kpi-event="' + card.event + '"' : '') + '><div class="label">' + card.l + '</div><div class="value">' + card.v + '</div><div class="sub">' + card.sub + '</div></div>').join('')
@@ -3269,7 +3269,7 @@ function renderStats() {
   const labels = buckets.map((bucket, index) => index % Math.max(1, Math.ceil(buckets.length / 6)) === 0 ? '<text x="' + (px + index * slot + slot / 2).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle" fill="currentColor" font-size="9" opacity=".55">' + esc(bucket.label) + '</text>' : '').join('')
   $('chart-box').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '">' + grid + bars + labels + '</svg>'
   const tip = $('chart-tip')
-  const showTip = (event, label, count) => { if (!tip) return; tip.textContent = label + ' · ' + count + ' 次'; tip.classList.add('show'); tip.style.left = Math.min(window.innerWidth - 160, event.clientX + 12) + 'px'; tip.style.top = Math.max(8, event.clientY - 34) + 'px' }
+  const showTip = (event, label, count) => { if (!tip) return; tip.textContent = label + ' · ' + count + ' reads'; tip.classList.add('show'); tip.style.left = Math.min(window.innerWidth - 160, event.clientX + 12) + 'px'; tip.style.top = Math.max(8, event.clientY - 34) + 'px' }
   const hideTip = () => { if (tip) tip.classList.remove('show') }
   $('chart-box').querySelectorAll('[data-chart]').forEach((bar) => { bar.addEventListener('mouseenter', (event) => showTip(event, bar.dataset.label, bar.dataset.count)); bar.addEventListener('mousemove', (event) => showTip(event, bar.dataset.label, bar.dataset.count)); bar.addEventListener('mouseleave', hideTip) })
   const agents = stats.topAgents || []; const totalAgents = agents.reduce((sum, agent) => sum + agent.count, 0); const colors = ['#0f9d8a', '#5b6cff', '#f2994a', '#b6c2d9', '#a78bfa', '#14b8a6']; const R = 54, CIRC = 2 * Math.PI * R; let offset = 0
@@ -3297,9 +3297,9 @@ function renderStats() {
   $('donut-box').querySelectorAll('[data-donut],[data-legend]').forEach((el) => { el.addEventListener('click', () => selectDonut(el)); el.addEventListener('mouseenter', (event) => { if (el.dataset.count) showTip(event, el.dataset.agent, el.dataset.count) }); el.addEventListener('mouseleave', hideTip) })
   // Five is what the card has room for; the server sends up to twenty.
   const top = (stats.topItems || []).slice(0, 20); const totalTop = top.reduce((sum, item) => sum + item.count, 0) || 1; const maxTop = Math.max(1, ...top.map((item) => item.count))
-  $('top-box').innerHTML = top.length ? '<div class="rank">' + top.map((item, index) => { const pct = Math.max(4, Math.round(item.count / maxTop * 100)); return '<div class="rank__row"><div class="rank__head"><span class="rank__name">' + (index + 1) + '. ' + esc(item.name) + '</span><span class="rank__count">' + item.count + ' 次</span></div><div class="rank__track"><div class="rank__fill" style="width:' + pct + '%"></div></div></div>' }).join('') + '</div>' : '<div class="hint">这个区间还没有读取记录。</div>'
+  $('top-box').innerHTML = top.length ? '<div class="rank">' + top.map((item, index) => { const pct = Math.max(4, Math.round(item.count / maxTop * 100)); return '<div class="rank__row"><div class="rank__head"><span class="rank__name">' + (index + 1) + '. ' + esc(item.name) + '</span><span class="rank__count">' + item.count + ' reads</span></div><div class="rank__track"><div class="rank__fill" style="width:' + pct + '%"></div></div></div>' }).join('') + '</div>' : '<div class="hint">No reads in this range yet.</div>'
   renderTrendFace()
-  $('updated').textContent = '最后更新 ' + new Date().toLocaleTimeString('zh-CN', { hour12: false })
+  $('updated').textContent = 'Last updated ' + new Date().toLocaleTimeString('en-GB', { hour12: false })
 }
 // ── Expiry & rotation table ────────────────────────────────────────────────
 // The bottom-right slot answers "what should I rotate or renew, and when".
@@ -3320,11 +3320,11 @@ function agingRows() {
     const rotated = Number.isFinite(rotatedAt) && rotatedAt > 0 ? rotatedAt : 0
     const expires = Number(item.expiresAt) > 0 ? Number(item.expiresAt) : 0
     const days = expires ? Math.round((expires - now) / 86400e3) : null
-    let status = '正常'
+    let status = 'OK'
     let tone = 'green'
-    if (expires && expires <= now) { status = '已过期'; tone = 'red' }
-    else if (expires && days <= 7) { status = '临期'; tone = 'orange' }
-    else if (rotated && rotated < cutoff) { status = '该轮换'; tone = 'orange' }
+    if (expires && expires <= now) { status = 'Expired'; tone = 'red' }
+    else if (expires && days <= 7) { status = 'Expiring soon'; tone = 'orange' }
+    else if (rotated && rotated < cutoff) { status = 'Rotation due'; tone = 'orange' }
     return { name: String(item.name || ''), rotated, expires, days, status, tone }
   })
 }
@@ -3353,21 +3353,21 @@ function agingSorted() {
 }
 function agingDate(ms) {
   if (!ms) return '—'
-  return new Date(ms).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+  return new Date(ms).toLocaleDateString('en-GB', { month: '2-digit', day: '2-digit' })
 }
 function agingFull(ms) {
-  if (!ms) return '无'
-  return new Date(ms).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour12: false })
+  if (!ms) return 'None'
+  return new Date(ms).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour12: false })
 }
 function agingRemaining(row) {
-  if (!row.expires) return '永久'
-  return row.days + ' 天'
+  if (!row.expires) return 'Permanent'
+  return row.days + ' days'
 }
 function agingRowHtml(row) {
   return '<tr data-aging-row="' + esc(row.name) + '">'
     + '<td><button class="aging-row-btn" type="button" data-aging-open="' + esc(row.name) + '" title="' + esc(row.name) + '">' + esc(row.name) + '</button></td>'
     + '<td title="' + esc(agingFull(row.rotated)) + '">' + agingDate(row.rotated) + '</td>'
-    + '<td title="' + esc(row.expires ? agingFull(row.expires) : '无到期日') + '">' + agingDate(row.expires) + '</td>'
+    + '<td title="' + esc(row.expires ? agingFull(row.expires) : 'No expiry date') + '">' + agingDate(row.expires) + '</td>'
     + '<td title="' + esc(agingRemaining(row)) + '">' + agingRemaining(row) + '</td>'
     + '<td><span class="aging-tag" data-tone="' + row.tone + '">' + row.status + '</span></td>'
     + '</tr>'
@@ -3383,15 +3383,15 @@ function renderAging() {
     body.innerHTML = '<tr><td colspan="5" class="aging-msg"><b>' + title + '</b><span>' + text + '</span>' + (action || '') + '</td></tr>'
   }
   if (app.itemsError) {
-    empty('读取条目失败', esc(app.itemsError), '<div class="row"><button class="small" id="aging-retry" type="button">重试</button></div>')
+    empty('Couldn’t load items', esc(app.itemsError), '<div class="row"><button class="small" id="aging-retry" type="button">Retry</button></div>')
     const retry = $('aging-retry')
     if (retry) retry.onclick = () => { app.itemsError = ''; renderAging(); loadAll() }
     return
   }
-  if (!app.itemsLoaded) { empty('正在读取条目…', '清单只从这台服务器读取，不请求任何第三方。'); return }
+  if (!app.itemsLoaded) { empty('Loading items…', 'The list comes only from this server; no third parties are contacted.'); return }
   const rows = agingSorted()
   if (!rows.length) {
-    empty('没有可排期的条目', '空库里还没有密钥条目，新增一条后这里会列出到期与轮换。', '<div class="row"><button class="small" id="aging-go-items" type="button">去密钥页新增</button></div>')
+    empty('Nothing to schedule', 'The vault has no items yet. Add one and its expiry and rotation will show up here.', '<div class="row"><button class="small" id="aging-go-items" type="button">Add in Secrets</button></div>')
     const go = $('aging-go-items')
     if (go) go.onclick = () => document.querySelector('#nav [data-view="items"]').click()
     return
@@ -3399,12 +3399,12 @@ function renderAging() {
   const shown = rows.slice(0, AGING_LIMIT)
   body.innerHTML = shown.map(agingRowHtml).join('')
   if (countEl) {
-    countEl.textContent = rows.length + ' 条'
+    countEl.textContent = rows.length + ' items'
     if (rows.some((row) => row.tone !== 'green')) countEl.setAttribute('data-warn', '1')
     else countEl.removeAttribute('data-warn')
   }
   if (foot) foot.classList.toggle('hidden', rows.length <= AGING_LIMIT)
-  if (more) more.textContent = rows.length > AGING_LIMIT ? '还有 ' + (rows.length - AGING_LIMIT) + ' 条未显示' : ''
+  if (more) more.textContent = rows.length > AGING_LIMIT ? '' + (rows.length - AGING_LIMIT) + ' more not shown' : ''
   agingPaintSort()
 }
 function agingPaintSort() {
@@ -3417,9 +3417,9 @@ function agingPaintSort() {
 }
 function openAgingAll() {
   const rows = agingSorted()
-  openModal('到期与轮换', '<div class="hint">全部 ' + rows.length + ' 条 · 健康卡给计数，这里给日期</div>'
-    + '<div class="table-wrap"><table><caption>全部 ' + rows.length + ' 条：上次轮换、到期与剩余天数</caption>'
-    + '<thead><tr><th scope="col">条目</th><th scope="col">上次轮换</th><th scope="col">到期</th><th scope="col">剩余天数</th><th scope="col">状态</th></tr></thead>'
+  openModal('Expiry and rotation', '<div class="hint">All ' + rows.length + ' items · the health card has the counts, this has the dates</div>'
+    + '<div class="table-wrap"><table><caption>All ' + rows.length + ' items: last rotation, expiry and days left</caption>'
+    + '<thead><tr><th scope="col">Item</th><th scope="col">Last rotated</th><th scope="col">Expires</th><th scope="col">Days left</th><th scope="col">Status</th></tr></thead>'
     + '<tbody>' + rows.map(agingRowHtml).join('') + '</tbody></table></div>')
   document.querySelectorAll('#modal [data-aging-open]').forEach((button) => {
     button.onclick = () => openItemMenu(button.dataset.agingOpen)
@@ -3453,13 +3453,13 @@ function readRightsByItem() {
 // Vault 2.0 keeps its own database and its own lock: the console can be open
 // against the cipher vault while this one is still closed, so it gets its own
 // status line and its own password field.
-// A device counts as在线 while it has been seen in the last five minutes: every
+// A device counts as Online while it has been seen in the last five minutes: every
 // authenticated pull stamps last_seen_at, so this is a real signal, not a guess.
 function vault2DeviceState(device) {
-  if (device.revokedAt) return { label: '已撤销', cls: 'kind-tag kind-none' }
+  if (device.revokedAt) return { label: 'Revoked', cls: 'kind-tag kind-none' }
   const seen = Date.parse(device.lastSeenAt || '')
-  if (!Number.isNaN(seen) && Date.now() - seen < 5 * 60 * 1000) return { label: '在线', cls: 'kind-tag kind-api' }
-  return { label: '离线', cls: 'kind-tag kind-none' }
+  if (!Number.isNaN(seen) && Date.now() - seen < 5 * 60 * 1000) return { label: 'Online', cls: 'kind-tag kind-api' }
+  return { label: 'Offline', cls: 'kind-tag kind-none' }
 }
 
 function renderVault2Devices(devices) {
@@ -3468,14 +3468,14 @@ function renderVault2Devices(devices) {
   host.innerHTML = '<div class="ios-group">' + (devices.length
     ? devices.map((device) => {
       const state = vault2DeviceState(device)
-      const seen = device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : '从未连接'
+      const seen = device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never connected'
       const made = device.createdAt ? new Date(device.createdAt).toLocaleDateString() : ''
       const actions = device.revokedAt
-        ? '<button class="mini danger" data-v2-purge="' + esc(device.id) + '">删除</button>'
-        : '<button class="mini" data-v2-write="' + esc(device.id) + '" data-write="' + (device.canWrite ? '1' : '0') + '">' + (device.canWrite ? '可写' : '只读') + '</button><button class="mini" data-v2-revoke="' + esc(device.id) + '">撤销</button>'
-      return '<div class="ios-row" data-device="' + esc(device.id) + '"><div class="ios-main"><div class="ios-title"><b>' + esc(device.name) + '</b> <span class="' + state.cls + '">' + state.label + '</span>' + (device.canWrite ? ' <span class="kind-tag kind-api">可写</span>' : '') + '</div><div class="ios-sub">最近活动 ' + esc(seen) + (made ? ' · 配对于 ' + esc(made) : '') + '</div></div>' + actions + '</div>'
+        ? '<button class="mini danger" data-v2-purge="' + esc(device.id) + '">Delete</button>'
+        : '<button class="mini" data-v2-write="' + esc(device.id) + '" data-write="' + (device.canWrite ? '1' : '0') + '">' + (device.canWrite ? 'Writable' : 'Read-only') + '</button><button class="mini" data-v2-revoke="' + esc(device.id) + '">Revoke</button>'
+      return '<div class="ios-row" data-device="' + esc(device.id) + '"><div class="ios-main"><div class="ios-title"><b>' + esc(device.name) + '</b> <span class="' + state.cls + '">' + state.label + '</span>' + (device.canWrite ? ' <span class="kind-tag kind-api">Writable</span>' : '') + '</div><div class="ios-sub">Last active ' + esc(seen) + (made ? ' · paired on ' + esc(made) : '') + '</div></div>' + actions + '</div>'
     }).join('')
-    : '<div class="hint">还没有配对设备。在另一台机器上运行 secrets-broker pair，打开终端给出的链接批准，它就会出现在这里。</div>') + '</div>'
+    : '<div class="hint">No paired devices yet. Run secrets-broker pair on another machine and approve it via the link the terminal prints; the device then shows up here.</div>') + '</div>'
   host.classList.remove('hidden')
 }
 
@@ -3496,16 +3496,16 @@ async function loadVault2(withItems = true) {
     const ready = status.initialized === true
     const initButton = $('init-v2')
     if (initButton) initButton.classList.toggle('hidden', ready)
-    badge.textContent = ready ? (status.unlocked ? '已解锁' : '已锁定') : '未初始化'
+    badge.textContent = ready ? (status.unlocked ? 'Unlocked' : 'Locked') : 'Not initialized'
     line.textContent = ready
-      ? ('条目 ' + Number(status.items || 0) + ' 条 · revision ' + Number(status.revision || 0) + ' · 已配对设备 ' + devices.length + ' 台' + (status.unlocked && status.keyExpiresAt ? ' · 钥匙有效至 ' + new Date(status.keyExpiresAt).toLocaleTimeString() : ''))
-      : '还没有初始化。输入一个至少 12 位的主密码，点「初始化」会新建一个空库；旧条目要初始化后用「从旧库导入」。'
+      ? ('Items: ' + Number(status.items || 0) + ' · revision ' + Number(status.revision || 0) + ' · paired devices: ' + devices.length + '' + (status.unlocked && status.keyExpiresAt ? ' · key valid until ' + new Date(status.keyExpiresAt).toLocaleTimeString() : ''))
+      : 'Not initialized yet. Enter a master password of at least 12 characters and click “Initialize” to create an empty vault; to bring over old items, use “Import from old vault” after initializing.'
     if (devicesLine) {
-      const online = devices.filter((device) => !device.revokedAt && vault2DeviceState(device).label === '在线').length
-      devicesLine.textContent = devices.length ? (devices.length + ' 台已配对 · ' + online + ' 台在线') : '还没有配对设备。'
+      const online = devices.filter((device) => !device.revokedAt && vault2DeviceState(device).label === 'Online').length
+      devicesLine.textContent = devices.length ? (devices.length + ' paired · ' + online + ' online') : 'No paired devices yet.'
     }
     // One unlock entry per state: an already-unlocked card must not keep asking.
-    $('v2-unlock').textContent = ready ? (status.unlocked ? '已解锁' : '解锁') : '初始化'
+    $('v2-unlock').textContent = ready ? (status.unlocked ? 'Unlocked' : 'Unlock') : 'Initialize'
     $('v2-unlock').classList.toggle('hidden', ready && status.unlocked)
     const v2Password = $('v2-password')
     if (v2Password) v2Password.classList.toggle('hidden', ready && status.unlocked)
@@ -3519,8 +3519,8 @@ async function loadVault2(withItems = true) {
       // 428 means this unlock has not passed the second factor for the plaintext
       // listing yet. Ask once; the server remembers the pass for this session.
       if (error.status !== 428) throw error
-      const code = await askCode('为显示条目名称，请输入手机上 6 位验证码（本次解锁内只需一次）')
-      if (!/^\d{6}$/.test(code)) throw new Error('需要 6 位验证码才能显示条目')
+      const code = await askCode('To show item names, enter the 6-digit code from your phone (once per unlock)')
+      if (!/^\d{6}$/.test(code)) throw new Error('A 6-digit verification code is needed to show items')
       plain = await api('/api/v2/items?plain=1', { headers: { 'x-totp-code': code } })
     }
     app.plainOk = true
@@ -3530,24 +3530,24 @@ async function loadVault2(withItems = true) {
       ? '<div class="ios-group">' + rows.slice(0, 200).map((row) => {
         const payload = row.payload || {}
         const fields = Object.keys(payload).filter((key) => key !== 'name').length
-        return '<div class="ios-row"><div class="ios-main"><div class="ios-title"><b>' + esc(payload.name || row.id) + '</b></div><div class="ios-sub">' + esc(row.kind || 'unclassified') + ' · ' + fields + ' 个字段</div></div></div>'
+        return '<div class="ios-row"><div class="ios-main"><div class="ios-title"><b>' + esc(payload.name || row.id) + '</b></div><div class="ios-sub">' + esc(row.kind || 'unclassified') + ' · ' + fields + ' fields</div></div></div>'
       }).join('') + '</div>'
-      : '<div class="hint">还没有条目。</div>'
+      : '<div class="hint">No items yet.</div>'
     box.classList.remove('hidden')
   } catch (error) {
-    msg.textContent = '读取失败：' + error.message
-    if (devicesMsg) devicesMsg.textContent = '读取失败：' + error.message
+    msg.textContent = 'Loading failed: ' + error.message
+    if (devicesMsg) devicesMsg.textContent = 'Loading failed: ' + error.message
   }
 }
 
 // Empty, loading and failed are three different jobs: create something, clear
-// a filter, or retry. They all used to render as one grey "没有条目".
+// a filter, or retry. They all used to render as one grey "No items".
 function itemsStateHtml() {
   const query = ($('item-filter')?.value || '').trim()
-  if (app.itemsError) return '<div class="state" data-tone="error"><div class="state__title">读取失败</div><div class="state__body">' + esc(app.itemsError) + '</div><div class="state__actions"><button class="primary" data-state-act="retry">重试</button></div></div>'
-  if (!app.itemsLoaded) return '<div class="state" data-tone="loading"><div class="state__title">正在读取条目…</div><div class="state__body">清单只从这台服务器读取，不会请求任何第三方。</div></div>'
-  if (query) return '<div class="state"><div class="state__title">没有匹配的条目</div><div class="state__body">名称、分组和网址里都没有“' + esc(query) + '”。</div><div class="state__actions"><button data-state-act="clear">清除筛选</button></div></div>'
-  return '<div class="state"><div class="state__title">还没有条目</div><div class="state__body">密钥只保存在这台服务器的 D1 里；Agent 每次读取都要经过策略或你的批准。</div><div class="state__actions"><button class="primary" data-state-act="create">新增条目</button><button data-state-act="import">导入 JSON</button></div></div>'
+  if (app.itemsError) return '<div class="state" data-tone="error"><div class="state__title">Loading failed</div><div class="state__body">' + esc(app.itemsError) + '</div><div class="state__actions"><button class="primary" data-state-act="retry">Retry</button></div></div>'
+  if (!app.itemsLoaded) return '<div class="state" data-tone="loading"><div class="state__title">Loading items…</div><div class="state__body">The list comes only from this server; no third parties are contacted.</div></div>'
+  if (query) return '<div class="state"><div class="state__title">No matching items</div><div class="state__body">No name, group or URL contains “' + esc(query) + '”.</div><div class="state__actions"><button data-state-act="clear">Clear filter</button></div></div>'
+  return '<div class="state"><div class="state__title">No items yet</div><div class="state__body">Secrets are stored only in this server’s D1; every Agent read goes through a policy or your approval.</div><div class="state__actions"><button class="primary" data-state-act="create">New item</button><button data-state-act="import">Import JSON</button></div></div>'
 }
 function setItemDensity(dense) {
   const box = $('items-box')
@@ -3555,22 +3555,22 @@ function setItemDensity(dense) {
   if (box) box.dataset.density = dense ? 'compact' : 'comfortable'
   if (button) {
     button.setAttribute('aria-pressed', dense ? 'true' : 'false')
-    button.textContent = dense ? '行距：紧凑' : '行距：舒适'
-    button.setAttribute('title', dense ? '当前紧凑，点击切回舒适行距' : '当前舒适，点击切换为紧凑行距')
+    button.textContent = dense ? 'Density: compact' : 'Density: comfortable'
+    button.setAttribute('title', dense ? 'Compact now; click for comfortable spacing' : 'Comfortable now; click for compact spacing')
   }
 }
 function renderItems() {
-  // Locked: no rows exist client-side, so say why instead of showing "还没有条目",
+  // Locked: no rows exist client-side, so say why instead of showing "No items yet",
   // which would read as "the vault is empty". The action unlocks in place.
   if (app.locked === true) {
     const host = $('items-box')
     if (host) {
-      host.innerHTML = '<div class="state" data-tone="locked"><div class="state__title">已锁定 · 名称已脱敏</div><div class="state__body">审批、日志和设备管理仍然可用；读取条目名称或明文前，在这里就地解锁，页面不会跳转。</div><div class="state__actions"><button class="primary" data-state-act="unlock">就地解锁</button></div></div>'
+      host.innerHTML = '<div class="state" data-tone="locked"><div class="state__title">Locked · names redacted</div><div class="state__body">Approvals, logs and device management still work. To see item names or plaintext, unlock right here; you won’t leave the page.</div><div class="state__actions"><button class="primary" data-state-act="unlock">Unlock here</button></div></div>'
       const button = host.querySelector('[data-state-act="unlock"]')
       if (button) button.onclick = inlineUnlockSheet
     }
     const chip = $('item-status')
-    if (chip) chip.textContent = '已锁定：名称已脱敏'
+    if (chip) chip.textContent = 'Locked: names redacted'
     return
   }
   const query = ($('item-filter')?.value || '').trim().toLowerCase(); const items = (app.items || []).filter((item) => !query || item.name.toLowerCase().includes(query) || String(item.url || '').toLowerCase().includes(query) || String(item.group || '').toLowerCase().includes(query))
@@ -3602,9 +3602,9 @@ function renderItems() {
   // only consulted for a no-approval item, so it is not the answer here.
   const guarded = (app.data && app.data.unclassifiedPlaintext) !== true
   const kindTag = (kind) => {
-    if (kind === 'api') return ' <span class="kind-tag kind-api" title="API Key：可按需允许 Agent 读取明文">api</span>'
-    if (kind === 'web') return ' <span class="kind-tag kind-web" title="网站登录：只能被填充到指定网站，Agent 永远拿不到明文">web</span>'
-    return ' <span class="kind-tag kind-none" title="' + (guarded ? '未分类：明文读取已被拒绝，请在条目里分类' : '未分类：Agent 可能读到明文，请在条目里分类') + '">' + (guarded ? '未分类 · 禁读' : '未分类 · 可读明文') + '</span>'
+    if (kind === 'api') return ' <span class="kind-tag kind-api" title="API Key: you can let an Agent read the plaintext when needed">api</span>'
+    if (kind === 'web') return ' <span class="kind-tag kind-web" title="Website login: can only be filled into its assigned sites; an Agent never gets the plaintext">web</span>'
+    return ' <span class="kind-tag kind-none" title="' + (guarded ? 'Unclassified: plaintext reads are denied. Classify it in the item' : 'Unclassified: an Agent may read the plaintext. Classify it in the item') + '">' + (guarded ? 'Unclassified · no reads' : 'Unclassified · plaintext readable') + '</span>'
   }
   const ico = (kind) => { const paths = kind === 'web'
     ? '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/>'
@@ -3617,14 +3617,14 @@ function renderItems() {
   // their own group instead of being lost in one long table.
   const row = (item) => {
     const kind = kindByName.get(item.name)
-    const when = item.lastActivityAt ? relativeTime(Date.parse(item.lastActivityAt)) : '无读取记录'
+    const when = item.lastActivityAt ? relativeTime(Date.parse(item.lastActivityAt)) : 'No reads'
     const granted = rightsOf(item)
-    const meta = [item.group, when, item.lastActor, granted ? granted + ' 个 Agent 可用' : ''].filter(Boolean).map((part) => esc(part)).join(' · ')
+    const meta = [item.group, when, item.lastActor, granted ? granted + ' Agents can use it' : ''].filter(Boolean).map((part) => esc(part)).join(' · ')
     // 0 means "no expiry" in state.secretExpiry, so a plain numeric test made
     // every credential without a date read as expired.
     const expired = typeof item.expiresAt === 'number' && item.expiresAt > 0 && item.expiresAt <= Date.now()
     // A credential that still works but expires within the week is the one an
-    // operator can act on; "已过期" is already too late for that job.
+    // operator can act on; "Expired" is already too late for that job.
     const soonDays = typeof item.expiresAt === 'number' && item.expiresAt > Date.now() && item.expiresAt <= Date.now() + 7 * 86400000
       ? Math.ceil((item.expiresAt - Date.now()) / 86400000)
       : 0
@@ -3634,21 +3634,21 @@ function renderItems() {
     const lastRotate = Date.parse(String(item.lastRotatedAt || '')) || Date.parse(String(item.createdAt || ''))
     const rotateDays = Number.isFinite(lastRotate) && lastRotate > 0 ? Math.floor((Date.now() - lastRotate) / 86400000) : 0
     const rotateStale = rotateDays > rotateDaysLimit
-    // The pill is the approval state and nothing else: it used to read 已过期
+    // The pill is the approval state and nothing else: it used to read Expired
     // whenever the credential expired, which hid the state the click changes and
     // made a successful toggle look like it did nothing. Expiry is a separate fact,
     // so it rides along in the subtitle instead.
-    const approval = item.noApproval ? '免审批' : kind === 'web' ? '仅填充' : kind ? '需审批' : '未分类'
-    const trail = '<button class="ios-pill ' + (item.noApproval ? 'on' : kind === 'web' ? 'web' : kind ? '' : 'none') + '" data-policy="' + esc(item.name) + '" aria-pressed="' + (item.noApproval ? 'true' : 'false') + '" title="点击切换：免审批读取 / 需要审批">'
+    const approval = item.noApproval ? 'No approval needed' : kind === 'web' ? 'Fill only' : kind ? 'Needs approval' : 'Unclassified'
+    const trail = '<button class="ios-pill ' + (item.noApproval ? 'on' : kind === 'web' ? 'web' : kind ? '' : 'none') + '" data-policy="' + esc(item.name) + '" aria-pressed="' + (item.noApproval ? 'true' : 'false') + '" title="Click to toggle: read without approval / needs approval">'
       + esc(approval) + '</button>'
     return '<div class="ios-row">' +
-      '<input type="checkbox" class="item-select ios-check" data-name="' + esc(item.name) + '" ' + (selectedItems.has(item.name) ? 'checked' : '') + ' title="选择" aria-label="选择 ' + esc(item.name) + '">' +
+      '<input type="checkbox" class="item-select ios-check" data-name="' + esc(item.name) + '" ' + (selectedItems.has(item.name) ? 'checked' : '') + ' title="Select" aria-label="Select ' + esc(item.name) + '">' +
       ico(kind) +
       '<div class="ios-main" data-item-menu="' + esc(item.name) + '" role="button" tabindex="0">' +
         // The ellipsis cut long names with no way to read the rest; the title
         // attribute carries the full text on hover and in the a11y tree.
         '<div class="ios-title"><b title="' + esc(item.name) + '">' + esc(item.name) + '</b>' + (kind === 'api' || kind === 'web' ? kindTag(kind) : '') + '</div>' +
-        '<div class="ios-sub">' + meta + (expired ? ' · <span class="ios-expired">已过期</span>' : '') + (soonDays ? ' · <span class="ios-soon">' + soonDays + ' 天后到期</span>' : '') + (rotateStale ? ' · <span class="ios-rotate" title="距上次轮换/创建已 ' + rotateDays + ' 天，建议更换">' + rotateDays + ' 天未轮换</span>' : '') + '</div>' +
+        '<div class="ios-sub">' + meta + (expired ? ' · <span class="ios-expired">Expired</span>' : '') + (soonDays ? ' · <span class="ios-soon">Expires in ' + soonDays + ' days</span>' : '') + (rotateStale ? ' · <span class="ios-rotate" title="' + rotateDays + ' days since last rotation or creation; consider rotating">' + rotateDays + ' days without rotation</span>' : '') + '</div>' +
       '</div>' +
       '<div class="ios-trail">' + trail + '</div>' +
     '</div>'
@@ -3661,7 +3661,7 @@ function renderItems() {
     : '')
   // Unclassified first: those are the ones that still need a decision, so the
   // work that is left sits above the list that is already settled.
-  $('items-box').innerHTML = items.length ? group('未分类', unclassified) + group('已分类', classified) : itemsStateHtml()
+  $('items-box').innerHTML = items.length ? group('Unclassified', unclassified) + group('Classified', classified) : itemsStateHtml()
   $('items-box').querySelectorAll('[data-state-act]').forEach((button) => {
     button.onclick = () => {
       const action = button.dataset.stateAct
@@ -3675,15 +3675,15 @@ function renderItems() {
   $('items-box').querySelectorAll('.ios-main').forEach((main) => { main.onkeydown = async (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!(await confirmDiscard())) return; openItemMenu(main.dataset.itemMenu) } } })
   updateBulkBar()
 }
-function updateBulkBar() { const bar = $('bulk-bar'); if (!bar) return; bar.classList.toggle('hidden', selectedItems.size === 0); $('bulk-count').textContent = '已选择 ' + selectedItems.size + ' 个条目'; if (!selectedItems.size) { const progress = $('bulk-progress'); if (progress) progress.textContent = '' } }
+function updateBulkBar() { const bar = $('bulk-bar'); if (!bar) return; bar.classList.toggle('hidden', selectedItems.size === 0); $('bulk-count').textContent = '' + selectedItems.size + ' selected'; if (!selectedItems.size) { const progress = $('bulk-progress'); if (progress) progress.textContent = '' } }
 // null/undefined = permanent; past = expired; soon (<24h) flagged.
 function expiryLabel(expiresAt) {
-  if (typeof expiresAt !== 'number' || expiresAt <= 0) return '永久'
+  if (typeof expiresAt !== 'number' || expiresAt <= 0) return 'Permanent'
   const left = expiresAt - Date.now()
-  if (left <= 0) return '<span style="color:var(--danger)">已过期</span>'
+  if (left <= 0) return '<span style="color:var(--danger)">Expired</span>'
   const days = Math.floor(left / 86400e3)
   const hours = Math.floor((left % 86400e3) / 3600e3)
-  const text = days > 0 ? days + ' 天' : hours + ' 小时'
+  const text = days > 0 ? days + ' days' : hours + ' hours'
   return left < 86400e3 ? '<span style="color:var(--danger)">' + text + '</span>' : text
 }
 // ── Agent Live Globe (P3/P4) ────────────────────────────────────────────────
@@ -3712,7 +3712,7 @@ async function fetchGlobeEvents(reset) {
 function renderGlobeStatus(count) {
   const box = $('globe-status')
   if (!box) return
-  box.textContent = count ? '共 ' + count + ' 条真实访问记录 · 每 30 秒增量更新' : '暂无真实访问记录'
+  box.textContent = count ? 'Real access events: ' + count + ' · updated every 30 seconds' : 'No real access events yet'
 }
 async function ensureGlobe() {
   if (globe.instance || globe.loading || globe.failed || globe.hidden) return globe.instance
@@ -3741,9 +3741,9 @@ async function ensureGlobe() {
     try { console.error('[globe] load failed:', error) } catch {}
     const card = $('globe-card'); if (card) card.classList.add('globe-failed')
     const empty = $('globe-empty')
-    if (empty) empty.innerHTML = '<div>地球组件不可用（不影响其他功能）<br><span style="font-size:11px;opacity:.7">' + esc(detail.slice(0, 160)) + '</span></div>'
+    if (empty) empty.innerHTML = '<div>Globe unavailable (everything else still works)<br><span style="font-size:11px;opacity:.7">' + esc(detail.slice(0, 160)) + '</span></div>'
     const st = $('globe-status')
-    if (st) st.textContent = '地球加载失败：' + detail.slice(0, 120)
+    if (st) st.textContent = 'Globe failed to load: ' + detail.slice(0, 120)
     return null
   } finally { globe.loading = false }
 }
@@ -3753,8 +3753,8 @@ async function refreshGlobe(reset) {
     const result = await fetchGlobeEvents(reset)
     if (result.disabled) {
       const card = $('globe-card'); if (card) card.classList.add('globe-failed')
-      const empty = $('globe-empty'); if (empty) empty.innerHTML = '<div>全球态势未启用</div>'
-      const st = $('globe-status'); if (st) st.textContent = '功能开关 GEO_ENABLED 未开启'
+      const empty = $('globe-empty'); if (empty) empty.innerHTML = '<div>Live globe is off</div>'
+      const st = $('globe-status'); if (st) st.textContent = 'Feature flag GEO_ENABLED is off'
       stopGlobePolling()
       return
     }
@@ -3802,7 +3802,7 @@ function toggleGlobeFullscreen() {
   if (!box) return
   const next = !box.classList.contains('globe-full')
   box.classList.toggle('globe-full', next)
-  if (button) button.textContent = next ? '缩小' : '放大'
+  if (button) button.textContent = next ? 'Shrink' : 'Expand'
   // Let the container settle before measuring for the new viewport size.
   requestAnimationFrame(() => { try { window.dispatchEvent(new Event('resize')) } catch {} })
 }
@@ -3820,27 +3820,27 @@ function eventAgentName(ev) {
   if (!raw.startsWith('oauth:')) return raw
   const clientId = raw.slice(6)
   const client = ((app.data && app.data.oauthClients) || []).find((c) => c.clientId === clientId)
-  return (client && client.clientName) || 'OAuth 客户端'
+  return (client && client.clientName) || 'OAuth client'
 }
 function danmuLine(ev) {
   const g = ev.geo || {}
   const cc = g.country ? String(g.country).toUpperCase() : ''
   const city = g.city ? String(g.city).split(',')[0] : ''
-  const where = [city, cc].filter(Boolean).join(' · ') || '未知位置'
-  const time = ev.at ? new Date(ev.at).toLocaleTimeString('zh-CN', { hour12: false }) : ''
+  const where = [city, cc].filter(Boolean).join(' · ') || 'Unknown location'
+  const time = ev.at ? new Date(ev.at).toLocaleTimeString('en-GB', { hour12: false }) : ''
   const color = ev.ok ? 'var(--ok,#0f9d8a)' : 'var(--danger)'
   return '<div class="danmu-row"><span class="danmu-time">' + esc(time) + '</span>' +
     '<b class="danmu-agent">' + esc(eventAgentName(ev)) + '</b>' +
     '<span class="danmu-where">' + esc(where) + '</span>' +
     '<span class="danmu-act">' + esc(ev.action || '') + '</span>' +
-    '<span style="color:' + color + '">' + (ev.ok ? '成功' : '失败') + '</span></div>'
+    '<span style="color:' + color + '">' + (ev.ok ? 'OK' : 'Failed') + '</span></div>'
 }
 function renderDanmu() {
   const feed = $('globe-danmu')
   if (!feed) { stopDanmu(); return }
   const events = (globe.events || []).slice(-40)
   if (!events.length) {
-    feed.innerHTML = '<div class="danmu-empty">暂无连接</div>'
+    feed.innerHTML = '<div class="danmu-empty">No connections yet</div>'
     stopDanmu()
     return
   }
@@ -3858,20 +3858,20 @@ function startDanmu() {
 function openGlobeModal() {
   const events = globe.events || []
   const op = globe.operator
-  const opText = op && op.known ? (op.city || op.country || '未知') + ' (' + (op.country || '') + ')' : '未记录'
+  const opText = op && op.known ? (op.city || op.country || 'Unknown') + ' (' + (op.country || '') + ')' : 'Not recorded'
   const toggles = '<div class="row" style="gap:16px;margin:12px 0">' +
-    '<label class="chk" style="flex:0 0 auto"><input type="checkbox" id="gl-arcs" ' + (globe.showArcs ? 'checked' : '') + '> 显示弧线</label>' +
-    '<label class="chk" style="flex:0 0 auto"><input type="checkbox" id="gl-operator" ' + (globe.showOperator ? 'checked' : '') + '> 显示我的位置</label>' +
+    '<label class="chk" style="flex:0 0 auto"><input type="checkbox" id="gl-arcs" ' + (globe.showArcs ? 'checked' : '') + '> Show arcs</label>' +
+    '<label class="chk" style="flex:0 0 auto"><input type="checkbox" id="gl-operator" ' + (globe.showOperator ? 'checked' : '') + '> Show my location</label>' +
     '</div>'
   const rows = events.length ? events.slice().reverse().slice(0, 100).map((ev) => {
     const g = ev.geo || {}
-    const where = g.known ? (g.city || '') + (g.city && g.country ? ', ' : '') + (g.country || '') : '未知位置'
-    const when = ev.at ? new Date(ev.at).toLocaleString('zh-CN', { hour12: false }) : ''
+    const where = g.known ? (g.city || '') + (g.city && g.country ? ', ' : '') + (g.country || '') : 'Unknown location'
+    const when = ev.at ? new Date(ev.at).toLocaleString('en-GB', { hour12: false }) : ''
     const color = ev.ok ? 'var(--accent,#0f9d8a)' : 'var(--danger)'
     return '<tr><td><b>' + esc(eventAgentName(ev)) + '</b> <span class="pill">' + (ev.kind === 'oauth' ? 'OAuth' : 'Token') + '</span></td>' +
       '<td class="hint">' + esc(where) + '</td>' +
       '<td class="hint">' + esc(ev.action || '') + '</td>' +
-      '<td style="color:' + color + '">' + (ev.ok ? '成功' : '失败') + '</td>' +
+      '<td style="color:' + color + '">' + (ev.ok ? 'OK' : 'Failed') + '</td>' +
       '<td class="hint">' + esc(when) + '</td></tr>'
   }).join('') : ''
   // Enlarged view: the globe itself grows on the left, the live feed streams
@@ -3879,13 +3879,13 @@ function openGlobeModal() {
   const body = '<div class="globe-big" id="globe-big">' +
     '<div class="globe-big-stage">' +
       '<div id="globe-big-box" class="globe-box globe-box-big"></div>' +
-      '<button class="small globe-big-close" id="globe-big-close">关闭 ✕</button>' +
+      '<button class="small globe-big-close" id="globe-big-close">Close ✕</button>' +
     '</div>' +
     '<div class="globe-big-side">' +
-      '<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><b>Agent Live Globe</b><span class="hint">放大视图</span></div>' +
-      '<div class="hint">我的位置（IP 估算）：<b>' + esc(opText) + '</b></div>' +
+      '<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><b>Agent Live Globe</b><span class="hint">Enlarged view</span></div>' +
+      '<div class="hint">My location (estimated from IP): <b>' + esc(opText) + '</b></div>' +
       toggles +
-      '<div class="danmu-title" style="margin-top:10px">实时连接<span class="hint" style="margin-left:6px">成功=已授权并完成 · 失败=权限不足或条目不存在（与位置无关）</span></div>' +
+      '<div class="danmu-title" style="margin-top:10px">Live connections<span class="hint" style="margin-left:6px">OK = authorized and completed · Failed = not permitted or item not found (unrelated to location)</span></div>' +
       '<div id="globe-danmu" class="danmu-feed"></div>' +
     '</div>' +
     '</div>'
@@ -3937,7 +3937,7 @@ function closeBigGlobe() {
 function initGlobe() {
   if (!$('globe-box')) return
   globe.reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (globe.reduceMotion) { globe.paused = true; const b = $('globe-pause'); if (b) { b.textContent = '继续'; b.setAttribute('aria-pressed', 'true'); b.setAttribute('aria-label', '继续地球动画') } }
+  if (globe.reduceMotion) { globe.paused = true; const b = $('globe-pause'); if (b) { b.textContent = 'Resume'; b.setAttribute('aria-pressed', 'true'); b.setAttribute('aria-label', 'Resume globe animation') } }
   const rangeRow = $('globe-range')
   if (rangeRow) rangeRow.onclick = (event) => {
     const button = event.target.closest('[data-grange]')
@@ -3951,9 +3951,9 @@ function initGlobe() {
   if (pauseBtn) pauseBtn.onclick = () => {
     globe.paused = !globe.paused
     pauseBtn.textContent = globe.paused ? '▶' : '⏸'
-    pauseBtn.title = globe.paused ? '继续播放' : '暂停动画'
+    pauseBtn.title = globe.paused ? 'Resume animation' : 'Pause animation'
     // The glyph alone is not a name: announce what the button will do next.
-    pauseBtn.setAttribute('aria-label', globe.paused ? '继续地球动画' : '暂停地球动画')
+    pauseBtn.setAttribute('aria-label', globe.paused ? 'Resume globe animation' : 'Pause globe animation')
     pauseBtn.setAttribute('aria-pressed', globe.paused ? 'true' : 'false')
     if (globe.instance) globe.instance.setPaused(globe.paused)
     syncGlobePolling()
@@ -4032,7 +4032,7 @@ function noticeItems() {
     id: 'pending:' + (entry.id || ''),
     tone: 'warn',
     level: 'pending',
-    text: pendingAgentLabel(entry) + '：' + pendingActionLabel(entry) + ' ' + String(entry.name || ''),
+    text: pendingAgentLabel(entry) + ': ' + pendingActionLabel(entry) + ' ' + String(entry.name || ''),
     kind: 'pending',
     entry,
   }))
@@ -4042,7 +4042,7 @@ function noticeItems() {
     id: 'connection:' + (entry.id || ''),
     tone: 'warn',
     level: 'pending',
-    text: (entry.agent || 'Agent') + '：请求首次连接' + (entry.requestedPlaintext ? '（索要明文）' : ''),
+    text: (entry.agent || 'Agent') + ': first connection request' + (entry.requestedPlaintext ? ' (wants plaintext)' : ''),
     kind: 'pending',
     variant: 'connection',
     entry,
@@ -4051,7 +4051,7 @@ function noticeItems() {
     id: 'reminder:' + item.kind + ':' + (item.agent || ''),
     tone: item.severity === 'critical' ? 'bad' : (item.severity === 'warning' ? 'warn' : 'plain'),
     level: item.severity === 'critical' ? 'critical' : (item.severity === 'warning' ? 'warning' : 'notice'),
-    text: (item.kind && item.kind.indexOf('secret-') === 0 ? '密钥 ' : '') + (item.agent || '') + '：' + (item.message || ''),
+    text: (item.kind && item.kind.indexOf('secret-') === 0 ? 'Secret ' : '') + (item.agent || '') + ': ' + (item.message || ''),
     kind: item.kind,
     entry: item,
   }))
@@ -4060,7 +4060,7 @@ function noticeItems() {
 function noticeCounts() {
   // The pill numbers follow what is still worth nagging about, so dismissing a
   // notice makes the number drop. The approvals queue itself is untouched: the
-  // KPI card and 待审批 sheet still list every waiting request.
+  // KPI card and Pending approvals sheet still list every waiting request.
   const read = noticeReadIds()
   const unread = noticeItems().filter((item) => !read.includes(item.id))
   return { pending: unread.filter((item) => item.kind === 'pending').length, reminders: unread.filter((item) => item.kind !== 'pending').length }
@@ -4094,12 +4094,12 @@ function notifyOptInHtml() {
     if (typeof Notification === 'undefined') return ''
     if (Notification.permission === 'default') {
       if (localStorage.getItem(NOTIFY_ASK_KEY) === '1') return ''
-      return '<button type="button" class="na-notify" data-notice-notify aria-label="开启桌面通知：审批出现时提醒你，只询问一次">开启桌面通知</button>'
+      return '<button type="button" class="na-notify" data-notice-notify aria-label="Enable desktop notifications to get alerted when approvals come in. Asked only once">Enable desktop notifications</button>'
     }
     // Permission is already granted, but an in-page Notification dies with the
     // tab. Offer the background subscription here rather than only in settings.
     if (Notification.permission === 'granted' && localStorage.getItem(PUSH_ASK_KEY) !== '1') {
-      return '<button type="button" class="na-notify" data-notice-push aria-label="开启后台推送：关闭页面也能收到审批通知，只提示一次">开启后台推送</button>'
+      return '<button type="button" class="na-notify" data-notice-push aria-label="Enable background push to get approval notifications even with the page closed. Shown only once">Enable background push</button>'
     }
   } catch { return '' }
   return ''
@@ -4112,18 +4112,18 @@ function syncPendingTitle() {
 }
 function waitedLabel(createdAt) {
   const ms = Date.now() - new Date(createdAt).getTime()
-  if (!Number.isFinite(ms) || ms < 60000) return '不到 1 分钟'
+  if (!Number.isFinite(ms) || ms < 60000) return 'under 1 minute'
   const min = Math.floor(ms / 60000)
-  if (min < 60) return min + ' 分钟'
+  if (min < 60) return min + ' minutes'
   const hr = Math.floor(min / 60)
-  return hr < 24 ? hr + ' 小时' : Math.floor(hr / 24) + ' 天'
+  return hr < 24 ? hr + ' hours' : Math.floor(hr / 24) + ' days'
 }
 function notifyOptInHtml() {
   try {
     if (typeof Notification === 'undefined' || Notification.permission !== 'default') return ''
     if (localStorage.getItem(NOTIFY_ASK_KEY) === '1') return ''
   } catch { return '' }
-  return '<button type="button" class="na-notify" data-notice-notify aria-label="开启桌面通知：审批出现时提醒你，只询问一次">开启桌面通知</button>'
+  return '<button type="button" class="na-notify" data-notice-notify aria-label="Enable desktop notifications to get alerted when approvals come in. Asked only once">Enable desktop notifications</button>'
 }
 // Rows show who asked, which item and how long it has waited; the buttons are
 // the duration the approver grants, so one click settles the request here.
@@ -4132,27 +4132,27 @@ function noticeApproveHtml(pendingUnread) {
     const entry = item.entry || {}
     const isConnection = item.variant === 'connection'
     const who = isConnection ? (entry.agent || 'Agent') : pendingAgentLabel(entry)
-    const action = isConnection ? '请求首次连接' : pendingActionLabel(entry)
-    const name = isConnection ? (entry.requestedPlaintext ? '索要明文' : '不读明文') : String(entry.name || '')
-    const blocked = !isConnection && String(entry.action || '') === 'secret.fill' && /^目标无效/.test(pendingOriginLabel(entry))
+    const action = isConnection ? 'First connection' : pendingActionLabel(entry)
+    const name = isConnection ? (entry.requestedPlaintext ? 'with plaintext' : 'without plaintext') : String(entry.name || '')
+    const blocked = !isConnection && String(entry.action || '') === 'secret.fill' && /^Invalid target/.test(pendingOriginLabel(entry))
     // A connection may only take the one-click duration when the agent asked
     // for everything: narrowing the scope silently would grant more than the
     // request spelled out, so that path opens the form instead.
     const quick = !isConnection || (entry.requestedScope || {}).all === true
-    const age = entry.createdAt ? ' · 等了 ' + waitedLabel(entry.createdAt) + (isConnection ? ' · ' + connRemainingLabel(entry) : '') : ''
-    const button = (decision, label, aria) => '<button type="button" data-quick-decide="' + decision + '" data-quick-kind="' + (isConnection ? 'connection' : '') + '" data-quick-id="' + esc(entry.id || '') + '" aria-label="' + esc(aria + '：' + who + ' ' + action + ' ' + name) + '">' + label + '</button>'
+    const age = entry.createdAt ? ' · waited ' + waitedLabel(entry.createdAt) + (isConnection ? ' · ' + connRemainingLabel(entry) : '') : ''
+    const button = (decision, label, aria) => '<button type="button" data-quick-decide="' + decision + '" data-quick-kind="' + (isConnection ? 'connection' : '') + '" data-quick-id="' + esc(entry.id || '') + '" aria-label="' + esc(aria + ': ' + who + ' ' + action + ' ' + name) + '">' + label + '</button>'
     return '<div class="na-row">'
       + '<span class="na-who" title="' + esc(who) + '">' + esc(who) + '</span>'
       + '<span class="na-what">' + esc(action) + ' <b>' + esc(name) + '</b>' + esc(age) + '</span>'
-      + (blocked ? '<span class="na-blocked">目标无效，无法批准</span>'
+      + (blocked ? '<span class="na-blocked">Invalid target, can’t approve</span>'
         : '<span class="na-actions">' + (isConnection
-          ? (quick ? button('1h', '批准 1 小时', '批准 1 小时，范围全部条目，不含明文') : button('form', '选择范围', '选择条目后批准')) + button('deny', '拒绝', '拒绝')
-          : button('1h', '批准 1 小时', '批准 1 小时') + button('7d', '批准 7 天', '批准 7 天') + button('deny', '拒绝', '拒绝')) + '</span>')
+          ? (quick ? button('1h', 'Approve 1 hour', 'Approve for 1 hour, all items, no plaintext') : button('form', 'Choose scope', 'Choose items, then approve')) + button('deny', 'Deny', 'Deny')
+          : button('1h', 'Approve 1 hour', 'Approve for 1 hour') + button('7d', 'Approve 7 days', 'Approve for 7 days') + button('deny', 'Deny', 'Deny')) + '</span>')
       + '</div>'
   }).join('')
-  const more = pendingUnread.length > 2 ? '<button type="button" class="na-more" data-notice-approve-more aria-label="查看全部 ' + pendingUnread.length + ' 条待审批">还有 ' + (pendingUnread.length - 2) + ' 条 ›</button>' : ''
-  return '<div class="notice-approve" role="region" aria-label="待审批，可直接处理">'
-    + '<div class="na-head"><span role="status" aria-live="polite">' + pendingUnread.length + ' 条待审批 · 就地处理</span>' + more + notifyOptInHtml() + '</div>'
+  const more = pendingUnread.length > 2 ? '<button type="button" class="na-more" data-notice-approve-more aria-label="View all ' + pendingUnread.length + ' pending approvals">' + (pendingUnread.length - 2) + ' more ›</button>' : ''
+  return '<div class="notice-approve" role="region" aria-label="Pending approvals, actionable here">'
+    + '<div class="na-head"><span role="status" aria-live="polite">' + pendingUnread.length + ' pending · handle them here</span>' + more + notifyOptInHtml() + '</div>'
     + rows + '</div>'
 }
 async function decideQuickApproval(button) {
@@ -4164,7 +4164,7 @@ async function decideQuickApproval(button) {
   if (connection && decision === 'form') { openPendingSheet(); return }
   // Denial never touches the vault key; approval does.
   if (connection && decision !== 'deny' && !vaultUnlocked()) {
-    toast('批准连接需要先解锁 Vault；拒绝不需要。', true)
+    toast('Unlock the Vault to approve connections; denying doesn’t need it.', true)
     openPendingSheet()
     return
   }
@@ -4176,17 +4176,17 @@ async function decideQuickApproval(button) {
         ? { id, decision: 'deny' }
         : { id, decision: 'approve', all: true, plaintextAllowed: false, duration: '1h' }
       await api('/api/connections/decide', { method: 'POST', body: JSON.stringify(body) })
-      toast(decision === 'deny' ? '已拒绝连接申请' : '已批准连接 · 1 小时（不含明文）')
+      toast(decision === 'deny' ? 'Connection request denied' : 'Connection approved · 1 hour (no plaintext)')
     } else {
       await api('/api/pending/decide', { method: 'POST', body: JSON.stringify({ id, decision }) })
-      toast(decision === 'deny' ? '已拒绝' : decision === '7d' ? '已批准 7 天' : '已批准 1 小时')
+      toast(decision === 'deny' ? 'Denied' : decision === '7d' ? 'Approved for 7 days' : 'Approved for 1 hour')
     }
     await Promise.all([loadState(), loadStats(), loadItems()])
   } catch (error) {
     button.disabled = false
     button.removeAttribute('aria-busy')
-    const stale = /not-pending|已处理|不存在|not-found/i.test((error.reason || '') + ' ' + (error.message || ''))
-    toast(stale ? '这条申请已处理或已过期，队列已刷新。' : '审批失败：' + error.message, true)
+    const stale = /not-pending|already handled|not found|not-found/i.test((error.reason || '') + ' ' + (error.message || ''))
+    toast(stale ? 'This request was already handled or has expired. Queue refreshed.' : 'Approval failed: ' + error.message, true)
     if (stale) await loadState()
   }
 }
@@ -4203,13 +4203,13 @@ async function askNotifyFromBar() {
   updateBrowserNotifyStatus()
   renderNoticeBar()
   if (permission === 'granted') {
-    toast('桌面通知已开启：审批出现时会提醒你')
+    toast('Desktop notifications on: you’ll be alerted when approvals come in')
     startPendingPolling()
     // The permission was just granted inside a user gesture, so subscribing the
     // service worker now needs no second prompt. Without it the notification
     // only fires while this tab is open.
     enableWebPush().then(markPushOffered)
-  } else toast(permission === 'denied' ? '已拒绝桌面通知；审批仍显示在标题计数和提示条里' : '未开启桌面通知；审批仍显示在标题计数和提示条里')
+  } else toast(permission === 'denied' ? 'Desktop notifications blocked; approvals still show in the tab title count and the notice bar' : 'Desktop notifications not enabled; approvals still show in the tab title count and the notice bar')
 }
 function renderNoticeBar() {
   const bar = $('notice-bar')
@@ -4232,25 +4232,25 @@ function renderNoticeBar() {
     bar.dataset.level = item.level
     bar.dataset.tone = item.tone
     // A button cannot contain buttons: with the panel open the bar becomes a
-    // group and the counters/查看全部 keep the queue reachable by keyboard.
+    // group and the counters/View all keep the queue reachable by keyboard.
     if (pendingUnread.length) { bar.setAttribute('role', 'group'); bar.removeAttribute('tabindex') }
     else { bar.setAttribute('role', 'button'); bar.setAttribute('tabindex', '0') }
     const lead = pendingUnread.length
-      ? (pendingUnread.length === 1 ? pendingUnread[0].text : pendingUnread.length + ' 条在等：' + pendingUnread[0].text)
+      ? (pendingUnread.length === 1 ? pendingUnread[0].text : pendingUnread.length + ' waiting: ' + pendingUnread[0].text)
       : item.text
     bar.innerHTML = '<span class="notice-dot"></span><span class="notice-text">' + esc(lead) + '</span>'
-      + (counts.pending ? '<button type="button" class="notice-count" data-kind="pending" data-notice-open="pending">待审批 ' + counts.pending + '</button>' : '')
-      + (counts.reminders ? '<button type="button" class="notice-count" data-kind="reminder" data-notice-open="reminder">提醒 ' + counts.reminders + '</button>' : '')
-      + '<button type="button" class="notice-more" data-notice-dismiss="' + esc(item.id) + '" aria-label="忽略这条提示" title="忽略这条提示（只隐藏提示，不改审批状态）">✕</button>'
-      + '<button type="button" class="notice-more" data-notice-dismiss-all aria-label="全部标为已读" title="全部标为已读（只隐藏提示，不改审批状态）">全部已读</button>'
-      + '<span class="notice-more">查看全部 ›</span>'
+      + (counts.pending ? '<button type="button" class="notice-count" data-kind="pending" data-notice-open="pending">Pending ' + counts.pending + '</button>' : '')
+      + (counts.reminders ? '<button type="button" class="notice-count" data-kind="reminder" data-notice-open="reminder">Reminders ' + counts.reminders + '</button>' : '')
+      + '<button type="button" class="notice-more" data-notice-dismiss="' + esc(item.id) + '" aria-label="Dismiss this notice" title="Dismiss this notice (hides it only; approval state is unchanged)">✕</button>'
+      + '<button type="button" class="notice-more" data-notice-dismiss-all aria-label="Mark all as read" title="Mark all as read (hides notices only; approval state is unchanged)">Mark all read</button>'
+      + '<span class="notice-more">View all ›</span>'
       + (pendingUnread.length ? noticeApproveHtml(pendingUnread) : '')
   }
   render()
   if (noticeTimer) clearInterval(noticeTimer)
   bar.querySelectorAll('[data-notice-dismiss]').forEach((button) => {
     button.onclick = (event) => {
-      // Clicking 忽略 must not also open the whole list behind it.
+      // Clicking Dismiss must not also open the whole list behind it.
       event.stopPropagation()
       markNoticeRead(button.dataset.noticeDismiss)
       renderNoticeBar()
@@ -4278,7 +4278,7 @@ function renderNoticeBar() {
   }
 }
 // The sheet behind the approvals counter (KPI card and banner) and behind
-// every 查看全部 row. It is the detail view of the count, not a second listing
+// every View all row. It is the detail view of the count, not a second listing
 // on the page.
 function openNotices() {
   if (((app.data && app.data.pending) || []).length || pendingConnections().length) openPendingSheet()
@@ -4289,11 +4289,11 @@ function openPendingSheet() {
   const connections = pendingConnections()
   const secretBody = pending.map((entry) => '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">'
     + pendingDetailHtml(entry)
-    + '<div class="row" style="margin-top:8px"><button class="small primary" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="once">仅本次</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="24h">24 小时</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="always">永久</button><button class="small danger" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="deny">拒绝</button></div></div>').join('')
+    + '<div class="row" style="margin-top:8px"><button class="small primary" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="once">Just once</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="24h">24 hours</button><button class="small" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="always">Permanent</button><button class="small danger" data-kpi-decide data-id="' + esc(entry.id) + '" data-decision="deny">Deny</button></div></div>').join('')
   const body = (connections.length || pending.length)
     ? connections.map(connectionApprovalHtml).join('') + secretBody
-    : '<div class="hint">暂无待审批请求</div>'
-  openModal('待审批队列', body)
+    : '<div class="hint">No pending requests</div>'
+  openModal('Approval queue', body)
   wirePendingSheet()
 }
 // The form in the sheet is plain DOM: scope radios toggle the item list, the
@@ -4327,7 +4327,7 @@ function openNoticeModal() {
   const all = (app.data && app.data.reminders) || []
   const reminders = all.filter((item) => !read.includes('reminder:' + item.kind + ':' + (item.agent || '')))
   if (!reminders.length) {
-    openModal('通知提醒', '<div class="hint">' + (all.length ? '这些提醒都已标为已读。新的提醒出现时会重新显示。' : '暂无提醒。') + '</div>')
+    openModal('Reminders', '<div class="hint">' + (all.length ? 'All reminders are marked as read. New ones will show up here.' : 'No reminders.') + '</div>')
     return
   }
   const reminderBlock = reminders.map((item) => {
@@ -4335,16 +4335,16 @@ function openNoticeModal() {
     const isSecret = Boolean(item.kind && item.kind.indexOf('secret-') === 0)
     const noticeId = 'reminder:' + item.kind + ':' + (item.agent || '')
     return '<div class="ios-row ios-row--stack" data-notice-row="' + esc(noticeId) + '"><div class="ios-main"><div class="ios-title">'
-      + '<span class="ios-name">' + esc((isSecret ? '密钥 ' : '') + (item.agent || '')) + '</span>'
+      + '<span class="ios-name">' + esc((isSecret ? 'Secret ' : '') + (item.agent || '')) + '</span>'
       + '<span class="ios-pill ' + tone + '">' + esc(item.message || '') + '</span>'
-      + '<button type="button" class="ios-chip notice-dismiss" data-notice-dismiss-row="' + esc(noticeId) + '" aria-label="忽略这条提示" title="忽略这条提示（只隐藏提示，不改审批状态）">忽略</button></div>'
-      + '<div class="ios-sub">' + esc(item.kind === 'idle' ? '很久没有读取记录' : '到期后会拒绝，需要重新授权') + '</div>'
+      + '<button type="button" class="ios-chip notice-dismiss" data-notice-dismiss-row="' + esc(noticeId) + '" aria-label="Dismiss this notice" title="Dismiss this notice (hides it only; approval state is unchanged)">Dismiss</button></div>'
+      + '<div class="ios-sub">' + esc(item.kind === 'idle' ? 'No reads in a long time' : 'Denied after expiry; needs a new grant') + '</div>'
       + '<div class="ios-actions">'
-      + (item.expiresAt && !isSecret ? '<button class="ios-chip" data-notice-extend="' + esc(item.agent || '') + '">延期</button>' : '')
-      + (item.name ? '<button class="ios-chip" data-notice-open="' + esc(item.name) + '">查看凭据</button>' : '')
+      + (item.expiresAt && !isSecret ? '<button class="ios-chip" data-notice-extend="' + esc(item.agent || '') + '">Extend</button>' : '')
+      + (item.name ? '<button class="ios-chip" data-notice-open="' + esc(item.name) + '">View credential</button>' : '')
       + '</div></div></div>'
   }).join('')
-  openModal('通知提醒', reminderBlock)
+  openModal('Reminders', reminderBlock)
   document.querySelectorAll('[data-notice-dismiss-row]').forEach((button) => {
     button.onclick = () => {
       markNoticeRead(button.dataset.noticeDismissRow)
@@ -4374,25 +4374,25 @@ function lastActivityFor(agentName) {
   return latest
 }
 function relativeTime(ms) {
-  if (!ms) return '无读取记录'
+  if (!ms) return 'No reads'
   const diff = Date.now() - ms
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600e3) return Math.floor(diff / 60000) + ' 分钟前'
-  if (diff < 86400e3) return Math.floor(diff / 3600e3) + ' 小时前'
-  return Math.floor(diff / 86400e3) + ' 天前'
+  if (diff < 60000) return 'just now'
+  if (diff < 3600e3) return Math.floor(diff / 60000) + ' minutes ago'
+  if (diff < 86400e3) return Math.floor(diff / 3600e3) + ' hours ago'
+  return Math.floor(diff / 86400e3) + ' days ago'
 }
 // Health is a UI hint only: authorization still decides access.
 function agentHealth(agent, lastActivity) {
   if (typeof agent.expiresAt === 'number' && agent.expiresAt <= Date.now()) {
-    return { level: 'danger', label: '已过期', detail: '授权已过期，需重新延长' }
+    return { level: 'danger', label: 'Expired', detail: 'Grant expired; extend it to restore access' }
   }
   if (typeof agent.expiresAt === 'number' && agent.expiresAt - Date.now() < 3 * 86400e3) {
-    return { level: 'warn', label: '即将到期', detail: expiryLabel(agent.expiresAt) + '后到期' }
+    return { level: 'warn', label: 'Expiring soon', detail: expiryLabel(agent.expiresAt) + ' left' }
   }
   if (!lastActivity || Date.now() - lastActivity > 7 * 86400e3) {
-    return { level: 'warn', label: '需关注', detail: lastActivity ? relativeTime(lastActivity) + '无读取记录' : '从未有读取记录' }
+    return { level: 'warn', label: 'Needs attention', detail: lastActivity ? relativeTime(lastActivity) + ' (last read)' : 'Never read' }
   }
-  return { level: 'ok', label: '正常', detail: lastActivity ? '最近 ' + relativeTime(lastActivity) + '有活动' : '待首次使用' }
+  return { level: 'ok', label: 'OK', detail: lastActivity ? 'Last active ' + relativeTime(lastActivity) + '' : 'Not used yet' }
 }
 function renderAgentStats(agents) {
   const box = $('agent-stats')
@@ -4406,9 +4406,9 @@ function renderAgentStats(agents) {
     if (health.level !== 'ok') attention += 1
   }
   const cards = [
-    { label: 'Agent 总数', value: agents.length },
-    { label: '近期有活动', value: active, hint: '7 天内有读取记录' },
-    { label: '需要关注', value: attention, hint: '过期、将到期或长期闲置' },
+    { label: 'Agent count', value: agents.length },
+    { label: 'Recently active', value: active, hint: 'Read within 7 days' },
+    { label: 'Need attention', value: attention, hint: 'Expired, expiring or idle for long' },
   ]
   box.innerHTML = cards.map((card) => '<div class="agent-stat"><b>' + card.value + '</b><span>' + esc(card.label) + '</span>' + (card.hint ? '<i>' + esc(card.hint) + '</i>' : '') + '</div>').join('')
 }
@@ -4417,7 +4417,7 @@ function renderAgentStats(agents) {
 function agentDisplayName(agent) {
   if (!agent) return ''
   if (agent.alias) return agent.alias
-  if (agent.oauth && String(agent.name || '').startsWith('oauth:')) return agent.note || 'OAuth 客户端'
+  if (agent.oauth && String(agent.name || '').startsWith('oauth:')) return agent.note || 'OAuth client'
   return agent.name
 }
 function agentDisplayNote(agent) {
@@ -4465,7 +4465,7 @@ function renderAgents() {
   const box = $('agents-box')
   if (!box) return
   if (!agents.length) {
-    box.innerHTML = '<div class="hint">' + (all.length ? '没有匹配的 Agent' : '还没有 Agent，点右上角「新建 Agent」创建') + '</div>'
+    box.innerHTML = '<div class="hint">' + (all.length ? 'No Agent matches' : 'No Agent has been created yet. Click “New Agent” at the top right') + '</div>'
     return
   }
   const rows = agents.map((agent) => {
@@ -4473,17 +4473,17 @@ function renderAgents() {
     const health = agentHealth(agent, last)
     const kind = agent.oauth ? 'OAuth' : 'Token'
     const dotClass = health.level === 'ok' ? 'ok' : (health.level === 'warn' ? 'warn' : 'bad')
-    const days = typeof agent.expiresAt === 'number' ? Math.max(0, Math.ceil((agent.expiresAt - Date.now()) / 86400e3)) + ' 天后到期' : '长期有效'
+    const days = typeof agent.expiresAt === 'number' ? Math.max(0, Math.ceil((agent.expiresAt - Date.now()) / 86400e3)) + ' days left' : 'Long-term'
     return '<div class="ios-row" data-agent-open="' + esc(agent.name) + '">' +
       '<span class="ios-ico" data-kind="' + (agent.oauth ? 'oauth' : 'api') + '">' + IOS_PERSON + '</span>' +
       '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(agentDisplayName(agent)) + '</span>' +
       '<span class="ios-tag">' + kind + '</span></div>' +
       '<div class="ios-sub">' + (agentDisplayNote(agent) ? esc(agentDisplayNote(agent)) + ' · ' : '') + esc(health.detail) + '</div>' +
       '<div class="ios-sub">' + days + '</div></div>' +
-      '<div class="ios-trail"><button class="ios-pill plain" data-agent-extend="' + esc(agent.name) + '" title="延长授权">延长</button>' +
+      '<div class="ios-trail"><button class="ios-pill plain" data-agent-extend="' + esc(agent.name) + '" title="Extend grant">Extend</button>' +
       '<span class="ios-pill ' + dotClass + '">' + esc(health.label) + '</span></div></div>'
   }).join('')
-  box.innerHTML = '<div class="ios-group"><div class="ios-group-head"><span>共 ' + agents.length + ' 个 Agent</span></div>' +
+  box.innerHTML = '<div class="ios-group"><div class="ios-group-head"><span>' + agents.length + ' Agents</span></div>' +
     '<div class="ios-card">' + rows + '</div></div>'
 }
 // Federated requests carry the downstream identity separately: agent is the
@@ -4500,27 +4500,27 @@ function renderPending() {
   const body = pendingConnectionRowsHtml() + pending.map((request) => {
     const origin = pendingOriginLabel(request)
     const isFill = String(request.action || '') === 'secret.fill'
-    const originLine = !origin ? '' : /^目标无效/.test(origin) ? origin : '目标 ' + origin
+    const originLine = !origin ? '' : /^Invalid target/.test(origin) ? origin : 'Target ' + origin
     const isWrite = String(request.action || '') === 'secret.write'
-    // A write approval carries the chosen duration: 仅本次 is the per-call
+    // A write approval carries the chosen duration: Just once is the per-call
     // confirmation; a timed choice authorises this item until it expires.
-    const chips = [['once', '仅本次'], ['1h', '1 小时'], ['24h', '24 小时'], ['7d', '7 天'], ['always', '永久']]
+    const chips = [['once', 'Just once'], ['1h', '1 hour'], ['24h', '24 hours'], ['7d', '7 days'], ['always', 'Permanent']]
       .map((mode) => '<button class="ios-chip" data-decide="' + mode[0] + '" data-id="' + esc(request.id) + '">' + mode[1] + '</button>').join('')
-      + '<button class="ios-chip danger" data-decide="deny" data-id="' + esc(request.id) + '">拒绝</button>'
+      + '<button class="ios-chip danger" data-decide="deny" data-id="' + esc(request.id) + '">Deny</button>'
     return '<div class="ios-row ios-row--stack">' +
       '<span class="ios-ico" data-kind="' + (isFill ? 'web' : 'api') + '">' + IOS_PERSON + '</span>' +
       '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(pendingAgentLabel(request)) +
       '</span><span class="ios-tag">' + esc(pendingActionLabel(request)) + '</span></div>' +
-      '<div class="ios-sub">条目 ' + esc(request.name) + '</div>' +
+      '<div class="ios-sub">Item ' + esc(request.name) + '</div>' +
       (originLine ? '<div class="ios-sub">' + esc(originLine) + '</div>' : '') +
-      (isWrite ? '<div class="ios-sub">写入授权：仅本次仍是一次一确认；选时长后在窗口内不再逐次询问</div>' : '') +
-      '<div class="ios-sub">' + esc(new Date(request.createdAt).toLocaleTimeString('zh-CN', { hour12: false })) + '</div>' +
+      (isWrite ? '<div class="ios-sub">Write grant: Just once still asks every time; pick a duration to stop asking within that window</div>' : '') +
+      '<div class="ios-sub">' + esc(new Date(request.createdAt).toLocaleTimeString('en-GB', { hour12: false })) + '</div>' +
       '<div class="ios-actions">' + chips + '</div></div></div>'
   }).join('')
   const total = pending.length + pendingConnections().length
   $('pending-box').innerHTML = total
-    ? '<div class="ios-group"><div class="ios-group-head"><span>等待你决定 · ' + total + '</span></div><div class="ios-card">' + body + '</div></div>'
-    : '<div class="hint">暂无待批准请求</div>'
+    ? '<div class="ios-group"><div class="ios-group-head"><span>Awaiting your decision · ' + total + '</span></div><div class="ios-card">' + body + '</div></div>'
+    : '<div class="hint">No pending requests</div>'
 }
 
 // -- Web fill policies --------------------------------------------------------
@@ -4532,16 +4532,16 @@ function pendingDetailHtml(entry) {
   const origin = pendingOriginLabel(entry)
   const isFill = String(entry.action || '') === 'secret.fill'
   const target = isFill
-    ? (origin ? '<div><span class="hint">目标 origin</span><br><code>' + esc(origin) + '</code></div>'
-      : '<div><b style="color:var(--danger)">目标无效（缺少 origin），无法批准</b></div>')
+    ? (origin ? '<div><span class="hint">Target origin</span><br><code>' + esc(origin) + '</code></div>'
+      : '<div><b style="color:var(--danger)">Invalid target (missing origin), can’t approve</b></div>')
     : ''
   // Names arrive already masked from the Worker while the vault is locked. The
   // decision itself is keyed by id, so approval never needs the key.
-  return '<div><b>' + esc(pendingAgentLabel(entry)) + '</b> 请求' + esc(pendingActionLabel(entry))
+  return '<div><b>' + esc(pendingAgentLabel(entry)) + '</b> requests: ' + esc(pendingActionLabel(entry))
     + ' <code>' + esc(entry.name) + '</code>'
-    + (entry.nameMasked ? ' <button class="small" data-inline-unlock type="button">查看完整内容需要解锁</button>' : '')
+    + (entry.nameMasked ? ' <button class="small" data-inline-unlock type="button">Unlock to see full details</button>' : '')
     + '</div>' + target
-    + '<div class="hint">' + esc(entry.createdAt ? new Date(entry.createdAt).toLocaleString('zh-CN', { hour12: false }) : '') + '</div>'
+    + '<div class="hint">' + esc(entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB', { hour12: false }) : '') + '</div>'
 }
 
 // -- Connection admission -----------------------------------------------------
@@ -4568,25 +4568,25 @@ function connExpiresAt(entry) {
 }
 function connRemainingLabel(entry) {
   const left = connExpiresAt(entry) - Date.now()
-  if (!left || left <= 0) return '已到期'
+  if (!left || left <= 0) return 'Expired'
   const seconds = Math.floor(left / 1000)
-  return '剩余 ' + Math.floor(seconds / 60) + ' 分 ' + String(seconds % 60).padStart(2, '0') + ' 秒'
+  return '' + Math.floor(seconds / 60) + ' min ' + String(seconds % 60).padStart(2, '0') + ' s left'
 }
 function connSourceLabel(entry) {
   const hash = entry && entry.source && entry.source.ipHash ? String(entry.source.ipHash) : ''
-  return hash ? '来源 ' + hash : '来源未知'
+  return hash ? 'Source ' + hash : 'Unknown source'
 }
 function connScopeText(entry) {
   const scope = (entry && entry.requestedScope) || {}
-  if (scope.all === true) return '请求范围：全部条目'
-  return '请求范围：指定 ' + ((scope.itemIds || []).length) + ' 条'
+  if (scope.all === true) return 'Requested scope: all items'
+  return 'Requested scope: specific items (' + ((scope.itemIds || []).length) + ')'
 }
 function connPlaintextText(entry) {
-  return entry && entry.requestedPlaintext === true ? '请求时索要明文' : '未索要明文'
+  return entry && entry.requestedPlaintext === true ? 'Asked for plaintext' : 'No plaintext requested'
 }
 function connWaitingText(entry) {
   if (!entry || !entry.createdAt) return ''
-  return '请求于 ' + new Date(entry.createdAt).toLocaleString('zh-CN', { hour12: false }) + ' · 等了 ' + waitedLabel(entry.createdAt)
+  return 'Requested ' + new Date(entry.createdAt).toLocaleString('en-GB', { hour12: false }) + ' · waited ' + waitedLabel(entry.createdAt)
 }
 function connItemChoicesHtml(entry) {
   const locked = !vaultUnlocked()
@@ -4594,9 +4594,9 @@ function connItemChoicesHtml(entry) {
   const requested = new Set(((entry && entry.requestedScope && entry.requestedScope.itemIds) || []).map(String))
   const list = items.length
     ? items.map((item) => '<label><input type="checkbox" data-conn-item value="' + esc(item.id) + '"' + (requested.has(String(item.id)) ? ' checked' : '') + '><span>' + esc(item.name || item.id) + '</span></label>').join('')
-    : '<div class="hint">还没有可选的条目</div>'
-  return '<div class="conn-items" data-conn-items role="group" aria-label="选择批准范围里的条目">' + list + '</div>'
-    + (locked ? '<div class="conn-meta">名称已脱敏，解锁后可看名称。</div>' : '')
+    : '<div class="hint">No items to choose from yet</div>'
+  return '<div class="conn-items" data-conn-items role="group" aria-label="Choose the items this approval covers">' + list + '</div>'
+    + (locked ? '<div class="conn-meta">Names are redacted; unlock to see them.</div>' : '')
 }
 // The approval form collects the three things the contract needs in one submit:
 // scope, plaintext and lifetime. Scope defaults to what the agent asked for.
@@ -4605,25 +4605,25 @@ function connectionApprovalHtml(entry) {
   const all = (entry.requestedScope || {}).all === true
   const locked = !vaultUnlocked()
   return '<div class="conn-card" data-conn-card="' + id + '" data-conn-expires="' + connExpiresAt(entry) + '">'
-    + '<div class="conn-head"><span class="conn-name">' + esc(entry.agent || 'Agent') + '</span><span class="ios-tag">首次连接</span>'
-    + '<span class="ios-pill ' + (entry.requestedPlaintext ? 'warn' : 'plain') + '">' + (entry.requestedPlaintext ? '索要明文' : '不读明文') + '</span></div>'
+    + '<div class="conn-head"><span class="conn-name">' + esc(entry.agent || 'Agent') + '</span><span class="ios-tag">First connection</span>'
+    + '<span class="ios-pill ' + (entry.requestedPlaintext ? 'warn' : 'plain') + '">' + (entry.requestedPlaintext ? 'Wants plaintext' : 'No plaintext') + '</span></div>'
     + '<div class="conn-meta">' + esc(connSourceLabel(entry)) + (entry.origin ? ' · ' + esc(entry.origin) : '') + '</div>'
     + '<div class="conn-meta">' + esc(connScopeText(entry)) + ' · ' + connPlaintextText(entry) + '</div>'
     + '<div class="conn-meta">' + esc(connWaitingText(entry)) + ' · <span data-conn-expire>' + esc(connRemainingLabel(entry)) + '</span></div>'
     + '<div class="conn-form">'
-    + '<div class="conn-scope" role="radiogroup" aria-label="批准范围"><label><input type="radio" data-conn-scope value="all"' + (all ? ' checked' : '') + '> 全部条目</label>'
-    + '<label><input type="radio" data-conn-scope value="items"' + (all ? '' : ' checked') + '> 指定条目</label></div>'
-    + '<div data-conn-items-wrap class="' + (all ? 'hidden' : '') + '"><input type="search" data-conn-search placeholder="搜索条目" aria-label="搜索条目">'
+    + '<div class="conn-scope" role="radiogroup" aria-label="Approval scope"><label><input type="radio" data-conn-scope value="all"' + (all ? ' checked' : '') + '> All items</label>'
+    + '<label><input type="radio" data-conn-scope value="items"' + (all ? '' : ' checked') + '> Specific items</label></div>'
+    + '<div data-conn-items-wrap class="' + (all ? 'hidden' : '') + '"><input type="search" data-conn-search placeholder="Search items" aria-label="Search items">'
     + connItemChoicesHtml(entry) + '</div>'
-    + '<label class="chk"><input type="checkbox" data-conn-plaintext> 允许它读出网站登录密码原文</label>'
-    + '<div class="conn-meta">默认关闭；开启后，这次授权会允许 Agent 读取明文密码。</div>'
-    + '<label class="chk"><input type="checkbox" data-conn-write> 允许它写入/更新该范围内的条目</label>'
-    + '<div class="conn-meta">默认关闭；开启后，批准范围内的写入不再逐次询问。</div>'
-    + '<label class="field" for="conn-ttl-' + id + '">授权时长</label><select id="conn-ttl-' + id + '" data-conn-duration aria-label="授权时长">'
-    + '<option value="1h">1 小时</option><option value="24h">24 小时</option><option value="7d">7 天</option><option value="30d">30 天</option><option value="always">永久（直到撤销）</option></select>'
-    + '<div class="conn-hint" data-conn-status role="status" aria-live="polite">' + (locked ? '批准需要先解锁 Vault；拒绝不需要。 <button type="button" class="small" data-conn-unlock>先解锁并回到审批</button>' : '') + '</div>'
-    + '<div class="conn-actions"><button type="button" class="primary" data-conn-approve="' + id + '" aria-label="批准连接：' + esc(entry.agent || '') + '">批准</button>'
-    + '<button type="button" class="danger" data-conn-deny="' + id + '" aria-label="拒绝连接：' + esc(entry.agent || '') + '">拒绝</button></div>'
+    + '<label class="chk"><input type="checkbox" data-conn-plaintext> Allow it to read website login passwords in plaintext</label>'
+    + '<div class="conn-meta">Off by default. When on, this grant lets the Agent read plaintext passwords.</div>'
+    + '<label class="chk"><input type="checkbox" data-conn-write> Allow it to write/update items in this scope</label>'
+    + '<div class="conn-meta">Off by default. When on, writes within the approved scope no longer ask each time.</div>'
+    + '<label class="field" for="conn-ttl-' + id + '">Grant duration</label><select id="conn-ttl-' + id + '" data-conn-duration aria-label="Grant duration">'
+    + '<option value="1h">1 hour</option><option value="24h">24 hours</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="always">Permanent (until revoked)</option></select>'
+    + '<div class="conn-hint" data-conn-status role="status" aria-live="polite">' + (locked ? 'Approving requires unlocking the Vault first; denying doesn’t. <button type="button" class="small" data-conn-unlock>Unlock and return to approval</button>' : '') + '</div>'
+    + '<div class="conn-actions"><button type="button" class="primary" data-conn-approve="' + id + '" aria-label="Approve connection: ' + esc(entry.agent || '') + '">Approve</button>'
+    + '<button type="button" class="danger" data-conn-deny="' + id + '" aria-label="Deny connection: ' + esc(entry.agent || '') + '">Deny</button></div>'
     + '</div></div>'
 }
 function pendingConnectionRowsHtml() {
@@ -4632,19 +4632,19 @@ function pendingConnectionRowsHtml() {
     const all = (entry.requestedScope || {}).all === true
     return '<div class="ios-row ios-row--stack" data-conn-card="' + id + '" data-conn-expires="' + connExpiresAt(entry) + '">'
       + '<span class="ios-ico" data-kind="api">' + IOS_PERSON + '</span>'
-      + '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(entry.agent || 'Agent') + '</span><span class="ios-tag">首次连接</span></div>'
+      + '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(entry.agent || 'Agent') + '</span><span class="ios-tag">First connection</span></div>'
       + '<div class="ios-sub">' + esc(connSourceLabel(entry)) + ' · ' + connPlaintextText(entry) + ' · ' + esc(connScopeText(entry)) + '</div>'
       + '<div class="ios-sub">' + esc(connWaitingText(entry)) + ' · <span data-conn-expire>' + esc(connRemainingLabel(entry)) + '</span></div>'
       + '<div class="conn-hint" data-conn-status role="status" aria-live="polite"></div>'
       + '<div class="ios-actions">'
-      + (all ? '<button class="ios-chip primary" data-conn-quick="' + id + '" aria-label="批准 1 小时：' + esc(entry.agent || '') + ' 首次连接，范围全部条目，不含明文">批准 1 小时</button>' : '')
-      + '<button class="ios-chip" data-conn-open="' + id + '" aria-label="' + (all ? '展开连接审批表单' : '为 ' + esc(entry.agent || '') + ' 选择条目后批准') + '">' + (all ? '展开审批' : '选择条目后批准') + '</button>'
-      + '<button class="ios-chip danger" data-conn-deny="' + id + '" aria-label="拒绝连接：' + esc(entry.agent || '') + '">拒绝</button>'
+      + (all ? '<button class="ios-chip primary" data-conn-quick="' + id + '" aria-label="Approve for 1 hour: ' + esc(entry.agent || '') + '’s first connection, all items, no plaintext">Approve for 1 hour</button>' : '')
+      + '<button class="ios-chip" data-conn-open="' + id + '" aria-label="' + (all ? 'Open the connection approval form' : 'Choose items for ' + esc(entry.agent || '') + ' and approve') + '">' + (all ? 'Review' : 'Choose items to approve') + '</button>'
+      + '<button class="ios-chip danger" data-conn-deny="' + id + '" aria-label="Deny connection: ' + esc(entry.agent || '') + '">Deny</button>'
       + '</div></div></div>'
   }).join('')
 }
 function connectionDurationLabel(duration) {
-  return ({ '1h': '1 小时', '24h': '24 小时', '7d': '7 天', '30d': '30 天', always: '永久' })[duration] || duration
+  return ({ '1h': '1 hour', '24h': '24 hours', '7d': '7 days', '30d': '30 days', always: 'Permanent' })[duration] || duration
 }
 // Expiry is client-observed too: the row leaves the queue the moment its window
 // closes even before the next poll answers, so an expired ticket never sits
@@ -4676,7 +4676,7 @@ async function decideConnection(button, body, card, options = {}) {
   buttons.forEach((entry) => { entry.disabled = true; entry.setAttribute('aria-busy', 'true') })
   try {
     await api('/api/connections/decide', { method: 'POST', body: JSON.stringify(body) })
-    toast(body.decision === 'deny' ? '已拒绝连接申请' : '已批准连接 · ' + connectionDurationLabel(body.duration) + (body.plaintextAllowed ? '（含明文）' : '（不含明文）') + (body.writeAllowed ? '（含写入）' : ''))
+    toast(body.decision === 'deny' ? 'Connection request denied' : 'Connection approved · ' + connectionDurationLabel(body.duration) + (body.plaintextAllowed ? ' (plaintext allowed)' : ' (no plaintext)') + (body.writeAllowed ? ' (write allowed)' : ''))
     await Promise.all([loadState(), loadStats(), loadItems()])
     // A resumed approval re-opened the sheet from the unlock callback, so it
     // has to be rebuilt here too or the stale row stays on screen.
@@ -4685,12 +4685,12 @@ async function decideConnection(button, body, card, options = {}) {
     buttons.forEach((entry) => { entry.disabled = false; entry.removeAttribute('aria-busy') })
     const stale = [404, 409].includes(error.status) || /not-pending|not-found/i.test(String(error.reason || '') + ' ' + String(error.message || ''))
     if (stale) {
-      if (card) setConnectionStatus(card, '这条申请已处理或已过期，队列已刷新。', true)
-      toast('这条申请已处理或已过期，队列已刷新。', true)
+      if (card) setConnectionStatus(card, 'This request was already handled or has expired. The queue has been refreshed.', true)
+      toast('This request was already handled or has expired. The queue has been refreshed.', true)
       await loadState()
     } else if (error.status === 423) {
-      const message = '批准连接需要先解锁 Vault；拒绝不需要。'
-      if (card) setConnectionStatus(card, message + ' 已打开就地解锁，解锁后会继续这次批准。', true)
+      const message = 'Approving a connection requires unlocking the Vault first; denying doesn’t.'
+      if (card) setConnectionStatus(card, message + ' Inline unlock is open, and the approval continues once unlocked.', true)
       toast(message, true)
       // A retry that still finds the vault locked must not reopen the sheet on
       // itself: the operator sees the status line and decides what to do next.
@@ -4698,7 +4698,7 @@ async function decideConnection(button, body, card, options = {}) {
       inlineUnlockSheet(() => { openPendingSheet(); decideConnection(null, body, null, { afterUnlock: true }) })
     } else {
       if (card) setConnectionStatus(card, error.message, true)
-      toast('审批失败：' + error.message, true)
+      toast('Approval failed: ' + error.message, true)
     }
   }
 }
@@ -4716,7 +4716,7 @@ async function submitConnectionForm(card, decision) {
   const all = !scope || scope.value === 'all'
   const itemIds = all ? [] : Array.from(card.querySelectorAll('[data-conn-item]:checked')).map((box) => box.value)
   if (!all && !itemIds.length) {
-    setConnectionStatus(card, '先选至少一条条目，或改用「全部条目」。', true)
+    setConnectionStatus(card, 'Select at least one item first, or switch to “All items”.', true)
     return
   }
   const body = { id, decision: 'approve', all, plaintextAllowed, writeAllowed, duration }
@@ -4724,7 +4724,7 @@ async function submitConnectionForm(card, decision) {
   if (!vaultUnlocked()) {
     // The old copy just ended here and told the operator to unlock somewhere
     // else. Open the form in place and resubmit the same body once it works.
-    setConnectionStatus(card, '批准需要先解锁 Vault；在这里解锁后会自动继续这次批准。', true)
+    setConnectionStatus(card, 'Approving requires unlocking the Vault first. Unlock here and the approval continues automatically.', true)
     inlineUnlockSheet(() => { openPendingSheet(); decideConnection(null, body, null, { afterUnlock: true }) })
     return
   }
@@ -4736,8 +4736,8 @@ async function decideConnectionQuick(button) {
   const id = button.dataset.connQuick
   const body = { id, decision: 'approve', all: true, plaintextAllowed: false, duration: '1h' }
   if (!vaultUnlocked()) {
-    setConnectionStatus(button.closest('[data-conn-card]'), '批准需要先解锁 Vault；解锁后会自动继续这次批准。', true)
-    toast('批准连接需要先解锁 Vault；已打开就地解锁。', true)
+    setConnectionStatus(button.closest('[data-conn-card]'), 'Approving requires unlocking the Vault first. The approval continues automatically once unlocked.', true)
+    toast('Approving a connection requires unlocking the Vault first. Inline unlock is open.', true)
     inlineUnlockSheet(() => { openPendingSheet(); decideConnection(null, body, null, { afterUnlock: true }) })
     return
   }
@@ -4755,18 +4755,18 @@ function fillEditorHtml(item) {
   const origins = entry ? (entry.origins || []).join('\n') : ''
   const actions = entry ? (entry.actions || []) : ['login']
   const read = Boolean(entry && entry.plaintextRead)
-  return '<div class="card"><h2>网页填充与明文读取</h2>'
-    + '<div class="hint">api = API Key，可按需允许 Agent 读取明文；web = 网站登录，只能被填充到指定网站，Agent 永远拿不到明文。未分类则保持旧版授权行为。</div>'
-    + '<div class="ios-field"><label for="fe-kind">类型</label><select id="fe-kind">'
-    + '<option value=""' + (kind === '' ? ' selected' : '') + '>未分类</option>'
-    + '<option value="api"' + (kind === 'api' ? ' selected' : '') + '>API 密钥</option>'
-    + '<option value="web"' + (kind === 'web' ? ' selected' : '') + '>网页登录</option></select></div>'
+  return '<div class="card"><h2>Web fill and plaintext reads</h2>'
+    + '<div class="hint">api = API Key, plaintext reads by the Agent can be allowed as needed; web = website login, only filled into specified sites, and the Agent never gets the plaintext. Unclassified items keep the legacy grant behavior.</div>'
+    + '<div class="ios-field"><label for="fe-kind">Type</label><select id="fe-kind">'
+    + '<option value=""' + (kind === '' ? ' selected' : '') + '>Unclassified</option>'
+    + '<option value="api"' + (kind === 'api' ? ' selected' : '') + '>API key</option>'
+    + '<option value="web"' + (kind === 'web' ? ' selected' : '') + '>Web login</option></select></div>'
     + '<div id="fe-web" class="' + (kind === 'web' ? '' : 'hidden') + '">'
-    + '<div class="ios-field ios-field--stack"><label for="fe-origins">允许填充的站点（每行一个）</label>'
+    + '<div class="ios-field ios-field--stack"><label for="fe-origins">Sites allowed for fill (one per line)</label>'
     + '<textarea id="fe-origins" rows="3" placeholder="https://example.com&#10;192.168.1.10:8080">' + esc(origins) + '</textarea>'
-    + '<div class="hint">只做精确匹配：example.com.evil.test、任意子域或其他端口都不会被放行。省略协议时按 https 处理；内网地址（127.x、10.x、192.168.x、172.16-31.x、localhost、*.lan）可以用 http，公网地址只允许 https。</div></div></div>'
-    + '<div class="ios-field" id="fe-read-row"><label for="fe-read">允许 Agent 直接读取明文<small>仅 api；30 天后自动失效</small></label><input type="checkbox" class="ios-switch" id="fe-read"' + (read ? ' checked' : '') + '></div>'
-    + '<div class="row" style="margin-top:var(--sp-3)"><button class="primary" id="fe-save">保存</button>' + (entry ? '<button class="danger" id="fe-clear">清除分类</button>' : '') + '</div>'
+    + '<div class="hint">Exact match only: example.com.evil.test, any subdomain or a different port won’t get through. Without a scheme, https is assumed; private addresses (127.x, 10.x, 192.168.x, 172.16-31.x, localhost, *.lan) may use http, public addresses https only.</div></div></div>'
+    + '<div class="ios-field" id="fe-read-row"><label for="fe-read">Let the Agent read plaintext directly<small>api only; expires after 30 days</small></label><input type="checkbox" class="ios-switch" id="fe-read"' + (read ? ' checked' : '') + '></div>'
+    + '<div class="row" style="margin-top:var(--sp-3)"><button class="primary" id="fe-save">Save</button>' + (entry ? '<button class="danger" id="fe-clear">Clear classification</button>' : '') + '</div>'
     + '<div class="status" id="fe-status"></div></div>'
 }
 
@@ -4784,28 +4784,28 @@ function wireFillEditor(item) {
   sync()
   $('fe-save').onclick = async () => {
     const value = kind.value
-    if (!value) return status('fe-status', '请选择 api 或 web', true)
+    if (!value) return status('fe-status', 'Choose api or web', true)
     try {
       if (value === 'web') {
         const origins = $('fe-origins').value.split('\n').map((line) => line.trim()).filter(Boolean)
-        if (!origins.length) return status('fe-status', 'web 凭据至少需要一个 origin', true)
+        if (!origins.length) return status('fe-status', 'A web credential needs at least one origin', true)
         await api('/api/fill/policy', { method: 'POST', body: JSON.stringify({ item: item.name, kind: 'web', origins, actions: ['login'] }) })
       } else {
         await api('/api/fill/policy', { method: 'POST', body: JSON.stringify({ item: item.name, kind: 'api' }) })
         await api('/api/fill/read-policy', { method: 'POST', body: JSON.stringify({ item: item.name, allow: $('fe-read').checked, ttlDays: 30 }) })
       }
-      status('fe-status', '已保存', false)
+      status('fe-status', 'Saved', false)
       await refreshAll()
-    } catch (error) { status('fe-status', error.message || '保存失败', true) }
+    } catch (error) { status('fe-status', error.message || 'Save failed', true) }
   }
   const clear = $('fe-clear')
   if (clear) clear.onclick = async () => {
-    if (!(await askYes('清除「' + item.name + '」的分类和相关授权？'))) return
+    if (!(await askYes('Clear the classification and related grants for “' + item.name + '”?'))) return
     try {
       await api('/api/fill/policy/delete', { method: 'POST', body: JSON.stringify({ item: item.name }) })
-      status('fe-status', '已清除', false)
+      status('fe-status', 'Cleared', false)
       await refreshAll()
-    } catch (error) { status('fe-status', error.message || '清除失败', true) }
+    } catch (error) { status('fe-status', error.message || 'Clear failed', true) }
   }
 }
 
@@ -4813,7 +4813,7 @@ function wireFillEditor(item) {
 // thing that makes sense in bulk; origins are per credential by nature.
 function openBulkKind() {
   if (!selectedItems.size) return
-  openModal('批量分类 ' + selectedItems.size + ' 个凭据', '<div class="hint">把选中的凭据标记为 api（API Key，可按需允许明文读取）或 web（网站登录，只能填充）。web 凭据还需要逐个填写允许的 origin。</div><label class="field">类型</label><select id="bk-kind"><option value="api">api（API Key）</option><option value="web">web（网站登录）</option></select><div class="row" style="margin-top:12px"><button class="primary" id="bk-save">应用</button></div><div class="status" id="bk-status"></div>')
+  openModal('Bulk classify (' + selectedItems.size + ' selected)', '<div class="hint">Mark the selected credentials as api (API Key, plaintext reads can be allowed as needed) or web (website login, fill only). Each web credential also needs its allowed origin entered individually.</div><label class="field">Type</label><select id="bk-kind"><option value="api">api (API Key)</option><option value="web">web (website login)</option></select><div class="row" style="margin-top:12px"><button class="primary" id="bk-save">Apply</button></div><div class="status" id="bk-status"></div>')
   $('bk-save').onclick = async () => {
     const kind = $('bk-kind').value
     const names = [...selectedItems]
@@ -4826,13 +4826,13 @@ function openBulkKind() {
       } catch (error) {
         // A web credential needs at least one origin, so bulk web is expected to
         // fail per item; report it instead of pretending it worked.
-        failed.push(name + ': ' + (error.message || '失败'))
+        failed.push(name + ': ' + (error.message || 'failed'))
       }
     }
     await refreshAll()
     show('modal', false)
-    if (failed.length) toast('已分类 ' + ok + ' 个，' + failed.length + ' 个需要逐个设置（web 需要 origin）', true)
-    else toast('已分类 ' + ok + ' 个')
+    if (failed.length) toast('Classified ' + ok + ', ' + failed.length + ' need setting up individually (web needs an origin)', true)
+    else toast('Classified ' + ok + '')
   }
 }
 
@@ -4841,12 +4841,12 @@ function pendingOriginLabel(entry) {
   // read has no site. fill and use both name one, and the approval binds it.
   if (action !== 'secret.fill' && action !== 'secret.use') return ''
   const origin = String(entry.targetOrigin || '').trim()
-  if (!origin) return '目标无效（缺少 origin）'
+  if (!origin) return 'Invalid target (missing origin)'
   return origin
 }
 function pendingActionLabel(entry) {
-  const labels = { 'secret.read': '读取明文', 'secret.use': '代持请求', 'secret.fill': '网页填充', 'secret.write': '写入密钥' }
-  return labels[String(entry.action || '')] || String(entry.action || '未知')
+  const labels = { 'secret.read': 'Read plaintext', 'secret.use': 'Proxied request', 'secret.fill': 'Web fill', 'secret.write': 'Write secret' }
+  return labels[String(entry.action || '')] || String(entry.action || 'Unknown')
 }
 function fillPolicyState() {
   return (app.data && app.data.fillPolicies) || { items: [], executionLayer: false }
@@ -4854,7 +4854,7 @@ function fillPolicyState() {
 
 // Three different refusals wear three different words. "not in scope" is not
 // "no grant": the first means the Agent never got the chance to ask, so an
-// 授权 button there promises something the click cannot deliver. "item not
+// Authorize button there promises something the click cannot deliver. "item not
 // found" means the name the Agent sent does not exist, so no grant is possible
 // at all. Only "no-grant" is actually answered by granting.
 const DENY_KINDS = ['no-grant', 'not-in-scope', 'item-not-found']
@@ -4865,22 +4865,22 @@ function denyKind(entry) {
   // prose is the code itself, so accept it verbatim.
   const reason = String(entry.reason || '')
   if (DENY_KINDS.includes(reason)) return reason
-  if (reason.includes('没有名为')) return 'item-not-found'
-  if (reason.includes('可申请范围')) return 'not-in-scope'
+  if (reason.includes('No item named')) return 'item-not-found'
+  if (reason.includes('requestable scope')) return 'not-in-scope'
   return 'no-grant'
 }
 const DENY_COPY = {
   'no-grant': {
-    title: '缺少这一条授权',
-    body: '入口已开，只差授权。批准后这个 Agent 才能按你选定的范围读取。',
+    title: 'Missing grant for this item',
+    body: 'It’s in scope; only the grant is missing. Once you approve, this Agent can read it within the scope you choose.',
   },
   'not-in-scope': {
-    title: '入口还没开',
-    body: '这条不在该 Agent 的可申请范围内，所以连审批请求都没生成。先把它加入可申请范围，再回来授权。',
+    title: 'Not in scope yet',
+    body: 'This item isn’t in the Agent’s requestable scope, so no approval request was even created. Add it to the requestable scope first, then come back to authorize it.',
   },
   'item-not-found': {
-    title: '条目名对不上',
-    body: '当前账户里没有这个名字。Agent 发的名字必须和面板上完全一致，空格和大小写也算。',
+    title: 'Item name doesn’t match',
+    body: 'The current account has no item with this name. The name the Agent sends must match the console exactly, including spaces and case.',
   },
 }
 // What the Agents were refused, with the reason and a one-click way to allow it.
@@ -4890,8 +4890,8 @@ function renderDenied() {
   const box = $('denied-list')
   if (!box) return
   const rows = (app.data && app.data.deniedAttempts) || []
-  if (!rows.length) { box.innerHTML = '<div class="hint">没有 Agent 被拦下的请求。</div>'; return }
-  const actionLabel = { 'secret.read': '读取明文', 'secret.use': '代持调用（http_request）', 'secret.fill': '网页填充' }
+  if (!rows.length) { box.innerHTML = '<div class="hint">No blocked Agent requests.</div>'; return }
+  const actionLabel = { 'secret.read': 'Read plaintext', 'secret.use': 'Proxied call (http_request)', 'secret.fill': 'Web fill' }
   const kinds = (app.data && app.data.fillPolicies && app.data.fillPolicies.items) || []
   const kindOf = (name) => (kinds.find((k) => k.itemName === name) || {}).kind || ''
   // The row used to print the agent's identifier, which is the name the token
@@ -4903,42 +4903,42 @@ function renderDenied() {
     return (agent && agentDisplayName(agent)) || name || ''
   }
   const rowsHtml = rows.map((entry) => {
-    const at = entry.lastAt ? new Date(entry.lastAt).toLocaleString('zh-CN', { hour12: false }) : '-'
+    const at = entry.lastAt ? new Date(entry.lastAt).toLocaleString('en-GB', { hour12: false }) : '-'
     const kind = kindOf(entry.name)
     const kindTag = kind === 'api' ? '<span class="ios-tag">api</span>'
       : kind === 'web' ? '<span class="ios-tag">web</span>'
-      : '<span class="ios-tag">未分类</span>'
+      : '<span class="ios-tag">Unclassified</span>'
     const copy = DENY_COPY[denyKind(entry)]
     // A plaintext refusal is not a missing grant: the agent already has scope, it
     // is the item that still refuses to hand over a value. One chip opens it.
     const plaintextBtn = entry.plaintext
-      ? '<button class="ios-chip" data-allow-plaintext data-name="' + esc(entry.name || '') + '" data-days="1" title="给这条凭据开 24 小时明文读取">允许明文 24h</button>'
+      ? '<button class="ios-chip" data-allow-plaintext data-name="' + esc(entry.name || '') + '" data-days="1" title="Allow plaintext reads of this credential for 24 hours">Allow plaintext 24h</button>'
       : ''
     const useBtn = entry.action === 'secret.use'
       ? ''
-      : '<button class="ios-chip" data-allow-use data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" title="只开代持调用，不给明文">http_request</button>'
-    // Only a real missing grant can be answered with 授权. Offering it for the
+      : '<button class="ios-chip" data-allow-use data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" title="Proxied calls only, no plaintext">http_request</button>'
+    // Only a real missing grant can be answered with Authorize. Offering it for the
     // other two kinds is a button that cannot keep its promise.
     const grantBtn = denyKind(entry) === 'no-grant'
-      ? '<button class="ios-chip" data-allow-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" data-action="' + esc(entry.action || '') + '">授权</button>'
+      ? '<button class="ios-chip" data-allow-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" data-action="' + esc(entry.action || '') + '">Authorize</button>'
       : ''
     const scopeBtn = denyKind(entry) === 'not-in-scope'
-      ? '<button class="ios-chip" data-scope-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" title="只打开入口，不授予读取权限">加入可申请范围</button>'
+      ? '<button class="ios-chip" data-scope-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" title="Only adds it to scope; doesn’t grant read access">Add to requestable scope</button>'
       : ''
     return '<div class="ios-row ios-row--stack">' +
       '<span class="ios-ico" data-kind="' + (kind === 'web' ? 'web' : kind === 'api' ? 'api' : 'none') + '">' + IOS_PERSON + '</span>' +
       '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(who(entry.agent)) + '</span>' + kindTag +
       '<span class="ios-pill bad">' + esc(actionLabel[entry.action] || entry.action || '') + '</span></div>' +
-      '<div class="ios-sub">条目 ' + esc(entry.name || '') + '</div>' +
+      '<div class="ios-sub">Item ' + esc(entry.name || '') + '</div>' +
       '<div class="deny" data-kind="' + denyKind(entry) + '"><div class="deny__title">' + copy.title + '</div>' +
-      '<div class="deny-reason"><b>被拦原因</b>' + copy.body + '</div>' +
-      '<div class="ios-sub">' + (entry.count ?? 1) + ' 次 · ' + esc(at) + '</div></div>' +
+      '<div class="deny-reason"><b>Why blocked</b>' + copy.body + '</div>' +
+      '<div class="ios-sub">' + (entry.count ?? 1) + '× · ' + esc(at) + '</div></div>' +
       '<div class="ios-actions">' + grantBtn + scopeBtn +
       useBtn +
       plaintextBtn +
-      '<button class="ios-chip danger" data-dismiss-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" data-action="' + esc(entry.action || '') + '">忽略</button></div></div></div>'
+      '<button class="ios-chip danger" data-dismiss-denied data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '" data-action="' + esc(entry.action || '') + '">Dismiss</button></div></div></div>'
   }).join('')
-  box.innerHTML = '<div class="hint" style="margin-bottom:var(--sp-3)">点「授权」只放开这一条；「http_request」给这个 Agent 开代持调用，仍然拿不到明文。</div>' +
+  box.innerHTML = '<div class="hint" style="margin-bottom:var(--sp-3)">“Authorize” allows just this one; “http_request” gives this Agent proxied calls, still without plaintext.</div>' +
     '<div class="ios-group"><div class="ios-card">' + rowsHtml + '</div></div>'
 }
 // Grant what was refused. secret.use needs a target policy before http_request
@@ -4946,21 +4946,21 @@ function renderDenied() {
 function openAllowDenied(agent, name, action) {
   const target = action === 'secret.use'
   const body = target
-    ? '<div class="hint">让「' + esc(agent) + '」可以对「' + esc(name) + '」发起 http_request。密钥在 broker 服务端注入，Agent 拿不到明文值。</div>'
-      + '<label class="field">允许的目标主机（每行一个，如 httpbin.org）</label><textarea id="ad-hosts" rows="2" style="width:100%" placeholder="httpbin.org"></textarea>'
-      + '<label class="field">允许的方法</label><select id="ad-methods"><option value="GET,POST">GET + POST</option><option value="GET">仅 GET</option><option value="GET,POST,PUT,PATCH,DELETE">全部</option></select>'
-      + '<label class="field">端口</label><input id="ad-ports" value="443" placeholder="443">'
-    : '<div class="hint">让「' + esc(agent) + '」可以读取「' + esc(name) + '」的明文值。</div>'
-      + '<label class="field">明文有效期</label><select id="ad-hours"><option value="1">1 小时</option><option value="24" selected>24 小时</option><option value="168">7 天</option><option value="720">30 天</option><option value="0">永久</option></select>'
-      + '<div class="hint">未指定时长的 API 调用按「永久」处理；这个对话框默认 24 小时，选「永久」才会给无限期。</div>'
-      + '<div class="hint" style="margin-top:4px;color:var(--danger)">允许后该 Agent 能拿到这条凭据的真实值。确认这是你信任的 Agent。</div>'
-  openModal('授权「' + agent + ' → ' + name + '」', body + '<div class="row" style="margin-top:12px"><button class="primary" id="ad-go">授权</button></div><div class="status" id="ad-status"></div>')
+    ? '<div class="hint">Let “' + esc(agent) + '” make http_request calls with “' + esc(name) + '”. The broker injects the secret server-side, so the Agent never gets the plaintext value.</div>'
+      + '<label class="field">Allowed target hosts (one per line, e.g. httpbin.org)</label><textarea id="ad-hosts" rows="2" style="width:100%" placeholder="httpbin.org"></textarea>'
+      + '<label class="field">Allowed methods</label><select id="ad-methods"><option value="GET,POST">GET + POST</option><option value="GET">GET only</option><option value="GET,POST,PUT,PATCH,DELETE">All</option></select>'
+      + '<label class="field">Port</label><input id="ad-ports" value="443" placeholder="443">'
+    : '<div class="hint">Let “' + esc(agent) + '” read the plaintext value of “' + esc(name) + '”.</div>'
+      + '<label class="field">Plaintext access duration</label><select id="ad-hours"><option value="1">1 hour</option><option value="24" selected>24 hours</option><option value="168">7 days</option><option value="720">30 days</option><option value="0">Permanent</option></select>'
+      + '<div class="hint">API calls without a duration are treated as “Permanent”. This dialog defaults to 24 hours; only “Permanent” grants indefinite access.</div>'
+      + '<div class="hint" style="margin-top:4px;color:var(--danger)">Once allowed, this Agent can get the credential’s real value. Make sure it’s an Agent you trust.</div>'
+  openModal('Authorize “' + agent + ' → ' + name + '”', body + '<div class="row" style="margin-top:12px"><button class="primary" id="ad-go">Authorize</button></div><div class="status" id="ad-status"></div>')
   $('ad-go').onclick = async () => {
     try {
-      status('ad-status', '授权中…')
+      status('ad-status', 'Authorizing…')
       if (target) {
         const hosts = $('ad-hosts').value.split('\n').map((v) => v.trim()).filter(Boolean)
-        if (!hosts.length) return status('ad-status', '至少填一个目标主机', 'error')
+        if (!hosts.length) return status('ad-status', 'Enter at least one target host', 'error')
         const methods = $('ad-methods').value.split(',').map((v) => v.trim()).filter(Boolean)
         const ports = $('ad-ports').value.split(',').map((v) => v.trim()).filter(Boolean)
         await api('/api/use-policy', { method: 'POST', body: JSON.stringify({ item: name, hosts, methods, ports }) })
@@ -4971,7 +4971,7 @@ function openAllowDenied(agent, name, action) {
         await api('/api/fill/read-policy', { method: 'POST', body: JSON.stringify({ item: name, allow: true, ttlDays: Math.max(1, Math.round(Number($('ad-hours').value) / 24)) }) })
       }
       await api('/api/denied/dismiss', { method: 'POST', body: JSON.stringify({ agent, name, action }) })
-      show('modal', false); await refreshAll(); toast('已授权：' + agent + ' → ' + name)
+      show('modal', false); await refreshAll(); toast('Authorized: ' + agent + ' → ' + name)
     } catch (error) { status('ad-status', error.message, 'error') }
   }
 }
@@ -4981,18 +4981,18 @@ function openAllowDenied(agent, name, action) {
 // this only lets the broker inject it server-side. Kept one click because the
 // alternative — a host list per credential — was the reason this stayed broken.
 function openAllowUse(agent, name) {
-  openModal('开 http_request「' + agent + ' → ' + name + '」',
-    '<div class="hint">让「' + esc(agent) + '」可以用这条凭据发起 http_request。密钥由 broker 在服务端注入到请求头，只回传上游响应，<b>Agent 拿不到明文值</b>。</div>' +
-    '<label class="field">允许的主机</label>' +
-    '<select id="au-scope"><option value="any">任意 https 主机（最省事）</option><option value="pick">只允许指定主机</option></select>' +
-    '<div id="au-hosts-box" class="hidden"><label class="field">主机（每行一个）</label><textarea id="au-hosts" rows="2" style="width:100%" placeholder="httpbin.org"></textarea></div>' +
-    '<label class="field">允许的方法</label><select id="au-methods"><option value="GET,POST">GET + POST</option><option value="GET">仅 GET</option><option value="GET,POST,PUT,PATCH,DELETE">全部</option></select>' +
-    '<div class="hint" style="margin-top:4px;color:var(--warn,#f2994a)">「任意主机」意味着这个 Agent 能把凭据发到任何 https 地址。只在完全信任该 Agent 时选它。</div>' +
-    '<div class="row" style="margin-top:12px"><button class="primary" id="au-go">开启</button></div><div class="status" id="au-status"></div>')
+  openModal('Enable http_request for “' + agent + ' → ' + name + '”',
+    '<div class="hint">Let “' + esc(agent) + '” make http_request calls with this credential. The broker injects the secret into the request headers server-side and returns only the upstream response; <b>the Agent never gets the plaintext value</b>.</div>' +
+    '<label class="field">Allowed hosts</label>' +
+    '<select id="au-scope"><option value="any">Any https host (simplest)</option><option value="pick">Only specific hosts</option></select>' +
+    '<div id="au-hosts-box" class="hidden"><label class="field">Hosts (one per line)</label><textarea id="au-hosts" rows="2" style="width:100%" placeholder="httpbin.org"></textarea></div>' +
+    '<label class="field">Allowed methods</label><select id="au-methods"><option value="GET,POST">GET + POST</option><option value="GET">GET only</option><option value="GET,POST,PUT,PATCH,DELETE">All</option></select>' +
+    '<div class="hint" style="margin-top:4px;color:var(--warn,#f2994a)">“Any https host” means this Agent can send the credential to any https address. Only choose it if you fully trust this Agent.</div>' +
+    '<div class="row" style="margin-top:12px"><button class="primary" id="au-go">Enable</button></div><div class="status" id="au-status"></div>')
   $('au-scope').onchange = () => $('au-hosts-box').classList.toggle('hidden', $('au-scope').value !== 'pick')
   $('au-go').onclick = async () => {
     try {
-      status('au-status', '开启中…')
+      status('au-status', 'Enabling…')
       const scope = $('au-scope').value
       const methods = $('au-methods').value.split(',').map((v) => v.trim()).filter(Boolean)
       let hosts
@@ -5004,12 +5004,12 @@ function openAllowUse(agent, name) {
         hosts = ['*']
       } else {
         hosts = $('au-hosts').value.split('\n').map((v) => v.trim()).filter(Boolean)
-        if (!hosts.length) return status('au-status', '至少填一个主机', 'error')
+        if (!hosts.length) return status('au-status', 'Enter at least one host', 'error')
       }
       await api('/api/use-policy', { method: 'POST', body: JSON.stringify({ item: name, hosts, methods, ports: ['443'], anyHost: scope === 'any' }) })
       await api('/api/action-grants', { method: 'POST', body: JSON.stringify({ agent, item: name, actions: ['secret.use'], terms: { 'secret.use': { duration: 'permanent' } } }) })
       await api('/api/denied/dismiss', { method: 'POST', body: JSON.stringify({ agent, name, action: 'secret.use' }) })
-      show('modal', false); await refreshAll(); toast('已开启 http_request：' + agent + ' → ' + name)
+      show('modal', false); await refreshAll(); toast('http_request enabled: ' + agent + ' → ' + name)
     } catch (error) { status('au-status', error.message, 'error') }
   }
 }
@@ -5022,19 +5022,19 @@ function renderFillPolicies() {
   const note = $('fp-exec-note')
   if (note) {
     note.textContent = state.executionLayer
-      ? '执行层已配置（凭据可被填充到网页）。'
-      : '尚未配置真实浏览器执行层：填充请求无法完成实际网页登录，Agent 也不会拿到凭据明文。'
+      ? 'Execution layer configured (credentials can be filled into web pages).'
+      : 'No real browser execution layer configured: fill requests can’t complete an actual web login, and the Agent never gets the plaintext credential either.'
     note.style.color = state.executionLayer ? '' : 'var(--danger)'
   }
-  if (!state.items.length) { list.innerHTML = '<div class="hint">还没有分类任何凭据。点列表里条目的 ⋮ 即可设置分类。</div>'; return }
+  if (!state.items.length) { list.innerHTML = '<div class="hint">No credentials classified yet. Tap ⋮ on an item in the list to classify it.</div>'; return }
   const rows = state.items.map((entry) => {
     const read = entry.plaintextRead
-      ? (entry.plaintextReadExpiresAt && entry.plaintextReadExpiresAt < Date.now() ? '已过期' : '允许')
-      : '拒绝'
+      ? (entry.plaintextReadExpiresAt && entry.plaintextReadExpiresAt < Date.now() ? 'Expired' : 'Allowed')
+      : 'Denied'
     const origins = entry.origins.length ? entry.origins.map((o) => '<code>' + esc(o) + '</code>').join('<br>') : '-'
-    return '<tr><td><b>' + esc(entry.itemName || entry.itemId) + '</b></td><td>' + esc(entry.kind) + '</td><td>' + origins + '</td><td>' + esc((entry.actions || []).join(', ') || '-') + '</td><td>' + read + '</td><td class="nowrap"><button class="small" data-fp-edit="' + esc(entry.itemName || '') + '">修改</button></td></tr>'
+    return '<tr><td><b>' + esc(entry.itemName || entry.itemId) + '</b></td><td>' + esc(entry.kind) + '</td><td>' + origins + '</td><td>' + esc((entry.actions || []).join(', ') || '-') + '</td><td>' + read + '</td><td class="nowrap"><button class="small" data-fp-edit="' + esc(entry.itemName || '') + '">Edit</button></td></tr>'
   }).join('')
-  list.innerHTML = '<table><tr><th>凭据</th><th>类型</th><th>允许的 origin</th><th>动作</th><th>明文读取</th><th>操作</th></tr>' + rows + '</table>'
+  list.innerHTML = '<table><tr><th>Credential</th><th>Type</th><th>Allowed origins</th><th>Actions</th><th>Plaintext read</th><th>Manage</th></tr>' + rows + '</table>'
 }
 
 // Selection state for the bulk bar. Kept outside the render so a refresh in the
@@ -5047,8 +5047,8 @@ function syncGrantsBulk() {
   const bar = $('grants-bulk')
   if (bar) bar.classList.toggle('hidden', !grantsSelecting && !selectedGrants.size)
   const count = $('grants-bulk-count')
-  if (count) count.textContent = '已选 ' + selectedGrants.size + ' 条'
-  if ($('grants-select')) $('grants-select').textContent = grantsSelecting ? '完成' : '选择'
+  if (count) count.textContent = '' + selectedGrants.size + ' selected'
+  if ($('grants-select')) $('grants-select').textContent = grantsSelecting ? 'Done' : 'Select'
 }
 function renderGrants() {
   const grants = app.data.grants || []  // Legacy grants with no recorded identity binding are repaired here, in the
@@ -5058,16 +5058,16 @@ function renderGrants() {
   const unbound = ((app.data && app.data.legacyUnbound) || []).filter((entry) => !grants.some((g) => g.agent === entry.agent && g.name === entry.name))
   // A short label for the remaining time, so the row reads at a glance.
   const remaining = (grant) => {
-    if (grant.revokedAt) return '已撤销'
-    if (!grant.expiresAt) return '永久'
+    if (grant.revokedAt) return 'Revoked'
+    if (!grant.expiresAt) return 'Permanent'
     const ms = grant.expiresAt - Date.now()
-    if (ms <= 0) return '已过期'
+    if (ms <= 0) return 'Expired'
     const days = Math.ceil(ms / 86400e3)
-    return days <= 1 ? Math.max(1, Math.ceil(ms / 3600e3)) + ' 小时' : days + ' 天'
+    return days <= 1 ? Math.max(1, Math.ceil(ms / 3600e3)) + 'h' : days + 'd'
   }
   const rows = grants.map((grant) => {
-    const state = grant.revokedAt ? '已撤销' : (grant.expiresAt && grant.expiresAt <= Date.now() ? '已过期' : (grant.maxReads && (grant.reads ?? 0) >= grant.maxReads ? '次数用尽' : '生效中'))
-    const bad = state !== '生效中'
+    const state = grant.revokedAt ? 'Revoked' : (grant.expiresAt && grant.expiresAt <= Date.now() ? 'Expired' : (grant.maxReads && (grant.reads ?? 0) >= grant.maxReads ? 'Read limit reached' : 'Active'))
+    const bad = state !== 'Active'
     const reads = (grant.reads ?? 0) + (grant.maxReads ? ' / ' + grant.maxReads : '')
     const key = grantSelectionKey(grant.agent, grant.name)
     return '<div class="ios-row">' +
@@ -5075,10 +5075,10 @@ function renderGrants() {
       '<span class="ios-ico" data-kind="api">' + IOS_PERSON + '</span>' +
       '<div class="ios-main" data-grant-menu data-agent="' + esc(grant.agent) + '" data-name="' + esc(grant.name) + '" role="button" tabindex="0"><div class="ios-title"><span class="ios-name">' + esc(grant.name) + '</span>' +
       '<span class="ios-tag">' + esc(grant.mode) + '</span></div>' +
-      '<div class="ios-sub">' + esc(agentLabel(grant.agent)) + ' · 已读 ' + reads + '</div></div>' +
+      '<div class="ios-sub">' + esc(agentLabel(grant.agent)) + ' · reads: ' + reads + '</div></div>' +
       '<div class="ios-trail"><button class="ios-pill ' + (bad ? 'bad' : 'ok') + '" data-item-grant data-agent="' + esc(grant.agent) +
-      '" data-name="' + esc(grant.name) + '" title="点击修改时长和读取次数">' + esc(remaining(grant)) + '</button>' +
-      '<button class="ios-more" data-grant-menu data-agent="' + esc(grant.agent) + '" data-name="' + esc(grant.name) + '" title="更多">⋮</button></div></div>'
+      '" data-name="' + esc(grant.name) + '" title="Click to change the duration and read limit">' + esc(remaining(grant)) + '</button>' +
+      '<button class="ios-more" data-grant-menu data-agent="' + esc(grant.agent) + '" data-name="' + esc(grant.name) + '" title="More">⋮</button></div></div>'
   }).join('')
   // An unbound legacy grant has no capability and no duration to show; its only
   // useful actions are re-grant (which binds it) and delete.
@@ -5086,17 +5086,17 @@ function renderGrants() {
     '<div class="ios-row ios-row--stack">' +
     '<span class="ios-ico" data-kind="none">' + IOS_PERSON + '</span>' +
     '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(entry.name || '') + '</span>' +
-    '<span class="ios-pill bad">需重新授权</span></div>' +
-    '<div class="ios-sub">' + esc(entry.agent || '') + ' · ' + esc(entry.mode || '') + ' · 无身份绑定</div>' +
+    '<span class="ios-pill bad">Needs reauthorization</span></div>' +
+    '<div class="ios-sub">' + esc(entry.agent || '') + ' · ' + esc(entry.mode || '') + ' · no identity binding</div>' +
     '<div class="ios-actions">' +
-    '<button class="ios-chip" data-legacy-regrant data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '">重新授权</button>' +
-    '<button class="ios-chip danger" data-legacy-delete data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '">删除</button>' +
+    '<button class="ios-chip" data-legacy-regrant data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '">Reauthorize</button>' +
+    '<button class="ios-chip danger" data-legacy-delete data-agent="' + esc(entry.agent || '') + '" data-name="' + esc(entry.name || '') + '">Delete</button>' +
     '</div></div></div>'
   ).join('')
   const total = grants.length + unbound.length
   $('grants-box').innerHTML = total
     ?       '<div class="ios-group"><div class="ios-card">' + rows + legacyRows + '</div></div>'
-    : '<div class="hint">暂无授权</div>'
+    : '<div class="hint">No grants yet</div>'
   syncGrantsBulk()
 }
 
@@ -5106,86 +5106,86 @@ function renderTransfers() {
     '<div class="ios-row ios-row--stack">' +
     '<span class="ios-ico" data-kind="web">' + IOS_PERSON + '</span>' +
     '<div class="ios-main"><div class="ios-title"><span class="ios-name">' + esc(entry.name) + '</span>' +
-    '<span class="ios-pill ' + (entry.error ? 'bad' : 'warn') + '">' + esc(entry.error ? '复制失败' : '等待解锁') + '</span></div>' +
-    '<div class="ios-sub">' + esc(entry.agent || '') + ' · 目标文件夹 ' + esc(entry.folder || '默认') + '</div>' +
-    '<div class="ios-sub">' + esc(entry.sourceAccount || '主账户') + ' → ' + esc(entry.targetAccount || '目标账户') + '</div>' +
-    '</div></div>').join('') + '</div></div>' : '<div class="hint">没有待复制的条目</div>'
+    '<span class="ios-pill ' + (entry.error ? 'bad' : 'warn') + '">' + esc(entry.error ? 'Copy failed' : 'Waiting for unlock') + '</span></div>' +
+    '<div class="ios-sub">' + esc(entry.agent || '') + ' · target folder ' + esc(entry.folder || 'default') + '</div>' +
+    '<div class="ios-sub">' + esc(entry.sourceAccount || 'Main account') + ' → ' + esc(entry.targetAccount || 'Target account') + '</div>' +
+    '</div></div>').join('') + '</div></div>' : '<div class="hint">No items waiting to be copied</div>'
 }
-function who(label) { const agent = (app.data.agents || []).find((entry) => entry.name === label); return agent?.alias || label || '系统' }
+function who(label) { const agent = (app.data.agents || []).find((entry) => entry.name === label); return agent?.alias || label || 'System' }
 // The reason codes are what the server writes; the operator needs the sentence.
 const REASON_TEXT = {
-  'no-grant': '还没有授权',
-  'not-granted': '还没有授权',
-  'plaintext': '没有读取明文的许可',
-  'plaintext-off': '没有读取明文的许可',
-  'web-credential-is-fill-only': '网页登录只能填充，不给明文',
-  'unclassified-plaintext-off': '未分类条目默认不给明文',
-  'account-mismatch': '条目不属于当前账户',
-  'maxreads-exhausted': '授权次数已用完',
-  'expired': '授权已过期',
-  'origin-not-allowed': '目标站点不在允许列表',
-  'item-id-unresolved': '找不到这个条目',
-  'vault-locked': 'vault 已锁定',
-  'no-origin': '请求里没有目标站点',
+  'no-grant': 'no grant yet',
+  'not-granted': 'no grant yet',
+  'plaintext': 'no permission to read plaintext',
+  'plaintext-off': 'no permission to read plaintext',
+  'web-credential-is-fill-only': 'web logins are fill-only, no plaintext',
+  'unclassified-plaintext-off': 'unclassified items give no plaintext by default',
+  'account-mismatch': 'item isn’t in the current account',
+  'maxreads-exhausted': 'read limit reached',
+  'expired': 'grant expired',
+  'origin-not-allowed': 'target site isn’t on the allowlist',
+  'item-id-unresolved': 'item not found',
+  'vault-locked': 'the vault is locked',
+  'no-origin': 'request has no target site',
 }
 function reasonText(reason) {
   const key = String(reason || '')
-  return REASON_TEXT[key] || (key ? key : '未说明原因')
+  return REASON_TEXT[key] || (key ? key : 'no reason given')
 }
 function describe(entry) {
-  const name = entry.name ? '「' + entry.name + '」' : ''; const agent = who(entry.agent); const mode = ({ once: '仅本次', '1h': '1 小时', '24h': '24 小时', '7d': '7 天', always: '永久', grant: '授权', 'no-approval': '免审批' })[entry.mode] || entry.mode || ''
+  const name = entry.name ? '“' + entry.name + '”' : ''; const agent = who(entry.agent); const mode = ({ once: 'once', '1h': '1 hour', '24h': '24 hours', '7d': '7 days', always: 'permanent', grant: 'grant', 'no-approval': 'no approval needed' })[entry.mode] || entry.mode || ''
   switch (entry.event) {
-    case 'secret.read': return agent + ' 读取了 ' + name + (mode ? '（' + mode + '）' : '')
-    case 'secret.read-noapproval': return agent + ' 免审批读取了 ' + name
-    case 'request.create': return agent + ' 申请读取 ' + name
-    case 'request.approve': return agent + ' 的 ' + name + ' 申请已批准' + (mode ? '（' + mode + '）' : '') + '，渠道：' + (entry.source === 'telegram' ? 'Telegram' : entry.source === 'ntfy' ? 'ntfy' : '网页')
-    case 'request.deny': return agent + ' 的 ' + name + ' 申请被拒绝'
-    case 'policy.update': return '免审批策略：' + name + ' → ' + (entry.noApproval ? '开启' : '关闭')
-    case 'agent.create': return '新增 Agent ' + agent
-    case 'agent.rotate': return '轮换 Agent ' + agent + ' 的 token'
-    case 'agent.token-view': return '查看 Agent ' + agent + ' 的 token'
-    case 'item.update': return '更新密钥 ' + name + (entry.oldName ? '（原名 ' + entry.oldName + '）' : '')
-    case 'item.delete': return '删除密钥 ' + name
-    case 'grant.share': return '分享 ' + name + ' 给 ' + (entry.agents ? entry.agents.join('、') : agent)
-    case 'grant.update': return '修改 ' + agent + ' 对 ' + name + ' 的授权'
-    case 'grant.restore': return '恢复/重新授权 ' + agent + ' 读取 ' + name
-    case 'grant.delete': return '删除 ' + agent + ' 对 ' + name + ' 的授权记录'
-    case 'profile.update': return '更新个人资料'
-    case 'admin.oidc-login': return 'OIDC 登录' + (entry.email ? '（' + entry.email + '）' : '')
-    case 'vault.oidc-unlock': return 'OIDC 自动解锁保险库' + (entry.email ? '（' + entry.email + '）' : '')
-    case 'settings.update': return '更新系统设置'
-    case 'agent.delete': return '删除 Agent ' + agent
-    case 'vault.unlock': return '解锁了 vault' + (entry.ttl ? '（' + entry.ttl + '）' : '')
-    case 'vault.lock': return '锁定了 vault'
-    case 'admin.login': return '管理登录'
-    case 'admin.login-fail': return '管理登录失败'
-    case 'admin.origin-mismatch': return '跨站请求被拒绝（来源与本站不一致）'
-    case 'access.denied': return agent + ' 想读 ' + name + ' 被拦下：' + reasonText(entry.reason)
-    case 'secret.read-deny': return agent + ' 读取 ' + name + ' 被拒绝：' + reasonText(entry.reason)
-    case 'secret.view': return '管理员查看 ' + name + ' 的明文（两步验证通过）'
-    case 'secret.view-deny': return '查看 ' + name + ' 的明文被拒绝：' + reasonText(entry.reason)
-    case 'items.export': return '导出全部明文（两步验证通过）'
-    case 'materialize.request': return agent + ' 申请把 ' + name + ' 写进 ' + (entry.target && entry.target.path ? entry.target.path : '白名单文件')
-    case 'materialize.approve': return '批准 ' + agent + ' 把 ' + name + ' 写进 ' + (entry.target && entry.target.path ? entry.target.path : '白名单文件')
-    case 'materialize.deny': return '拒绝 ' + agent + ' 写入 ' + name
-    case 'secret.materialize': return agent + ' 把 ' + name + ' 写进了 ' + (entry.path || '白名单文件')
-    case 'grant.prune-foreign': return '清理了指向其他账户的旧授权（' + (entry.count || 0) + ' 条）'
-    case 'grant.batch': return (entry.action === 'delete' ? '批量删除授权（' : '批量恢复授权（') + (entry.count || 0) + ' 条）'
-    case 'secret.write': return agent + ' 写入了 ' + name
-    case 'grant.revoke': return '撤销 ' + agent + ' 对 ' + name + ' 的授权'
-    case 'grant.expire': return agent + ' 对 ' + name + ' 的授权到期，已从列表清理（审计保留）'
-    case 'grant.extend': return '延长 ' + agent + ' 对 ' + name + ' 的授权'
-    case 'action-grant.revoke': return '批量撤销授权（' + (entry.items || 1) + ' 条）'
-    case 'request.auto-approve': return agent + ' 的 ' + name + ' 申请按自动规则放行'
-    case 'oauth.client-register': return '新应用注册了 OAuth 客户端'
-    case 'oauth.client-trust': return '确认了一个 OAuth 应用的首次接入'
-    case 'oauth.authorize': return '授权 OAuth 应用访问 ' + name + (entry.grantAll ? '（全部条目）' : '')
-    case 'oauth.consent-deny': return 'OAuth 同意页的提交被拒绝：' + reasonText(entry.reason)
-    case 'oauth.token-issue': return '签发 OAuth token'
-    case 'oauth.token-deny': return 'OAuth token 请求被拒：' + reasonText(entry.reason)
-    case 'fill.task.claim': return '填表执行器认领了 ' + name + ' 的填充任务'
-    case 'fill.redeem': return '填充任务取走了 ' + name + ' 的凭据'
-    case 'fill.redeem-deny': return '填充任务取凭据被拒：' + reasonText(entry.reason)
+    case 'secret.read': return agent + ' read ' + name + (mode ? ' (' + mode + ')' : '')
+    case 'secret.read-noapproval': return agent + ' read without approval: ' + name
+    case 'request.create': return agent + ' requested to read ' + name
+    case 'request.approve': return agent + '’s request for ' + name + ' approved' + (mode ? ' (' + mode + ')' : '') + ', via ' + (entry.source === 'telegram' ? 'Telegram' : entry.source === 'ntfy' ? 'ntfy' : 'web')
+    case 'request.deny': return agent + '’s request for ' + name + ' denied'
+    case 'policy.update': return 'No-approval policy: ' + name + ' → ' + (entry.noApproval ? 'on' : 'off')
+    case 'agent.create': return 'Added Agent ' + agent
+    case 'agent.rotate': return 'Rotated the token of Agent ' + agent + ''
+    case 'agent.token-view': return 'Viewed the token of Agent ' + agent + ''
+    case 'item.update': return 'Updated secret ' + name + (entry.oldName ? ' (formerly ' + entry.oldName + ')' : '')
+    case 'item.delete': return 'Deleted secret ' + name
+    case 'grant.share': return 'Shared ' + name + ' with ' + (entry.agents ? entry.agents.join(', ') : agent)
+    case 'grant.update': return 'Changed ' + agent + '’s grant for ' + name + ''
+    case 'grant.restore': return 'Restored/reauthorized ' + agent + ' to read ' + name
+    case 'grant.delete': return 'Deleted ' + agent + '’s grant record for ' + name + ''
+    case 'profile.update': return 'Updated profile'
+    case 'admin.oidc-login': return 'OIDC login' + (entry.email ? ' (' + entry.email + ')' : '')
+    case 'vault.oidc-unlock': return 'OIDC auto-unlocked the vault' + (entry.email ? ' (' + entry.email + ')' : '')
+    case 'settings.update': return 'Updated settings'
+    case 'agent.delete': return 'Deleted Agent ' + agent
+    case 'vault.unlock': return 'Unlocked the vault' + (entry.ttl ? ' (' + entry.ttl + ')' : '')
+    case 'vault.lock': return 'Locked the vault'
+    case 'admin.login': return 'Admin login'
+    case 'admin.login-fail': return 'Admin login failed'
+    case 'admin.origin-mismatch': return 'Cross-site request denied (origin doesn’t match this site)'
+    case 'access.denied': return agent + ' was blocked from reading ' + name + ': ' + reasonText(entry.reason)
+    case 'secret.read-deny': return agent + '’s read of ' + name + ' was denied: ' + reasonText(entry.reason)
+    case 'secret.view': return 'Admin viewed the plaintext of ' + name + ' (2FA passed)'
+    case 'secret.view-deny': return 'Viewing the plaintext of ' + name + ' was denied: ' + reasonText(entry.reason)
+    case 'items.export': return 'Exported all plaintext (2FA passed)'
+    case 'materialize.request': return agent + ' requested to write ' + name + ' to ' + (entry.target && entry.target.path ? entry.target.path : 'an allowlisted file')
+    case 'materialize.approve': return 'Approved ' + agent + ' writing ' + name + ' to ' + (entry.target && entry.target.path ? entry.target.path : 'an allowlisted file')
+    case 'materialize.deny': return 'Denied ' + agent + ' writing ' + name
+    case 'secret.materialize': return agent + ' wrote ' + name + ' to ' + (entry.path || 'an allowlisted file')
+    case 'grant.prune-foreign': return 'Cleaned up old grants pointing to other accounts (' + (entry.count || 0) + ')'
+    case 'grant.batch': return (entry.action === 'delete' ? 'Bulk-deleted grants (' : 'Bulk-restored grants (') + (entry.count || 0) + ')'
+    case 'secret.write': return agent + ' wrote ' + name
+    case 'grant.revoke': return 'Revoked ' + agent + '’s grant for ' + name + ''
+    case 'grant.expire': return agent + '’s grant for ' + name + ' expired and was removed from the list (kept in the audit log)'
+    case 'grant.extend': return 'Extended ' + agent + '’s grant for ' + name + ''
+    case 'action-grant.revoke': return 'Bulk-revoked grants (' + (entry.items || 1) + ')'
+    case 'request.auto-approve': return agent + '’s request for ' + name + ' was auto-approved by a rule'
+    case 'oauth.client-register': return 'A new app registered an OAuth client'
+    case 'oauth.client-trust': return 'Confirmed an OAuth app’s first connection'
+    case 'oauth.authorize': return 'Authorized an OAuth app to access ' + name + (entry.grantAll ? ' (all items)' : '')
+    case 'oauth.consent-deny': return 'OAuth consent page submission rejected: ' + reasonText(entry.reason)
+    case 'oauth.token-issue': return 'Issued an OAuth token'
+    case 'oauth.token-deny': return 'OAuth token request denied: ' + reasonText(entry.reason)
+    case 'fill.task.claim': return 'Fill runner claimed the fill task for ' + name + ''
+    case 'fill.redeem': return 'Fill task picked up the credential for ' + name + ''
+    case 'fill.redeem-deny': return 'Fill task’s credential pickup was denied: ' + reasonText(entry.reason)
     default: return entry.event + (entry.agent ? ' · ' + agent : '') + (name ? ' ' + name : '')
   }
 }
@@ -5194,17 +5194,17 @@ function describe(entry) {
 // else stays neutral so the red still means something.
 const RED_LOG_EVENTS = new Set(['secret.read-noapproval', 'access.denied', 'secret.read-deny', 'secret.write-deny', 'grant.revoke', 'fill.redeem-deny', 'credential.cancel', 'policy.shadow-mismatch', 'admin.login-fail'])
 // Event names are dozens and change; the operator thinks in groups. A trailing
-// .* matches a prefix (telegram.*, oauth.*, fill.*). 仅风险事件 reuses
+// .* matches a prefix (telegram.*, oauth.*, fill.*). “Risk events only” reuses
 // RED_LOG_EVENTS so red stays the one definition of "risk".
 const LOG_EVENT_GROUPS = [
-  { key: 'read', label: '读取与拒绝', match: ['secret.read', 'secret.read-deny', 'secret.read-noapproval'] },
-  { key: 'blocked', label: '被拦下的请求', match: ['access.denied'] },
-  { key: 'grant', label: '授权变更', match: ['grant.share', 'grant.revoke', 'grant.extend', 'request.approve', 'request.deny', 'request.auto-approve', 'request.create'] },
-  { key: 'ai', label: 'AI 与 Telegram', match: ['ai.ask', 'telegram.*'] },
-  { key: 'login', label: '登录与解锁', match: ['admin.login', 'admin.login-fail', 'admin.oidc-login', 'admin.origin-mismatch', 'vault.unlock', 'vault.lock', 'vault.oidc-unlock'] },
-  { key: 'item', label: '条目与分类', match: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.rotate.purge', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update', 'audit.export'] },
-  { key: 'oauth', label: 'OAuth 与填充', match: ['oauth.*', 'fill.*'] },
-  { key: 'risk', label: '仅风险事件', red: true, match: [] },
+  { key: 'read', label: 'Reads and denials', match: ['secret.read', 'secret.read-deny', 'secret.read-noapproval'] },
+  { key: 'blocked', label: 'Blocked requests', match: ['access.denied'] },
+  { key: 'grant', label: 'Grant changes', match: ['grant.share', 'grant.revoke', 'grant.extend', 'request.approve', 'request.deny', 'request.auto-approve', 'request.create'] },
+  { key: 'ai', label: 'AI and Telegram', match: ['ai.ask', 'telegram.*'] },
+  { key: 'login', label: 'Login and unlock', match: ['admin.login', 'admin.login-fail', 'admin.oidc-login', 'admin.origin-mismatch', 'vault.unlock', 'vault.lock', 'vault.oidc-unlock'] },
+  { key: 'item', label: 'Items and classification', match: ['item.create', 'item.update', 'item.delete', 'item.rotate', 'item.rotate.restore', 'item.rotate.purge', 'item.expiry.update', 'fill-policy.update', 'use-policy.update', 'plaintext-read-policy.update', 'audit.export'] },
+  { key: 'oauth', label: 'OAuth and fill', match: ['oauth.*', 'fill.*'] },
+  { key: 'risk', label: 'Risk events only', red: true, match: [] },
 ]
 
 function renderRecent() {
@@ -5213,9 +5213,9 @@ function renderRecent() {
   const rows = (app.recentAudit && app.recentAudit.length ? app.recentAudit : (app.data.audit || [])).slice(0, 8)
   $('recent-box').innerHTML = rows.map((entry) =>
     '<div class="ios-row ios-row--log"><div class="ios-main">' +
-    '<div class="ios-log-time">' + esc(new Date(entry.time).toLocaleTimeString('zh-CN', { hour12: false })) + '</div>' +
+    '<div class="ios-log-time">' + esc(new Date(entry.time).toLocaleTimeString('en-GB', { hour12: false })) + '</div>' +
     '<div class="ios-log-text' + (RED_LOG_EVENTS.has(String(entry.event || '')) ? ' bad' : '') + '">' + esc(describe(entry)) + '</div>' +
-    '</div></div>').join('') || '<div class="hint">暂无活动</div>'
+    '</div></div>').join('') || '<div class="hint">No activity yet</div>'
 }
 async function loadRecent() {
   try { const data = await auditPage({ limit: 8 }); app.recentAudit = data.entries || [] } catch { app.recentAudit = [] }
@@ -5244,9 +5244,9 @@ async function refreshLogs(append = false) {
   params.set('limit', '100')
   params.set('offset', String(append ? logState.rows.length : 0))
   const box = $('logs-box')
-  if (box && !append) box.innerHTML = '<div class="hint">正在读取…</div>'
+  if (box && !append) box.innerHTML = '<div class="hint">Loading…</div>'
   const count = $('logs-count')
-  if (count && !append) count.textContent = '正在读取…'
+  if (count && !append) count.textContent = 'Loading…'
   try {
     const result = await api('/api/audit?' + params.toString())
     logState.rows = append ? logState.rows.concat(result.entries || []) : (result.entries || [])
@@ -5255,7 +5255,7 @@ async function refreshLogs(append = false) {
     logState.masked = result.masked === true
     renderLogs()
   } catch (error) {
-    if (box) box.innerHTML = '<div class="state" data-tone="error"><div class="state__title">日志读取失败</div><div class="state__body">' + esc(error.message) + '</div><div class="state__actions"><button data-logs-retry>重试</button></div></div>'
+    if (box) box.innerHTML = '<div class="state" data-tone="error"><div class="state__title">Couldn’t load logs</div><div class="state__body">' + esc(error.message) + '</div><div class="state__actions"><button data-logs-retry>Retry</button></div></div>'
     const retry = box && box.querySelector('[data-logs-retry]')
     if (retry) retry.onclick = () => refreshLogs()
     if (count) count.textContent = ''
@@ -5273,7 +5273,7 @@ function resetLogFilters() {
 // The CSV is a real export of the current filter, so it needs the same second
 // factor as any other export. api() only speaks JSON, hence the raw fetch.
 async function exportAuditCsv() {
-  const confirm = await askConfirm('导出审计日志')
+  const confirm = await askConfirm('Export audit log')
   if (!confirm) return
   const payload = { format: 'csv' }
   for (const [key, value] of logFilterQuery().entries()) payload[key] = value
@@ -5285,7 +5285,7 @@ async function exportAuditCsv() {
     body: JSON.stringify({ ...payload, ...confirm }),
   })
   if (!response.ok) {
-    let message = '导出失败（HTTP ' + response.status + '）'
+    let message = 'Export failed (HTTP ' + response.status + ')'
     try { const body = await response.json(); message = body.error || body.message || message } catch {}
     return toast(message, true)
   }
@@ -5301,7 +5301,7 @@ async function exportAuditCsv() {
   anchor.click()
   anchor.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
-  toast('已导出 ' + logState.total + ' 条（当前筛选条件）')
+  toast('Exported ' + logState.total + ' log entries (current filters)')
 }
 function fillLogSelect(id, options, allLabel) {
   const select = $(id); if (!select) return
@@ -5315,26 +5315,26 @@ function renderLogs() {
   const all = (app.data.audit || []).concat(logState.rows || [])
   const names = [...new Set(all.map((entry) => entry.name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)))
   const agents = [...new Set(all.map((entry) => entry.agent).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)))
-  fillLogSelect('logs-item-filter', names.map((name) => ({ value: name, label: name })), '全部条目')
-  fillLogSelect('logs-agent-filter', agents.map((name) => ({ value: name, label: agentLabel(name) })), '全部 Agent')
-  fillLogSelect('logs-event-filter', LOG_EVENT_GROUPS.map((group) => ({ value: group.key, label: group.label })), '全部事件类型')
+  fillLogSelect('logs-item-filter', names.map((name) => ({ value: name, label: name })), 'All items')
+  fillLogSelect('logs-agent-filter', agents.map((name) => ({ value: name, label: agentLabel(name) })), 'All Agents')
+  fillLogSelect('logs-event-filter', LOG_EVENT_GROUPS.map((group) => ({ value: group.key, label: group.label })), 'All event types')
   const rows = logState.rows
   const count = $('logs-count')
-  if (count) count.textContent = '显示 ' + rows.length + ' / 共 ' + esc(String(Number(logState.total) || 0)) + ' 条' + (logState.masked ? ' · 锁定态，条目名称已脱敏' : '')
+  if (count) count.textContent = 'Showing ' + rows.length + ' of ' + esc(String(Number(logState.total) || 0)) + '' + (logState.masked ? ' · locked, item names redacted' : '')
   const more = $('logs-more-wrap')
   if (more) more.style.display = logState.more ? 'flex' : 'none'
   const clearable = ['logs-item-filter', 'logs-agent-filter', 'logs-event-filter', 'logs-search', 'logs-from', 'logs-to'].some((id) => String(($(id) || {}).value || '').trim())
   $('logs-box').innerHTML = rows.length ? '<div class="ios-group"><div class="ios-card">' + rows.map((entry) => {
     const red = RED_LOG_EVENTS.has(String(entry.event || '')) || entry.noApproval === true || entry.severity === 'warn'
     return '<div class="ios-row ios-row--log"><div class="ios-main">' +
-      '<div class="ios-log-time">' + esc(new Date(entry.time).toLocaleString('zh-CN', { hour12: false })) + '</div>' +
+      '<div class="ios-log-time">' + esc(new Date(entry.time).toLocaleString('en-GB', { hour12: false })) + '</div>' +
       '<div class="ios-log-text' + (red ? ' bad' : '') + '">' + esc(describe(entry)) + '</div>' +
       ([entry.agent, entry.name].filter(Boolean).length ? '<div class="ios-sub">' + esc([entry.agent, entry.name].filter(Boolean).join(' · ')) + '</div>' : '') +
       '</div></div>'
   }).join('') + '</div></div>'
-    : '<div class="state"><div class="state__title">' + (clearable ? '没有符合筛选条件的日志' : '暂无日志') + '</div>'
-      + '<div class="state__body">' + (clearable ? '换一个条目、Agent、事件类型或时间范围；筛选会发送到服务端，只取回匹配的行。' : '这里会记录读取、授权、策略修改和导出的每一次动作。') + '</div>'
-      + (clearable ? '<div class="state__actions"><button data-logs-clear>清空筛选</button></div>' : '') + '</div>'
+    : '<div class="state"><div class="state__title">' + (clearable ? 'No logs match the filters' : 'No logs yet') + '</div>'
+      + '<div class="state__body">' + (clearable ? 'Try a different item, Agent, event type or time range. Filters run on the server, which returns only matching rows.' : 'Every read, grant, policy change and export is recorded here.') + '</div>'
+      + (clearable ? '<div class="state__actions"><button data-logs-clear>Clear filters</button></div>' : '') + '</div>'
   const clear = $('logs-box').querySelector('[data-logs-clear]')
   if (clear) clear.onclick = resetLogFilters
 }
@@ -5343,23 +5343,23 @@ async function createItemMenu() {
     const v2 = await api('/api/v2/status')
     if (v2.initialized && !v2.unlocked) {
       show('dashboard', false); show('unlock-card', true)
-      toast('保险库已锁定，请先解锁再新增')
+      toast('The vault is locked. Unlock it before adding items')
       return
     }
   } catch {}
-  openModal('新增密钥条目', '<label class="field">名称</label><input id="new-item-name" placeholder="例如 tavily-api-key"><label class="field">用户名（可选）</label><input id="new-item-username" placeholder="登录用户名"><label class="field">密钥值</label><input id="new-item-value" placeholder="要保存的密钥"><label class="field">TOTP Secret（可选）</label><input id="new-item-totp" placeholder="Base32 TOTP secret"><label class="field">网址（可选）</label><input id="new-item-url" placeholder="https://example.com"><label class="field">分组（可选）</label><input id="new-item-group" placeholder="例如 blog/prod"><label class="field">备注（可选）</label><input id="new-item-notes"><label class="field">类型</label><select id="new-item-kind"><option value="">未分类（暂不可读）</option><option value="api">api（API Key，可授权 Agent 读取）</option><option value="web">web（网站登录，只能填充）</option></select><div id="new-item-web" class="hidden"><label class="field">允许填充的 origin（每行一个）</label><textarea id="new-item-origins" rows="2" style="width:100%" placeholder="https://example.com"></textarea></div><label class="chk" style="margin-top:8px"><input type="checkbox" id="new-item-noapproval"> 免审批</label><div class="row" style="margin-top:12px"><button class="primary" id="new-item-save">创建</button></div><div class="status" id="new-item-status"></div>')
+  openModal('New secret item', '<label class="field">Name</label><input id="new-item-name" placeholder="e.g. tavily-api-key"><label class="field">Username (optional)</label><input id="new-item-username" placeholder="Login username"><label class="field">Secret value</label><input id="new-item-value" placeholder="The secret to store"><label class="field">TOTP Secret (optional)</label><input id="new-item-totp" placeholder="Base32 TOTP secret"><label class="field">URL (optional)</label><input id="new-item-url" placeholder="https://example.com"><label class="field">Group (optional)</label><input id="new-item-group" placeholder="e.g. blog/prod"><label class="field">Notes (optional)</label><input id="new-item-notes"><label class="field">Type</label><select id="new-item-kind"><option value="">Unclassified (not readable yet)</option><option value="api">api (API Key, an Agent can be authorized to read it)</option><option value="web">web (website login, fill only)</option></select><div id="new-item-web" class="hidden"><label class="field">Allowed fill origins (one per line)</label><textarea id="new-item-origins" rows="2" style="width:100%" placeholder="https://example.com"></textarea></div><label class="chk" style="margin-top:8px"><input type="checkbox" id="new-item-noapproval"> No approval needed</label><div class="row" style="margin-top:12px"><button class="primary" id="new-item-save">Create</button></div><div class="status" id="new-item-status"></div>')
   // The web fields only mean something for a website login.
   $('new-item-kind').onchange = () => $('new-item-web').classList.toggle('hidden', $('new-item-kind').value !== 'web')
   $('new-item-save').onclick = async () => {
     const name = $('new-item-name').value.trim()
-    if (!name) return status('new-item-status', '请填写名称', 'error')
+    if (!name) return status('new-item-status', 'Enter a name', 'error')
     const kind = $('new-item-kind').value
     const origins = kind === 'web' ? $('new-item-origins').value.split('\n').map((line) => line.trim()).filter(Boolean) : []
-    if (kind === 'web' && !origins.length) return status('new-item-status', 'web 类型至少填一个 origin', 'error')
+    if (kind === 'web' && !origins.length) return status('new-item-status', 'The web type needs at least one origin', 'error')
     try {
       const newItem = { name, username: $('new-item-username').value, value: $('new-item-value').value, totp: $('new-item-totp').value, url: $('new-item-url').value.trim(), group: $('new-item-group').value.trim(), notes: $('new-item-notes').value, noApproval: $('new-item-noapproval').checked }
       // Creating an auto-approved credential is an authorization decision.
-      if (newItem.noApproval) await sensitivePost('/api/items/create', newItem, '开启免审批策略')
+      if (newItem.noApproval) await sensitivePost('/api/items/create', newItem, 'Enable no-approval policy')
       else await api('/api/items/create', { method: 'POST', body: JSON.stringify(newItem) })
       // Classify in the same step: the item was just created with a kind, so
       // making the operator reopen it to classify is a pointless round trip.
@@ -5367,11 +5367,11 @@ async function createItemMenu() {
         await api('/api/fill/policy', { method: 'POST', body: JSON.stringify(kind === 'web' ? { item: name, kind, origins, actions: ['login'] } : { item: name, kind }) })
         if (kind === 'api') await api('/api/fill/read-policy', { method: 'POST', body: JSON.stringify({ item: name, allow: true, ttlDays: 30 }) })
       }
-      show('modal', false); await Promise.all([loadItems(), loadState()]); toast(kind ? '已创建并分类为 ' + kind : '已创建（未分类，Agent 暂时读不到）')
+      show('modal', false); await Promise.all([loadItems(), loadState()]); toast(kind ? 'Created and classified as ' + kind : 'Created (unclassified, so no Agent can read it yet)')
     } catch (error) {
       if (error.status === 423) {
-        toast('保险库已锁定，请先刷新页面解锁后再创建')
-        status('new-item-status', '保险库已锁定，请先刷新页面解锁后再创建', 'error')
+        toast('The vault is locked. Refresh the page and unlock it before creating')
+        status('new-item-status', 'The vault is locked. Refresh the page and unlock it before creating', 'error')
         return
       }
       status('new-item-status', error.message, 'error')
@@ -5389,23 +5389,23 @@ function importItems(event) {
   openImportDialog(file)
 }
 function openImportDialog(file) {
-  openModal('导入密钥', '<div class="hint">当前文件：<code>' + esc(file.name) + '</code></div>' +
-    '<div class="hint" style="margin-top:10px">支持两种 JSON：<br>' +
+  openModal('Import secrets', '<div class="hint">Current file: <code>' + esc(file.name) + '</code></div>' +
+    '<div class="hint" style="margin-top:10px">Two JSON formats are supported:<br>' +
     '· <code>[{"name":"a","value":"b"}, …]</code><br>' +
     '· <code>{"items":[{"name":"a","value":"b"}, …]}</code><br>' +
-    '每条可用字段：<code>name</code>（必填）、<code>value</code>、<code>username</code>、<code>url</code>、<code>notes</code>、<code>totp</code>、<code>group</code>、<code>noApproval</code>。</div>' +
-    '<div class="hint" style="margin-top:10px;color:var(--danger)">不是这两种格式？Bitwarden 的加密 JSON、CSV 导出、1Password/KeePass 的导出都需要先转换，否则无法直接映射。</div>' +
-    '<label class="field">导入后统一分类（可选）</label><select id="imp-kind"><option value="">保持未分类</option><option value="api">api（API Key）</option></select>' +
-    '<div class="hint" style="margin-top:4px">web 类型需要逐个指定 origin，因此不能批量导入分类。</div>' +
-    '<div class="row" style="margin-top:12px"><button class="primary" id="imp-go">开始导入</button></div><div class="status" id="imp-status"></div>')
+    'Fields per entry: <code>name</code> (required), <code>value</code>, <code>username</code>, <code>url</code>, <code>notes</code>, <code>totp</code>, <code>group</code>, <code>noApproval</code>.</div>' +
+    '<div class="hint" style="margin-top:10px;color:var(--danger)">Not one of these formats? Bitwarden encrypted JSON, CSV exports and 1Password/KeePass exports must be converted first; they can’t be mapped directly.</div>' +
+    '<label class="field">Classify all after import (optional)</label><select id="imp-kind"><option value="">Keep unclassified</option><option value="api">api (API Key)</option></select>' +
+    '<div class="hint" style="margin-top:4px">The web type needs an origin set per item, so it can’t be applied in bulk on import.</div>' +
+    '<div class="row" style="margin-top:12px"><button class="primary" id="imp-go">Start import</button></div><div class="status" id="imp-status"></div>')
   $('imp-go').onclick = async () => {
     try {
-      status('imp-status', '读取文件…')
+      status('imp-status', 'Reading file…')
       const parsed = JSON.parse(await file.text())
       const items = Array.isArray(parsed) ? parsed : parsed.items
-      if (!Array.isArray(items)) throw new Error('JSON 需要是 [{name,value,…}] 或 {items:[…]}')
+      if (!Array.isArray(items)) throw new Error('JSON must be [{name,value,…}] or {items:[…]}')
       const kind = $('imp-kind').value
-      status('imp-status', '导入 ' + items.length + ' 条…')
+      status('imp-status', 'Importing ' + items.length + ' entries…')
       const result = await api('/api/items/import', { method: 'POST', body: JSON.stringify({ items }) })
       let classified = 0
       if (kind === 'api') {
@@ -5416,9 +5416,9 @@ function openImportDialog(file) {
         }
       }
       show('modal', false); await Promise.all([loadItems(), loadState()])
-      toast('导入完成：新增 ' + (result.created?.length || 0) + '，跳过 ' + (result.skipped?.length || 0) + (classified ? '，已分类 ' + classified : ''))
+      toast('Import done: added ' + (result.created?.length || 0) + ', skipped ' + (result.skipped?.length || 0) + (classified ? ', classified ' + classified : ''))
       if (result.skipped?.length) console.warn('import skipped', result.skipped)
-    } catch (error) { status('imp-status', '导入失败：' + error.message, 'error') }
+    } catch (error) { status('imp-status', 'Import failed: ' + error.message, 'error') }
   }
 }
 function openBulkShare() {
@@ -5430,22 +5430,22 @@ function openBulkShare() {
     const checked = single ? (app.data.grants || []).some((grant) => !grant.revokedAt && grant.agent === agent.name && grant.name === names[0]) : names.every((name) => (app.data.grants || []).some((grant) => !grant.revokedAt && grant.agent === agent.name && grant.name === name))
     return '<label class="chk" style="display:flex;width:100%"><input type="checkbox" class="bulk-agent" value="' + esc(agent.name) + '" ' + (checked ? 'checked' : '') + '> ' + esc(agent.alias || agent.name) + (agent.oauth ? ' <span class="pill">OAuth</span>' : '') + '</label>'
   }).join('')
-  openModal('批量分享 / 同步（' + names.length + ' 个条目）', '<div class="hint">勾选的 Agent 会获得这些条目；勾选“取消未勾选分享”后，未勾选 Agent 的现有分享会被撤销。</div><div style="max-height:220px;overflow:auto;margin-top:8px">' + (boxes || '<div class="hint">没有 Agent</div>') + '</div><label class="field">跨账户目标文件夹（跨账户时必填）</label><input id="bulk-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="bulk-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="bulk-reads" type="number" min="1"><label class="chk"><input type="checkbox" id="bulk-scope" checked> 同时把这些条目加入 Agent 的可申请范围</label><div class="hint" style="margin:2px 0 0 22px">分享本身只产生一次「授权」。Agent 还要在范围内才看得到这个条目，所以默认一起勾上；取消勾选就只授权、不改范围。</div><label class="chk"><input type="checkbox" id="bulk-revoke" ' + (single ? 'checked' : '') + '> 取消未勾选 Agent 的分享</label><div class="row" style="margin-top:12px"><button class="primary" id="bulk-confirm">确定</button></div>')
+  openModal('Bulk share / sync (' + names.length + ' selected)', '<div class="hint">Each checked Agent gets these items. With “Unshare from any unchecked Agent” on, unchecked ones lose their existing shares.</div><div style="max-height:220px;overflow:auto;margin-top:8px">' + (boxes || '<div class="hint">No Agent configured</div>') + '</div><label class="field">Cross-account target folder (required for cross-account)</label><input id="bulk-folder" placeholder="e.g. Notes"><label class="field">Duration</label><select id="bulk-seconds"><option value="3600">1 hour</option><option value="86400">24 hours</option><option value="604800">7 days</option><option value="2592000">30 days</option><option value="0">Permanent</option></select><label class="field">Max reads (blank for unlimited)</label><input id="bulk-reads" type="number" min="1"><label class="chk"><input type="checkbox" id="bulk-scope" checked> Also add these items to each Agent’s requestable scope</label><div class="hint" style="margin:2px 0 0 22px">Sharing by itself only creates a “grant”. The Agent also needs the item in scope to see it, so this is checked by default; uncheck it to grant without changing scope.</div><label class="chk"><input type="checkbox" id="bulk-revoke" ' + (single ? 'checked' : '') + '> Unshare from any unchecked Agent</label><div class="row" style="margin-top:12px"><button class="primary" id="bulk-confirm">Confirm</button></div>')
   $('bulk-confirm').onclick = async () => {
     const agentsSelected = [...document.querySelectorAll('.bulk-agent:checked')].map((box) => box.value)
     try {
       const result = await api('/api/grants/sync', { method: 'POST', body: JSON.stringify({ items: names, agents: agentsSelected, seconds: Number($('bulk-seconds').value), maxReads: $('bulk-reads').value || null, targetFolder: $('bulk-folder').value.trim(), revokeUnselected: $('bulk-revoke').checked, addToScope: $('bulk-scope').checked }) })
       show('modal', false); selectedItems.clear(); await Promise.all([loadState(), loadItems()])
-      toast('分享 ' + (result.granted?.length || 0) + '，转移 ' + (result.queued?.length || 0) + '，取消 ' + (result.revoked?.length || 0) + (result.errors?.length ? '，失败 ' + result.errors.length : ''))
+      toast('Shared ' + (result.granted?.length || 0) + ', queued for transfer ' + (result.queued?.length || 0) + ', revoked ' + (result.revoked?.length || 0) + (result.errors?.length ? ', failed ' + result.errors.length : ''))
     } catch (error) { toast(error.message, true) }
   }
 }
 async function bulkDelete() {
   const names = [...selectedItems]
   if (!names.length) return
-  if (!(await askYes('删除选中的 ' + names.length + ' 个条目？'))) return
+  if (!(await askYes('Delete the ' + names.length + ' selected items?'))) return
   // A failed delete used to vanish: the loop swallowed the error, the toast said
-  // "已删除 N 个条目" even when none were, and the rows were gone on the next
+  // "Deleted N items" even when none were, and the rows were gone on the next
   // render only because the reload overwrote them. Report what actually stuck.
   let deleted = 0
   const failed = []
@@ -5453,30 +5453,30 @@ async function bulkDelete() {
   // looked stuck. The bar now counts out loud, and every failure is named at
   // the end instead of disappearing into a silent continue.
   const progress = $('bulk-progress')
-  const report = (index) => { if (progress) progress.textContent = '已处理 ' + index + '/' + names.length + (failed.length ? ' · 失败 ' + failed.length : '') }
-  if (progress) progress.textContent = '已处理 0/' + names.length
+  const report = (index) => { if (progress) progress.textContent = 'Processed ' + index + '/' + names.length + (failed.length ? ' · failed ' + failed.length : '') }
+  if (progress) progress.textContent = 'Processed 0/' + names.length
   for (let index = 0; index < names.length; index++) {
     const name = names[index]
     try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name }) }); deleted++ } catch { failed.push(name) }
     report(index + 1)
   }
-  if (failed.length && progress) progress.textContent = '已处理 ' + names.length + '/' + names.length + ' · 失败：' + failed.join('、')
+  if (failed.length && progress) progress.textContent = 'Processed ' + names.length + '/' + names.length + ' · failed: ' + failed.join(', ')
   selectedItems.clear(); await Promise.all([loadItems(), loadState()])
-  // The bar hides as soon as the selection clears, so the last "已处理 N/N"
+  // The bar hides as soon as the selection clears, so the last "Processed N/N"
   // frame would never paint. The count rides along with the final message,
   // which stays readable in the item status line.
   const done = names.length + '/' + names.length
-  if (failed.length) toast('已处理 ' + done + '，删除 ' + deleted + ' 个，' + failed.length + ' 个没删掉：' + failed.slice(0, 3).join('、') + (failed.length > 3 ? ' 等' : ''), true)
-  else toast('已处理 ' + done + '，删除 ' + deleted + ' 个条目')
+  if (failed.length) toast('Processed ' + done + ', deleted ' + deleted + ', failed to delete ' + failed.length + ': ' + failed.slice(0, 3).join(', ') + (failed.length > 3 ? ' and more' : ''), true)
+  else toast('Processed ' + done + ', deleted ' + deleted + '')
 }
 async function exportItems() {
   // The file holds every password in the vault, so the server asks for a code.
   // Ask here too, rather than letting the click fail with a 428.
-  const code = await askCode('导出文件包含全部明文。请输入验证器上的 6 位验证码。', { label: '导出验证码' })
+  const code = await askCode('The export contains all plaintext. Enter the 6-digit code from your authenticator app.', { label: 'Export code' })
   if (!code) return
   try {
-    const data = await api('/api/items/export', { method: 'POST', body: JSON.stringify({ code }) }); const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'secrets-export-' + new Date().toISOString().slice(0, 10) + '.json'; link.click(); URL.revokeObjectURL(link.href); toast('已导出（包含明文，请妥善保存）')
-  } catch (error) { toast(error.status === 428 ? '先在「设置 → 安全」启用两步验证，导出才可用' : error.message, true) }
+    const data = await api('/api/items/export', { method: 'POST', body: JSON.stringify({ code }) }); const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'secrets-export-' + new Date().toISOString().slice(0, 10) + '.json'; link.click(); URL.revokeObjectURL(link.href); toast('Exported (contains plaintext; keep it safe)')
+  } catch (error) { toast(error.status === 428 ? 'Export needs two-factor authentication. Turn it on in “Settings → Security” first' : error.message, true) }
 }
 function openModal(title, body) { const card = document.querySelector('#modal > .card'); if (card) card.classList.remove('pm-wide'); $('modal-title').textContent = title; $('modal-body').innerHTML = body; show('modal', true) }
 function uaLabel(ua) {
@@ -5485,29 +5485,29 @@ function uaLabel(ua) {
   const os = /Windows NT 10/.test(text) ? 'Windows' : /Mac OS X/.test(text) ? 'macOS' : /Android/.test(text) ? 'Android' : /iPhone|iPad/.test(text) ? 'iOS' : /Linux/.test(text) ? 'Linux' : ''
   return browser + (os ? ' · ' + os : '')
 }
-function agentLabel(name) { const agent = (app.data.agents || []).find((entry) => entry.name === name); return agent?.alias || agent?.name || name || '系统' }
+function agentLabel(name) { const agent = (app.data.agents || []).find((entry) => entry.name === name); return agent?.alias || agent?.name || name || 'System' }
 function describeEvent(entry) {
   const map = {
-    'secret.read': '读取密钥', 'secret.read-noapproval': '⚠ 免审批直接读取（跳过所有检查）',
-    'access.denied': '⚠ 被拦下的读取请求', 'secret.read-deny': '拒绝读取明文',
-    'grant.share': '分享授权', 'grant.approve': '批准授权', 'grant.revoke': '撤销授权',
-    'transfer.complete': '跨账户复制完成', 'item.create': '创建条目', 'item.update': '修改条目',
-    'vault.unlock': '解锁', 'secret.use': '代持请求', 'secret.fill': '网页填充',
-    'use-policy.update': '修改使用策略', 'fill-policy.update': '修改分类',
-    'item.rotate': '轮换密钥', 'item.rotate.restore': '恢复旧值', 'item.rotate.purge': '清除旧值备份',
-    'item.expiry.update': '修改到期时间', 'audit.export': '导出审计日志',
+    'secret.read': 'Secret read', 'secret.read-noapproval': '⚠ Read without approval (all checks skipped)',
+    'access.denied': '⚠ Read request blocked', 'secret.read-deny': 'Plaintext read denied',
+    'grant.share': 'Grant shared', 'grant.approve': 'Grant approved', 'grant.revoke': 'Grant revoked',
+    'transfer.complete': 'Cross-account copy completed', 'item.create': 'Item created', 'item.update': 'Item updated',
+    'vault.unlock': 'Vault unlocked', 'secret.use': 'Proxied call', 'secret.fill': 'Web fill',
+    'use-policy.update': 'Use policy changed', 'fill-policy.update': 'Type changed',
+    'item.rotate': 'Secret rotated', 'item.rotate.restore': 'Old value restored', 'item.rotate.purge': 'Old value backup purged',
+    'item.expiry.update': 'Expiry changed', 'audit.export': 'Audit log exported',
   }
   return map[entry.event] || entry.event || ''
 }
 function itemInfoHtml(item, history = null) {
   // Sharing arrives in two shapes: capabilities (agentActions) and legacy grant
   // rows. The list above counts both, so this panel must too — otherwise the
-  // row said "3 个 Agent 可用" while this card said "当前没有分享".
+  // row said "shared with 3 Agents" while this card said "Not shared with any Agent".
   const legacy = (app.data.grants || []).filter((grant) => grant.name === item.name)
   const caps = ((app.data.agentActions || [])).filter((entry) => entry.action === 'secret.read' && entry.itemName === item.name && entry.usesLeft !== 0 && liveRight(entry))
   const holders = new Map()
-  for (const grant of legacy) holders.set(grant.agent, { agent: grant.agent, mode: grant.mode || '授权', reads: grant.reads || 0, max: grant.maxReads, expiresAt: grant.expiresAt, legacy: true })
-  for (const cap of caps) if (!holders.has(cap.agent)) holders.set(cap.agent, { agent: cap.agent, mode: '能力', reads: cap.usedCount ?? 0, max: cap.maxUses, expiresAt: cap.expiresAt, legacy: false })
+  for (const grant of legacy) holders.set(grant.agent, { agent: grant.agent, mode: grant.mode || 'Grant', reads: grant.reads || 0, max: grant.maxReads, expiresAt: grant.expiresAt, legacy: true })
+  for (const cap of caps) if (!holders.has(cap.agent)) holders.set(cap.agent, { agent: cap.agent, mode: 'Capability', reads: cap.usedCount ?? 0, max: cap.maxUses, expiresAt: cap.expiresAt, legacy: false })
   // Usage and refusals answer "what happened to this item", so they read the
   // full trail for the item rather than the 20-row state slice. The caller
   // fetches that history once and passes it in.
@@ -5518,24 +5518,24 @@ function itemInfoHtml(item, history = null) {
   // They are a separate list: a refusal is not usage, and showing them mixed in
   // would make a working credential look broken.
   const denied = trail.filter((entry) => entry.name === item.name && ['access.denied', 'secret.read-deny'].includes(entry.event)).slice(0, 6)
-  const durationLabel = (grant) => { if (!grant.expiresAt) return '永久'; const ms = grant.expiresAt - Date.now(); if (ms <= 0) return '已过期'; const days = Math.ceil(ms / 86400000); return days <= 1 ? Math.max(1, Math.ceil(ms / 3600000)) + ' 小时' : days + ' 天' }
-  const grantRows = holders.size ? [...holders.values()].map((grant) => '<div class="ios-field"><label>' + esc(agentLabel(grant.agent)) + '<small>' + esc(grant.mode) + ' · 已读 ' + grant.reads + '/' + (grant.max || '∞') + '</small></label>' + (grant.legacy
-    ? '<button class="ios-pill plain" data-item-grant data-agent="' + esc(grant.agent) + '" data-name="' + esc(item.name) + '" title="点击修改时长和读取次数">' + esc(durationLabel(grant)) + '</button>'
-    : '<span class="ios-pill plain">' + esc(durationLabel(grant)) + '</span>') + '</div>').join('') : '<div class="ios-field"><label>当前没有分享给 Agent</label></div>'
-  const usageRows = usage.length ? usage.map((entry) => '<div class="ios-row ios-row--log"><div class="ios-main"><div class="ios-log-text">' + esc(describeEvent(entry)) + '</div><div class="ios-sub">' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + ' · ' + esc(agentLabel(entry.agent)) + (entry.mode || entry.source ? ' · ' + esc(entry.mode || entry.source) : '') + '</div></div></div>').join('') : '<div class="ios-field"><label>暂无使用记录</label></div>'
-  const deniedRows = denied.length ? denied.map((entry) => '<div class="ios-row ios-row--log"><div class="ios-main"><div class="ios-log-text">' + esc(describeEvent(entry)) + '</div><div class="ios-sub">' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + ' · ' + esc(agentLabel(entry.agent)) + '</div></div></div>').join('') : '<div class="ios-field"><label>没有被拒记录</label></div>'
-  return '<div class="card read-card"><div class="ios-head"><h2 style="margin:0">分享情况</h2><button class="ios-pill plain" id="mi-share-sync">分享 / 同步</button></div><div class="hint">创建：' + esc(item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + ' · 创建人：' + esc(item.creator || '-') + '</div>' + grantRows + '<h2 style="margin-top:var(--sp-4)">最近使用</h2>' + usageRows + '<h2 style="margin-top:var(--sp-4)">被拒尝试</h2><div class="hint">只记录时间与 Agent，不保存请求内容。</div>' + deniedRows + '</div>'
+  const durationLabel = (grant) => { if (!grant.expiresAt) return 'Permanent'; const ms = grant.expiresAt - Date.now(); if (ms <= 0) return 'Expired'; const days = Math.ceil(ms / 86400000); return days <= 1 ? Math.max(1, Math.ceil(ms / 3600000)) + ' h' : days + ' days' }
+  const grantRows = holders.size ? [...holders.values()].map((grant) => '<div class="ios-field"><label>' + esc(agentLabel(grant.agent)) + '<small>' + esc(grant.mode) + ' · reads ' + grant.reads + '/' + (grant.max || '∞') + '</small></label>' + (grant.legacy
+    ? '<button class="ios-pill plain" data-item-grant data-agent="' + esc(grant.agent) + '" data-name="' + esc(item.name) + '" title="Click to change duration and read limit">' + esc(durationLabel(grant)) + '</button>'
+    : '<span class="ios-pill plain">' + esc(durationLabel(grant)) + '</span>') + '</div>').join('') : '<div class="ios-field"><label>Not shared with any Agent</label></div>'
+  const usageRows = usage.length ? usage.map((entry) => '<div class="ios-row ios-row--log"><div class="ios-main"><div class="ios-log-text">' + esc(describeEvent(entry)) + '</div><div class="ios-sub">' + esc(entry.time ? new Date(entry.time).toLocaleString('en-GB', { hour12: false }) : '') + ' · ' + esc(agentLabel(entry.agent)) + (entry.mode || entry.source ? ' · ' + esc(entry.mode || entry.source) : '') + '</div></div></div>').join('') : '<div class="ios-field"><label>No usage yet</label></div>'
+  const deniedRows = denied.length ? denied.map((entry) => '<div class="ios-row ios-row--log"><div class="ios-main"><div class="ios-log-text">' + esc(describeEvent(entry)) + '</div><div class="ios-sub">' + esc(entry.time ? new Date(entry.time).toLocaleString('en-GB', { hour12: false }) : '') + ' · ' + esc(agentLabel(entry.agent)) + '</div></div></div>').join('') : '<div class="ios-field"><label>No denied attempts</label></div>'
+  return '<div class="card read-card"><div class="ios-head"><h2 style="margin:0">Sharing</h2><button class="ios-pill plain" id="mi-share-sync">Share / sync</button></div><div class="hint">Created: ' + esc(item.createdAt ? new Date(item.createdAt).toLocaleString('en-GB', { hour12: false }) : '-') + ' · Created by: ' + esc(item.creator || '-') + '</div>' + grantRows + '<h2 style="margin-top:var(--sp-4)">Recent use</h2>' + usageRows + '<h2 style="margin-top:var(--sp-4)">Denied attempts</h2><div class="hint">Only the time and Agent are logged, not the request content.</div>' + deniedRows + '</div>'
 }
 // The expiry field of the edit dialog. A secret without an expiry shows an
 // empty date, and an empty date on save means no expiry.
 
 function expiresField(item) {
   const stamp = item && item.expiresAt ? new Date(item.expiresAt).toISOString().slice(0, 10) : ''
-  return '<label class="field">有效期（留空表示不过期）</label><input id="mi-expires" type="date" value="' + esc(stamp) + '">'
+  return '<label class="field">Expiry date (leave empty for no expiry)</label><input id="mi-expires" type="date" value="' + esc(stamp) + '">'
 }
 
 // ── Edit-mode dirty tracking ────────────────────────────────────────────────
-// 编辑 only reveals the inputs; 完成 used to hide them again without saving
+// Edit only reveals the inputs; Done used to hide them again without saving
 // anything, so every keystroke was thrown away in silence. The page now
 // snapshots the form on entry, diffs it on input/change, and asks before any
 // exit that would drop the difference.
@@ -5561,7 +5561,7 @@ function setDirty(dirty) {
   if (page) page.dataset.dirty = editor.dirty ? 'true' : 'false'
   const strip = $('item-page-state')
   if (strip) {
-    const text = editor.editing ? (editor.dirty ? '有未保存的修改 · 保存或放弃后才会写入服务器' : '还没有改动') : ''
+    const text = editor.editing ? (editor.dirty ? 'Unsaved changes · nothing reaches the server until you save' : 'No changes yet') : ''
     // Only rewrite when the state actually flipped: a keystroke-by-keystroke
     // assignment would make the live region announce the same line forever.
     if (strip.textContent !== text) strip.textContent = text
@@ -5569,15 +5569,15 @@ function setDirty(dirty) {
   }
   const save = $('mi-save')
   if (save) {
-    save.setAttribute('aria-label', editor.dirty ? '保存修改（有未保存的修改）' : '保存修改（无改动）')
-    save.title = editor.dirty ? '有未保存的修改，点这里写入服务器' : '无改动'
+    save.setAttribute('aria-label', editor.dirty ? 'Save changes (unsaved changes)' : 'Save changes (no changes)')
+    save.title = editor.dirty ? 'Unsaved changes. Click to save them to the server' : 'No changes'
   }
 }
 function syncDirty() { if (editor.editing) setDirty(formChanged()) }
 function enterEditMode() {
   editor.editing = true
   $('item-page').dataset.editing = 'true'
-  $('item-page-edit').textContent = '完成'
+  $('item-page-edit').textContent = 'Done'
   editor.snapshot = snapshotFields()
   setDirty(false)
   // Jumping to the bottom of a long page hid the field you just asked to edit.
@@ -5591,7 +5591,7 @@ function exitEditMode() {
   const page = $('item-page')
   if (page) page.dataset.editing = 'false'
   const edit = $('item-page-edit')
-  if (edit) edit.textContent = '编辑'
+  if (edit) edit.textContent = 'Edit'
   setDirty(false)
 }
 // True means "carry on with the exit"; false means "the operator chose to
@@ -5599,7 +5599,7 @@ function exitEditMode() {
 function confirmDiscard() {
   if (!editor.dirty) return Promise.resolve(true)
   if (leaveAsk) return Promise.resolve(false)
-  leaveAsk = askYes('有未保存的修改，离开会丢掉这些改动。', { yes: '放弃修改', no: '继续编辑' })
+  leaveAsk = askYes('You have unsaved changes. Leaving will discard them.', { yes: 'Discard changes', no: 'Keep editing' })
   return leaveAsk.then((ok) => { leaveAsk = null; return ok })
 }
 async function requestCloseItemPage() {
@@ -5608,7 +5608,7 @@ async function requestCloseItemPage() {
 }
 async function toggleEditMode() {
   if (!editor.editing) return enterEditMode()
-  // 完成 hides the inputs without saving, so leaving the form with edits is the
+  // Done hides the inputs without saving, so leaving the form with edits is the
   // same loss as leaving the page and gets the same question.
   if (!(await confirmDiscard())) return
   if (editor.dirty) restoreSnapshot()
@@ -5682,49 +5682,49 @@ async function revealItemSecret(item) {
   let security
   try { security = await api('/api/security') } catch (error) { return toast(error.message, true) }
   if (!security.totpEnabled) {
-    openModal('看明文需要两步验证',
-      '<p class="hint">明文读取要过 6 位验证码。当前账户还没启用两步验证，先在「设置 → 安全」里生成密钥、用验证器扫一次。</p>' +
-      '<div class="row"><button class="primary" id="rv-enrol" type="button">去设置里注册</button></div>')
+    openModal('Plaintext requires two-factor authentication',
+      '<p class="hint">Reading plaintext requires a 6-digit code, and this account has no two-factor authentication yet. In “Settings → Security”, generate a secret and scan it once with your authenticator app.</p>' +
+      '<div class="row"><button class="primary" id="rv-enrol" type="button">Set up in Settings</button></div>')
     $('rv-enrol').onclick = () => {
       show('modal', false)
       const tab = document.querySelector('#nav [data-view=profile]')
       if (tab) tab.click()
       const box = $('totp-setup-box')
       if (box) box.scrollIntoView({ block: 'center' })
-      toast('点「生成密钥」，再用验证器扫二维码')
+      toast('Click “Generate/regenerate key”, then scan the QR code with your authenticator app')
     }
     return
   }
-  openModal('查看 ' + item.name,
-    '<label class="field">两步验证码</label>' +
+  openModal('View ' + item.name,
+    '<label class="field">Two-factor code</label>' +
     '<input id="rv-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">' +
-    '<div class="hint" id="rv-status">6 位数字，30 秒一换</div>' +
-    '<div class="row"><button class="primary" id="rv-go" type="button">查看明文</button></div>')
+    '<div class="hint" id="rv-status">6 digits, changes every 30 seconds</div>' +
+    '<div class="row"><button class="primary" id="rv-go" type="button">View plaintext</button></div>')
   $('rv-code').focus()
   // One press, one request: the button used to stay live so a double click or
   // a slow verify fired twice, and a failure left the typed code in place with
   // no hint that the code, not the network, was the problem.
   const submit = async () => {
     const code = $('rv-code').value.replace(/\s+/g, '')
-    if (!/^\d{6}$/.test(code)) { status('rv-status', '请输入 6 位数字', 'error'); $('rv-code').focus(); return }
+    if (!/^\d{6}$/.test(code)) { status('rv-status', 'Enter the 6-digit code', 'error'); $('rv-code').focus(); return }
     const go = $('rv-go')
     if (!go) return
     go.disabled = true
     go.setAttribute('aria-busy', 'true')
-    go.textContent = '验证中…'
+    go.textContent = 'Verifying…'
     try {
       const data = await api('/api/secret/reveal', { method: 'POST', body: JSON.stringify({ name: item.name, code }) })
-      $('modal-body').innerHTML = '<div class="kv"><span>用户名</span><b>' + esc(data.username || '未设置') + '</b></div>' +
-        '<div class="kv"><span>密钥</span><b><code>' + esc(data.value || '') + '</code></b></div>' +
-        (data.totp ? '<div class="kv"><span>验证码</span><b><code>' + esc(data.totp) + '</code></b></div>' : '') +
-        '<div class="row"><button class="primary" id="rv-copy" type="button">复制密钥</button></div>'
+      $('modal-body').innerHTML = '<div class="kv"><span>Username</span><b>' + esc(data.username || 'Not set') + '</b></div>' +
+        '<div class="kv"><span>Secret</span><b><code>' + esc(data.value || '') + '</code></b></div>' +
+        (data.totp ? '<div class="kv"><span>Code</span><b><code>' + esc(data.totp) + '</code></b></div>' : '') +
+        '<div class="row"><button class="primary" id="rv-copy" type="button">Copy secret</button></div>'
       $('rv-copy').onclick = async () => {
-        try { await navigator.clipboard.writeText(data.value || ''); toast('已复制') } catch { toast('复制失败，请手动选择密钥文本', true) }
+        try { await navigator.clipboard.writeText(data.value || ''); toast('Copied') } catch { toast('Copy failed. Select the secret text manually', true) }
       }
     } catch (error) {
       go.disabled = false
       go.removeAttribute('aria-busy')
-      go.textContent = '查看明文'
+      go.textContent = 'View plaintext'
       status('rv-status', error.message, 'error')
       const input = $('rv-code')
       if (input) { input.focus(); input.select() }
@@ -5736,32 +5736,32 @@ async function revealItemSecret(item) {
 async function openItemMenu(name) {
   const item = app.items.find((entry) => entry.name === name); if (!item) return
   const agents = app.data.agents || []
-  // One fetch for the item's full trail feeds both 最近使用 and 被拒尝试.
+  // One fetch for the item's full trail feeds both Recent use and Denied attempts.
   let history = (app.data.audit || []).filter((entry) => entry.name === name)
   try { const data = await auditPage({ item: name, limit: 30 }); history = data.entries || history } catch {}
-  openItemPage(name, itemInfoHtml(item, history) + '<div class="card read-card"><h2>凭据</h2>' +
-        '<div class="kv"><span>用户名</span><b>' + esc(item.username || '未设置') + '</b></div>' +
-    '<div class="kv"><span>密钥</span><b><button class="ios-pill plain" id="item-reveal" type="button">查看</button></b></div>' +
-    '<div class="kv"><span>网址</span><b>' + (item.url ? '<a href="' + esc(item.url) + '" target="_blank" rel="noreferrer">' + esc(item.url) + '</a>' : '未设置') + '</b></div>' +
-    '<div class="kv"><span>分组</span><b>' + esc(item.group || '未分组') + '</b></div>' +
-    '<div class="kv"><span>有效期</span><b>' + expiryLabel(item.expiresAt) + '</b></div>' +
-    '<div class="kv"><span>上次轮换</span><b>' + (item.lastRotatedAt ? relativeTime(Date.parse(item.lastRotatedAt)) + (item.rotatedBy ? ' · ' + esc(item.rotatedBy) : '') : '无记录') + '</b></div>' +
-    (item.backupUntil ? '<div class="kv"><span>旧值备份</span><b>保留至 ' + new Date(item.backupUntil).toLocaleString('zh-CN', { hour12: false }) + ' <button class="small" id="mi-restore" type="button">恢复旧值</button> <button class="small danger" id="mi-purge" type="button" title="立即清除旧值备份，不可恢复">清除备份</button></b></div>' : '') +
+  openItemPage(name, itemInfoHtml(item, history) + '<div class="card read-card"><h2>Credential</h2>' +
+        '<div class="kv"><span>Username</span><b>' + esc(item.username || 'Not set') + '</b></div>' +
+    '<div class="kv"><span>Secret</span><b><button class="ios-pill plain" id="item-reveal" type="button">View</button></b></div>' +
+    '<div class="kv"><span>URL</span><b>' + (item.url ? '<a href="' + esc(item.url) + '" target="_blank" rel="noreferrer">' + esc(item.url) + '</a>' : 'Not set') + '</b></div>' +
+    '<div class="kv"><span>Group</span><b>' + esc(item.group || 'Ungrouped') + '</b></div>' +
+    '<div class="kv"><span>Expires</span><b>' + expiryLabel(item.expiresAt) + '</b></div>' +
+    '<div class="kv"><span>Last rotated</span><b>' + (item.lastRotatedAt ? relativeTime(Date.parse(item.lastRotatedAt)) + (item.rotatedBy ? ' · ' + esc(item.rotatedBy) : '') : 'Never') + '</b></div>' +
+    (item.backupUntil ? '<div class="kv"><span>Old value backup</span><b>Kept until ' + new Date(item.backupUntil).toLocaleString('en-GB', { hour12: false }) + ' <button class="small" id="mi-restore" type="button">Restore old value</button> <button class="small danger" id="mi-purge" type="button" title="Purge the old value backup now. This cannot be undone">Purge backup</button></b></div>' : '') +
     '</div>' +
-    fillEditorHtml(item) + '<div class="card edit-only"><label class="field">名称</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">用户名（留空不改）</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret（留空不改）</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">分组</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="例如 blog/prod"><label class="field">网址</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">备注（留空不改）</label><input id="mi-notes" placeholder="新的备注"><label class="field">新密钥值（留空不改；填写即轮换并记录 item.rotate）</label><input id="mi-value" type="password" placeholder="留空保留原值"><label class="field">轮换时保留旧值</label><select id="mi-keepold"><option value="0" selected>不保留（默认，最安全）</option><option value="7">7 天（可回滚）</option><option value="14">14 天（可回滚）</option><option value="30">30 天（可回滚）</option></select><div class="hint">开启后服务端只保存旧的<strong>密文行</strong>，不存明文；窗口内可一键恢复，窗口结束自动丢弃。保留越久，被撤销/泄露旧密钥仍可被取回的风险越久。</div><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> 免审批（自动读取，仍记录）</label><div class="row editor-zone" style="margin-top:14px"><button class="primary" id="mi-save" aria-label="保存修改（无改动）">保存修改</button><button id="mi-discard" aria-label="放弃修改，恢复进入编辑时的值">放弃</button><button id="mi-share">分享 / 跨账户复制</button></div></div><div class="card edit-only danger-zone" role="group" aria-label="删除条目"><div class="danger-zone__text"><b>删除这个条目</b><span class="hint">删除后无法恢复，正在使用它的 Agent 会立刻失去访问。</span></div><button class="danger" id="mi-delete">删除</button></div><div class="card edit-only share-zone"><div class="hint">分享给 Agent（同账户直接授权；跨账户会先复制到目标账户文件夹，切回目标账户解锁后自动完成）</div><label class="field">分享给（可多选）</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">跨账户目标文件夹（同账户可留空）</label><input id="mi-share-folder" placeholder="例如 笔记"><label class="field">时长</label><select id="mi-share-seconds"><option value="3600">1 小时</option><option value="86400">24 小时</option><option value="604800">7 天</option><option value="2592000">30 天</option><option value="0">永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
+    fillEditorHtml(item) + '<div class="card edit-only"><label class="field">Name</label><input id="mi-name" value="' + esc(item.name) + '"><label class="field">Username (leave empty to keep)</label><input id="mi-username" value="' + esc(item.username || '') + '"><label class="field">TOTP Secret (leave empty to keep)</label><input id="mi-totp" value="' + esc(item.totp || '') + '"><label class="field">Group</label><input id="mi-group" value="' + esc(item.group || '') + '" placeholder="e.g. blog/prod"><label class="field">URL</label><input id="mi-url" value="' + esc(item.url || '') + '"><label class="field">Notes (leave empty to keep)</label><input id="mi-notes" placeholder="New notes"><label class="field">New secret value (leave empty to keep; filling it in rotates the secret and logs item.rotate)</label><input id="mi-value" type="password" placeholder="Leave empty to keep the current value"><label class="field">Keep old value on rotation</label><select id="mi-keepold"><option value="0" selected>Don’t keep (default, safest)</option><option value="7">7 days (can roll back)</option><option value="14">14 days (can roll back)</option><option value="30">30 days (can roll back)</option></select><div class="hint">When on, the server keeps only the old <strong>encrypted row</strong>, never the plaintext. You can restore it in one click during the window, and it is discarded when the window ends. The longer you keep it, the longer a revoked or leaked old secret can still be recovered.</div><label class="chk" style="margin-top:8px"><input type="checkbox" id="mi-noapproval" ' + (item.noApproval ? 'checked' : '') + '> No approval needed (reads automatically, still logged)</label><div class="row editor-zone" style="margin-top:14px"><button class="primary" id="mi-save" aria-label="Save changes (no changes)">Save changes</button><button id="mi-discard" aria-label="Discard changes and restore the values from when editing began">Discard</button><button id="mi-share">Share / cross-account copy</button></div></div><div class="card edit-only danger-zone" role="group" aria-label="Delete item"><div class="danger-zone__text"><b>Delete this item</b><span class="hint">This cannot be undone. Any Agent using it loses access immediately.</span></div><button class="danger" id="mi-delete">Delete</button></div><div class="card edit-only share-zone"><div class="hint">Agent sharing (same account: granted directly; cross-account: first copied to a folder in the target account, then completed automatically once you switch to that account and unlock)</div><label class="field">Share with (select one or more)</label><div class="pick-list">' + agents.map((agent) => '<label class="pick-row"><input type="checkbox" class="ios-check" data-share-agent value="' + esc(agent.name) + '"><span>' + esc(agentDisplayName(agent)) + '</span></label>').join('') + '</div><label class="field">Cross-account target folder (leave empty for the same account)</label><input id="mi-share-folder" placeholder="e.g. Notes"><label class="field">Duration</label><select id="mi-share-seconds"><option value="3600">1 hour</option><option value="86400">24 hours</option><option value="604800">7 days</option><option value="2592000">30 days</option><option value="0">Permanent</option></select><label class="field">Max reads (leave empty for no limit)</label><input id="mi-share-reads" type="number" min="1"></div>' + expiresField(item) + '</div>')
   // Purging is the one irreversible action on a backup, so it asks for the
   // second factor rather than a click-through confirm; the warning is in the
   // prompt itself because the button alone cannot carry it.
   if ($('mi-purge')) $('mi-purge').onclick = async () => {
-    if (!await askConfirm('清除旧值备份（清除后不可恢复，也不会保留恢复窗口）')) return
+    if (!await askConfirm('Purge the old value backup? It cannot be recovered, and the restore window ends.')) return
     await api('/api/items/rotate/purge', { method: 'POST', body: JSON.stringify({ itemId: item.id }) })
-    toast('旧值备份已清除')
+    toast('Old value backup purged')
     openItem(decodeURIComponent(name))
   }
   $('item-reveal').onclick = () => revealItemSecret(item)
-  // 分享 / 同步 leaves the detail for another screen, so it is an exit too.
+  // Share / sync leaves the detail for another screen, so it is an exit too.
   $('mi-share-sync').onclick = async () => { if (!(await confirmDiscard())) return; closeItemPage(); selectedItems.clear(); selectedItems.add(item.name); openBulkShare() }
-  // 放弃 restores the snapshot and closes the form without a second question:
+  // Discard restores the snapshot and closes the form without a second question:
   // answering it was the point of the button.
   $('mi-discard').onclick = () => { restoreSnapshot(); exitEditMode(); $('item-page-edit').focus() }
   // Only a changed policy needs the extra proof; ordinary edits do not.
@@ -5778,33 +5778,33 @@ async function openItemMenu(name) {
         const keepOldDays = Number($('mi-keepold')?.value || 0)
         const body = { ...payload, keepOldDays }
         const result = policyChanged
-          ? await sensitivePost('/api/items/rotate', body, '轮换密钥并修改免审批策略')
+          ? await sensitivePost('/api/items/rotate', body, 'Rotate secret and change approval policy')
           : await api('/api/items/rotate', { method: 'POST', body: JSON.stringify(body) })
         closeItemPage()
         await Promise.all([loadItems(), loadState()])
-        toast('已轮换' + (result.backup ? '，旧值保留 ' + keepOldDays + ' 天' : '') + (result.backupUnavailable ? '；旧值备份未创建（当前存储不支持）' : ''))
+        toast('Rotated' + (result.backup ? ', old value kept for ' + keepOldDays + ' days' : '') + (result.backupUnavailable ? '; no old value backup created (not supported by the current storage)' : ''))
         return
       }
-      if (policyChanged) await sensitivePost('/api/items/update', payload, '修改免审批策略')
+      if (policyChanged) await sensitivePost('/api/items/update', payload, 'Change approval policy')
       else await api('/api/items/update', { method: 'POST', body: JSON.stringify(payload) })
       closeItemPage()
       await Promise.all([loadItems(), loadState()])
-      toast('已保存')
+      toast('Saved')
     } catch (error) { toast(error.message, true) }
   }
   const restore = $('mi-restore')
   if (restore) restore.onclick = async () => {
-    if (!(await askYes('恢复旧值？当前值会被替换，revision 会 +1，并记录审计。'))) return
+    if (!(await askYes('Restore the old value? It replaces the current value, bumps revision +1 and is recorded in the audit log.'))) return
     try {
       await api('/api/items/rotate/restore', { method: 'POST', body: JSON.stringify({ itemId: item.id }) })
       closeItemPage()
       await Promise.all([loadItems(), loadState()])
-      toast('已恢复旧值')
+      toast('Old value restored')
     } catch (error) { toast(error.message, true) }
   }
-  $('mi-delete').onclick = async () => { if (!(await askYes('删除条目「' + item.name + '」？'))) return; try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name: item.name }) }); closeItemPage(); await Promise.all([loadItems(), loadState()]); toast('已删除') } catch (error) { toast(error.message, true) } }
+  $('mi-delete').onclick = async () => { if (!(await askYes('Delete item “' + item.name + '”?'))) return; try { await api('/api/items/delete', { method: 'POST', body: JSON.stringify({ name: item.name }) }); closeItemPage(); await Promise.all([loadItems(), loadState()]); toast('Deleted') } catch (error) { toast(error.message, true) } }
   wireFillEditor(item)
-  $('mi-share').onclick = async () => { const agents = [...document.querySelectorAll('[data-share-agent]')].filter((box) => box.checked).map((box) => box.value); if (!agents.length) return toast('至少选择一个 Agent', true); try { const result = await api('/api/grants/share', { method: 'POST', body: JSON.stringify({ name: $('mi-name').value.trim() || item.name, agents, seconds: Number($('mi-share-seconds').value), maxReads: $('mi-share-reads').value || null, targetFolder: $('mi-share-folder').value.trim() }) }); closeItemPage(); await refreshAll(); if (result.queued?.length) toast('已加入跨账户复制队列，切回目标账户并解锁后自动复制'); else toast('已分享') } catch (error) { toast(error.message, true) } }
+  $('mi-share').onclick = async () => { const agents = [...document.querySelectorAll('[data-share-agent]')].filter((box) => box.checked).map((box) => box.value); if (!agents.length) return toast('Select at least one Agent', true); try { const result = await api('/api/grants/share', { method: 'POST', body: JSON.stringify({ name: $('mi-name').value.trim() || item.name, agents, seconds: Number($('mi-share-seconds').value), maxReads: $('mi-share-reads').value || null, targetFolder: $('mi-share-folder').value.trim() }) }); closeItemPage(); await refreshAll(); if (result.queued?.length) toast('Queued for cross-account copy. It runs once you switch to the target account and unlock'); else toast('Shared') } catch (error) { toast(error.message, true) } }
 }
 async function saveAgentFromModal(originalName) {
   try {
@@ -5817,9 +5817,9 @@ async function saveAgentFromModal(originalName) {
     const payload = { name: currentName, alias: $('ma-alias').value.trim(), note: $('ma-note').value.trim(), allow: $('ma-allowall').checked ? [] : pickListValues('ma-allow'), groups: pickListValues('ma-groups'), allowAll: $('ma-allowall').checked, write: $('ma-write').checked, muted: $('ma-muted').checked, tools: [...document.querySelectorAll('[data-mcp-tool]')].filter((box) => box.checked).map((box) => box.value) }
     const previous = app.data.agents.find((entry) => entry.name === originalName)
     // Re-confirm only when write is being turned on; disabling it is a reduction.
-    if (payload.write && previous?.write !== true) await sensitivePost('/api/agents/update', payload, '给 Agent 新增写权限')
+    if (payload.write && previous?.write !== true) await sensitivePost('/api/agents/update', payload, 'Give Agent write access')
     else await api('/api/agents/update', { method: 'POST', body: JSON.stringify(payload) })
-    show('modal', false); await refreshAll(); toast('已保存 Agent')
+    show('modal', false); await refreshAll(); toast('Agent saved')
   } catch (error) { toast(error.message, true) }
 }
 // What this Agent may DO, per item. Read, use and fill are separate grants: a
@@ -5827,28 +5827,28 @@ async function saveAgentFromModal(originalName) {
 // given from this dialog at all — you had to provoke a denial first.
 function agentActionFields(agent) {
   const held = ((app.data && app.data.agentActions) || []).filter((entry) => entry.agent === agent.name)
-  const actionLabel = { 'secret.read': '读取明文', 'secret.use': '代持调用（http_request）', 'secret.fill': '网页填充' }
+  const actionLabel = { 'secret.read': 'Read plaintext', 'secret.use': 'Proxied call (http_request)', 'secret.fill': 'Web fill' }
   const rows = held.length
-    ? held.map((entry) => '<tr><td class="aa-pick"><input type="checkbox" class="ios-check" data-aa-pick data-item-id="' + esc(entry.itemId) + '" data-action="' + esc(entry.action) + '" data-item="' + esc(entry.itemName) + '" aria-label="选择 ' + esc(entry.itemName) + '"></td>'
+    ? held.map((entry) => '<tr><td class="aa-pick"><input type="checkbox" class="ios-check" data-aa-pick data-item-id="' + esc(entry.itemId) + '" data-action="' + esc(entry.action) + '" data-item="' + esc(entry.itemName) + '" aria-label="Select ' + esc(entry.itemName) + '"></td>'
         + '<td><b>' + esc(entry.itemName) + '</b></td><td>' + esc(actionLabel[entry.action] || entry.action) + '</td>'
-        + '<td class="hint">' + esc(entry.expiresAt ? new Date(entry.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久') + '</td>'
-        + '<td><button class="small danger" data-revoke-action data-agent="' + esc(agent.name) + '" data-action="' + esc(entry.action) + '" data-item="' + esc(entry.itemName) + '">撤销</button></td></tr>').join('')
-    : '<tr><td colspan="5" class="hint">还没有任何动作授权。范围只决定能申请，真正能读/能填还要在这里授权。</td></tr>'
+        + '<td class="hint">' + esc(entry.expiresAt ? new Date(entry.expiresAt).toLocaleString('en-GB', { hour12: false }) : 'Permanent') + '</td>'
+        + '<td><button class="small danger" data-revoke-action data-agent="' + esc(agent.name) + '" data-action="' + esc(entry.action) + '" data-item="' + esc(entry.itemName) + '">Revoke</button></td></tr>').join('')
+    : '<tr><td colspan="5" class="hint">No action grants yet. Scope only decides what can be requested; to actually read or fill, grant it here.</td></tr>'
   return '<div style="border-top:1px solid var(--line);margin-top:14px;padding-top:10px">'
-    + '<b>动作授权</b>'
-    + '<div class="hint" style="margin:4px 0 8px">读取明文、代持调用、网页填充是三件独立的事，要分别给。'
-    + '<b>网页填充</b>需要条目先分类为 web 并填好站点，否则给了也填不了。</div>'
-    + '<div class="table-wrap scroll-list" style="max-height:180px"><table><tr><th class="aa-pick"><input type="checkbox" class="ios-check" id="aa-all" aria-label="全选"></th><th>条目</th><th>动作</th><th>到期</th><th></th></tr>' + rows + '</table></div>'
-    + (held.length ? '<div class="row" style="margin-top:8px;gap:8px;align-items:center"><button class="small danger" id="aa-revoke">撤销所选</button><span class="hint" id="aa-count">未选择</span></div>' : '')
+    + '<b>Action grants</b>'
+    + '<div class="hint" style="margin:4px 0 8px">Read plaintext, proxied call and web fill are three separate grants; give each one on its own. '
+    + '<b>Web fill</b> needs the item classified as web with its sites filled in, or the grant cannot fill anything.</div>'
+    + '<div class="table-wrap scroll-list" style="max-height:180px"><table><tr><th class="aa-pick"><input type="checkbox" class="ios-check" id="aa-all" aria-label="Select all"></th><th>Item</th><th>Action</th><th>Expires</th><th></th></tr>' + rows + '</table></div>'
+    + (held.length ? '<div class="row" style="margin-top:8px;gap:8px;align-items:center"><button class="small danger" id="aa-revoke">Revoke selected</button><span class="hint" id="aa-count">None selected</span></div>' : '')
     + '<div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">'
     + '<select id="aa-item" style="flex:1;min-width:140px">' + knownItemNames().map((name) => '<option value="' + esc(name) + '">' + esc(name) + '</option>').join('') + '</select>'
-    + '<select id="aa-action" style="flex:0 0 auto"><option value="secret.read">读取明文</option><option value="secret.use">代持调用</option><option value="secret.fill">网页填充</option></select>'
-    + '<select id="aa-days" style="flex:0 0 auto"><option value="1">1 天</option><option value="7">7 天</option><option value="30" selected>30 天</option><option value="permanent">永久</option></select>'
-    + '<button class="small primary" id="aa-grant">授予</button></div>'
+    + '<select id="aa-action" style="flex:0 0 auto"><option value="secret.read">Read plaintext</option><option value="secret.use">Proxied call</option><option value="secret.fill">Web fill</option></select>'
+    + '<select id="aa-days" style="flex:0 0 auto"><option value="1">1 day</option><option value="7">7 days</option><option value="30" selected>30 days</option><option value="permanent">Permanent</option></select>'
+    + '<button class="small primary" id="aa-grant">Grant</button></div>'
     + '<div class="status" id="aa-status"></div></div>'
 }
 // "Allow every item" already means every item, so the per-item picker has to
-// show that. Leaving the boxes empty made an operator who ticked 全部条目 on the
+// show that. Leaving the boxes empty made an operator who ticked All items on the
 // consent page read the empty list as "the grant was lost".
 function agentPermAllow(agent) {
   return agent.allowAll === true ? knownItemNames() : (agent.allow || [])
@@ -5856,32 +5856,32 @@ function agentPermAllow(agent) {
 // Per-agent MCP surface. Ticking nothing keeps the old behaviour (every tool),
 // because an allowlist that starts empty would lock every existing agent out.
 const MCP_TOOLS = [
-  ['list_secrets', '列出条目'],
-  ['request_access', '申请读取'],
-  ['explain_access', '解释权限'],
-  ['get_secret', '读明文'],
-  ['get_credential', '读登录凭据'],
-  ['request_fill', '请求网页填充'],
-  ['materialize', '写入本地文件'],
-  ['materialize_redeem', '兑换写入任务'],
-  ['request_credential', '创建填写链接'],
-  ['put_secret', '写入密钥（需审批）'],
-  ['http_request', '代调 API'],
+  ['list_secrets', 'List items'],
+  ['request_access', 'Request read access'],
+  ['explain_access', 'Explain access'],
+  ['get_secret', 'Read plaintext'],
+  ['get_credential', 'Read login credential'],
+  ['request_fill', 'Request web fill'],
+  ['materialize', 'Write to local file'],
+  ['materialize_redeem', 'Redeem write job'],
+  ['request_credential', 'Create fill-in link'],
+  ['put_secret', 'Write secret (needs approval)'],
+  ['http_request', 'Proxied API call'],
 ]
 function mcpToolFields(agent) {
   const chosen = new Set(Array.isArray(agent.tools) ? agent.tools : [])
   const boxes = MCP_TOOLS.map(([name, label]) =>
     '<label class="chk pick-row" style="display:flex;width:100%;margin:2px 0"><input type="checkbox" class="ma-tool" data-mcp-tool value="' + name + '"' + (chosen.has(name) ? ' checked' : '') + '> ' + esc(label) + ' <code class="hint" style="margin-left:6px">' + name + '</code></label>'
   ).join('')
-  return '<label class="field">MCP 工具权限（一个都不勾 = 允许全部，与之前一样）</label><div class="pick-box" style="max-height:170px;overflow:auto;border:1px solid var(--separator);border-radius:10px;padding:6px 8px;margin:4px 0 8px">' + boxes + '</div>'
+  return '<label class="field">MCP tool permissions (none ticked = all allowed, as before)</label><div class="pick-box" style="max-height:170px;overflow:auto;border:1px solid var(--separator);border-radius:10px;padding:6px 8px;margin:4px 0 8px">' + boxes + '</div>'
 }
 function agentPermFields(agent) {
-  return '<div class="hint" style="margin:2px 0 6px">这里的「可申请条目」只影响免审批和自动授权的范围；任何可见条目都可以申请，审批仍由人完成。它不等于已经拿到授权——分享/审批产生的是一次具体的<b>授权</b>，在「授权」页能看到。</div>'
-    + '<label class="field">免审批范围（不勾也能申请，只是每次要人批）</label>' + pickListHtml('ma-allow', knownItemNames(), agentPermAllow(agent), '密钥库里还没有条目。')
-    + '<label class="field">可申请分组（范围内按分组放行）</label>' + pickListHtml('ma-groups', knownGroups(), agent.groups || [], '还没有任何分组。')
+  return '<div class="hint" style="margin:2px 0 6px">The “requestable items” here only set the scope for skipping approval and auto-granting; any visible item can still be requested, and a person still approves it. This is not a grant: sharing or approving creates a specific <b>grant</b>, which you can see on the “Grants” page.</div>'
+    + '<label class="field">No-approval scope (unticked items can still be requested, but each request needs approval)</label>' + pickListHtml('ma-allow', knownItemNames(), agentPermAllow(agent), 'The vault has no items yet.')
+    + '<label class="field">Requestable groups (items in these groups are in scope)</label>' + pickListHtml('ma-groups', knownGroups(), agent.groups || [], 'No groups yet.')
     + mcpToolFields(agent)
     + agentActionFields(agent)
-    + '<label class="chk" style="margin-top:8px"><input type="checkbox" id="ma-muted" ' + (agent.muted ? 'checked' : '') + '> 暂停这个 Agent 的读取和申请（管理员可恢复）</label>'
+    + '<label class="chk" style="margin-top:8px"><input type="checkbox" id="ma-muted" ' + (agent.muted ? 'checked' : '') + '> Pause this Agent’s reads and requests (an admin can resume them)</label>'
 }
 // Wire the action-grant controls that agentPermFields renders. Shared by the
 // token and OAuth dialogs so both can grant read/use/fill from one place.
@@ -5892,15 +5892,15 @@ function wireAgentActions(agentName) {
     const item = $('aa-item').value
     const action = $('aa-action').value
     const days = $('aa-days').value
-    if (!item) return status('aa-status', '没有可授权的条目', true)
+    if (!item) return status('aa-status', 'No items to grant', true)
     try {
-      status('aa-status', '授权中…')
+      status('aa-status', 'Granting…')
       // secret.fill only makes sense for a web credential with an origin; refuse
       // early with the reason instead of minting a grant that can never apply.
       if (action === 'secret.fill') {
         const fill = ((app.data && app.data.fillPolicies && app.data.fillPolicies.items) || []).find((entry) => entry.itemName === item)
-        if (!fill || fill.kind !== 'web') return status('aa-status', '「' + item + '」不是 web 类型，先到「密钥」页把它设为 web 并填站点', true)
-        if (!(fill.origins || []).length) return status('aa-status', '「' + item + '」还没填允许的站点', true)
+        if (!fill || fill.kind !== 'web') return status('aa-status', '“' + item + '” is not a web item. Set it to web on the “Secrets” page and add its sites first', true)
+        if (!(fill.origins || []).length) return status('aa-status', '“' + item + '” has no allowed sites yet', true)
       }
       const duration = days === 'permanent' ? 'permanent' : ({ '1': '1d', '7': '7d', '30': '30d' })[days] || '30d'
       await api('/api/action-grants', { method: 'POST', body: JSON.stringify({ agent: agentName, item, actions: [action], terms: { [action]: { duration } } }) })
@@ -5909,14 +5909,14 @@ function wireAgentActions(agentName) {
         await api('/api/fill/read-policy', { method: 'POST', body: JSON.stringify({ item, allow: true, ttlDays: days === 'permanent' ? 3650 : Number(days) }) }).catch(() => {})
       }
       await refreshAll()
-      toast('已授权：' + agentName + ' → ' + item + '（' + action + '）')
+      toast('Granted: ' + agentName + ' → ' + item + ' (' + action + ')')
       openAgentMenu(agentName)
     } catch (error) { status('aa-status', error.message, true) }
   }
   const picks = () => [...document.querySelectorAll('[data-aa-pick]')]
   const syncCount = () => {
     const count = picks().filter((box) => box.checked).length
-    if ($('aa-count')) $('aa-count').textContent = count ? '已选 ' + count + ' 项' : '未选择'
+    if ($('aa-count')) $('aa-count').textContent = count ? '' + count + ' selected' : 'None selected'
     if ($('aa-all')) $('aa-all').checked = count > 0 && count === picks().length
   }
   if ($('aa-all')) $('aa-all').onchange = () => { const all = $('aa-all').checked; for (const box of picks()) box.checked = all; syncCount() }
@@ -5924,14 +5924,14 @@ function wireAgentActions(agentName) {
   if ($('aa-revoke')) {
     $('aa-revoke').onclick = async () => {
       const chosen = picks().filter((box) => box.checked)
-      if (!chosen.length) return status('aa-status', '先勾选要撤销的授权', true)
+      if (!chosen.length) return status('aa-status', 'Select the grants to revoke first', true)
       const targets = chosen.filter((box) => box.dataset.itemId).map((box) => ({ itemId: box.dataset.itemId, action: box.dataset.action }))
-      if (!targets.length) return status('aa-status', '找不到条目 id，刷新页面后重试', true)
-      if (!(await askYes('撤销「' + agentName + '」的 ' + targets.length + ' 项授权？'))) return
+      if (!targets.length) return status('aa-status', 'Item id not found. Refresh the page and try again', true)
+      if (!(await askYes('Revoke the selected grants for “' + agentName + '” (' + targets.length + ')?'))) return
       try {
         const result = await api('/api/action-grants/revoke', { method: 'POST', body: JSON.stringify({ agent: agentName, targets }) })
         await refreshAll()
-        toast('已撤销 ' + (result.count || targets.length) + ' 项')
+        toast('Grants revoked: ' + (result.count || targets.length) + '')
         openAgentMenu(agentName)
       } catch (error) { status('aa-status', error.message, true) }
     }
@@ -5941,15 +5941,15 @@ function wireAgentActions(agentName) {
     button.onclick = async () => {
       const item = button.dataset.item
       const action = button.dataset.action
-      if (!(await askYes('撤销「' + agentName + '」对「' + item + '」的「' + action + '」授权？'))) return
+      if (!(await askYes('Revoke the grant for “' + agentName + '” on “' + item + '” (' + action + ')?'))) return
       try {
         const items = app.items || []
         const found = items.find((entry) => entry.name === item)
         const itemId = found && found.id ? found.id : ''
-        if (!itemId) return status('aa-status', '找不到条目 id，刷新页面后重试', true)
+        if (!itemId) return status('aa-status', 'Item id not found. Refresh the page and try again', true)
         await api('/api/action-grants/revoke', { method: 'POST', body: JSON.stringify({ agent: agentName, itemId, action }) })
         await refreshAll()
-        toast('已撤销')
+        toast('Revoked')
         openAgentMenu(agentName)
       } catch (error) { status('aa-status', error.message, true) }
     }
@@ -5959,19 +5959,19 @@ async function openAgentMenu(name) {
   await ensureItems()
   const agent = app.data.agents.find((entry) => entry.name === name); if (!agent) return
   if (agent.oauth) {
-    openModal('OAuth Agent「' + name + '」', '<div class="hint">OAuth 动态注册产生的 Agent，绑定账户：<code>' + esc(agent.account || '-') + '</code>。可以修改名称、备注、权限和写入开关；撤销授权会删除 token。</div><label class="field">名称（标识）</label><input id="ma-realname" value="' + esc(agent.name) + '"><label class="field">显示名</label><input id="ma-alias" value="' + esc(agent.alias || '') + '"><label class="field">备注</label><input id="ma-note" value="' + esc(agent.note || '') + '">' + agentPermFields(agent) + '<label class="chk"><input type="checkbox" id="ma-allowall" ' + (agent.allowAll ? 'checked' : '') + '> 允许全部条目</label><label class="chk" style="margin-top:8px"><input type="checkbox" id="ma-write" ' + (agent.write ? 'checked' : '') + '> 允许写入（Agent 写 API /agent/items/save）</label><div class="row" style="margin-top:14px"><button class="primary" id="ma-save">保存</button><button class="danger" id="ma-oauth-revoke">撤销 OAuth 授权</button></div>')
+    openModal('OAuth Agent “' + name + '”', '<div class="hint">Agent created by OAuth dynamic registration. Bound account: <code>' + esc(agent.account || '-') + '</code>. You can change its name, notes, permissions and write access; revoking OAuth access deletes its token.</div><label class="field">Name (identifier)</label><input id="ma-realname" value="' + esc(agent.name) + '"><label class="field">Display name</label><input id="ma-alias" value="' + esc(agent.alias || '') + '"><label class="field">Notes</label><input id="ma-note" value="' + esc(agent.note || '') + '">' + agentPermFields(agent) + '<label class="chk"><input type="checkbox" id="ma-allowall" ' + (agent.allowAll ? 'checked' : '') + '> Allow all items</label><label class="chk" style="margin-top:8px"><input type="checkbox" id="ma-write" ' + (agent.write ? 'checked' : '') + '> Allow writes (Agent write API /agent/items/save)</label><div class="row" style="margin-top:14px"><button class="primary" id="ma-save">Save</button><button class="danger" id="ma-oauth-revoke">Revoke OAuth access</button></div>')
     $('ma-save').onclick = () => saveAgentFromModal(name)
     wireAgentActions(name)
-    $('ma-oauth-revoke').onclick = async () => { if (!(await askYes('撤销 ' + name + ' 的 OAuth token？'))) return; try { await api('/api/oauth/revoke', { method: 'POST', body: JSON.stringify({ agent: name }) }); show('modal', false); await refreshAll(); toast('已撤销') } catch (error) { toast(error.message, true) } }
+    $('ma-oauth-revoke').onclick = async () => { if (!(await askYes('Revoke ' + name + '’s OAuth token?'))) return; try { await api('/api/oauth/revoke', { method: 'POST', body: JSON.stringify({ agent: name }) }); show('modal', false); await refreshAll(); toast('Revoked') } catch (error) { toast(error.message, true) } }
     return
   }
-  openModal('Agent「' + name + '」', '<div class="hint">绑定账户：<code>' + esc(agent.account || '未绑定（旧数据）') + '</code>。Agent 只能读取该账户；切换账户后旧 Agent 不会自动获得新账户权限。</div><label class="field">名称（标识）</label><input id="ma-realname" value="' + esc(agent.name) + '"><label class="field">显示名</label><input id="ma-alias" value="' + esc(agent.alias || '') + '"><label class="field">备注</label><input id="ma-note" value="' + esc(agent.note || '') + '">' + agentPermFields(agent) + '<label class="chk"><input type="checkbox" id="ma-allowall" ' + (agent.allowAll ? 'checked' : '') + '> 允许全部条目</label><label class="chk" style="margin-top:8px"><input type="checkbox" id="ma-write" ' + (agent.write ? 'checked' : '') + '> 允许写入（Agent 写 API /agent/items/save）</label><div class="row" style="margin-top:14px"><button class="primary" id="ma-save">保存权限</button><button id="ma-copy">复制 token</button><button id="ma-rotate">轮换 token</button><button id="ma-extend">延长授权</button><button class="danger" id="ma-delete">删除</button></div><div class="secret hidden" id="ma-token"></div>')
+  openModal('Agent “' + name + '”', '<div class="hint">Bound account: <code>' + esc(agent.account || 'Not bound (legacy data)') + '</code>. The Agent can only read this account; after switching accounts, an old Agent does not get access to the new account automatically.</div><label class="field">Name (identifier)</label><input id="ma-realname" value="' + esc(agent.name) + '"><label class="field">Display name</label><input id="ma-alias" value="' + esc(agent.alias || '') + '"><label class="field">Notes</label><input id="ma-note" value="' + esc(agent.note || '') + '">' + agentPermFields(agent) + '<label class="chk"><input type="checkbox" id="ma-allowall" ' + (agent.allowAll ? 'checked' : '') + '> Allow all items</label><label class="chk" style="margin-top:8px"><input type="checkbox" id="ma-write" ' + (agent.write ? 'checked' : '') + '> Allow writes (Agent write API /agent/items/save)</label><div class="row" style="margin-top:14px"><button class="primary" id="ma-save">Save permissions</button><button id="ma-copy">Copy token</button><button id="ma-rotate">Rotate token</button><button id="ma-extend">Extend grant</button><button class="danger" id="ma-delete">Delete</button></div><div class="secret hidden" id="ma-token"></div>')
   $('ma-save').onclick = () => saveAgentFromModal(name)
   wireAgentActions(name)
   $('ma-extend').onclick = () => openExtendMenu(name)
-  $('ma-copy').onclick = async () => { try { const data = await api('/api/agents/token', { method: 'POST', body: JSON.stringify({ name }) }); $('ma-token').textContent = data.token; $('ma-token').classList.remove('hidden'); await navigator.clipboard.writeText(data.token); toast('token 已复制') } catch (error) { toast(error.message, true) } }
-  $('ma-rotate').onclick = async () => { if (!(await askYes('轮换 ' + name + ' 的 token？旧 token 会立即失效。'))) return; try { const data = await api('/api/agents/rotate', { method: 'POST', body: JSON.stringify({ name }) }); $('ma-token').textContent = data.token; $('ma-token').classList.remove('hidden'); await navigator.clipboard.writeText(data.token); await refreshAll(); toast('已轮换并复制新 token') } catch (error) { toast(error.message, true) } }
-  $('ma-delete').onclick = async () => { if (!(await askYes('删除 Agent ' + name + '？'))) return; try { await api('/api/agents/delete', { method: 'POST', body: JSON.stringify({ name }) }); show('modal', false); await refreshAll(); toast('已删除') } catch (error) { toast(error.message, true) } }
+  $('ma-copy').onclick = async () => { try { const data = await api('/api/agents/token', { method: 'POST', body: JSON.stringify({ name }) }); $('ma-token').textContent = data.token; $('ma-token').classList.remove('hidden'); await navigator.clipboard.writeText(data.token); toast('Copied the token') } catch (error) { toast(error.message, true) } }
+  $('ma-rotate').onclick = async () => { if (!(await askYes('Rotate ' + name + '’s token? The old token stops working immediately.'))) return; try { const data = await api('/api/agents/rotate', { method: 'POST', body: JSON.stringify({ name }) }); $('ma-token').textContent = data.token; $('ma-token').classList.remove('hidden'); await navigator.clipboard.writeText(data.token); await refreshAll(); toast('Rotated and copied the new token') } catch (error) { toast(error.message, true) } }
+  $('ma-delete').onclick = async () => { if (!(await askYes('Delete Agent ' + name + '?'))) return; try { await api('/api/agents/delete', { method: 'POST', body: JSON.stringify({ name }) }); show('modal', false); await refreshAll(); toast('Deleted') } catch (error) { toast(error.message, true) } }
 }
 async function openGrantMenu(agent, name) {
   const grant = (app.data.grants || []).find((entry) => entry.agent === agent && entry.name === name); if (!grant) return
@@ -5982,12 +5982,12 @@ async function openGrantMenu(agent, name) {
   // empty for anything that is not the latest activity.
   let usage = (app.data.audit || []).filter((entry) => entry.agent === agent && entry.name === name).slice(0, 15)
   try { const data = await auditPage({ agent, item: name, limit: 15 }); usage = data.entries || usage } catch {}
-  const usageHtml = '<div class="hint" style="margin-bottom:8px">创建：' + (grant.createdAt ? new Date(grant.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + ' · 已读：' + (grant.reads ?? 0) + ' 次 · 到期：' + (grant.expiresAt ? new Date(grant.expiresAt).toLocaleString('zh-CN', { hour12: false }) : '永久') + '</div><div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px"><b>使用记录</b>' + (usage.length ? '<table><tr><th>时间</th><th>动作</th><th>方式</th></tr>' + usage.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + '</td><td>' + esc(describeEvent(entry)) + '</td><td>' + esc(entry.mode || entry.source || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无记录</div>') + '</div>'
-  openModal('授权「' + agent + ' → ' + name + '」', usageHtml + '<label class="field">时长</label><select id="mg-seconds"><option value="3600" ' + (nearest === 3600 ? 'selected' : '') + '>1 小时</option><option value="86400" ' + (nearest === 86400 ? 'selected' : '') + '>24 小时</option><option value="604800" ' + (nearest === 604800 ? 'selected' : '') + '>7 天</option><option value="2592000" ' + (nearest === 2592000 ? 'selected' : '') + '>30 天</option><option value="0" ' + (nearest === 0 ? 'selected' : '') + '>永久</option></select><label class="field">最多读取次数（留空不限）</label><input id="mg-max" type="number" min="1" value="' + (grant.maxReads ?? '') + '"><div class="row" style="margin-top:14px"><button class="primary" id="mg-save">保存授权</button>' + (grant.revokedAt || (grant.expiresAt && grant.expiresAt <= Date.now()) || (grant.maxReads && (grant.reads ?? 0) >= grant.maxReads) ? '<button id="mg-restore">恢复授权</button>' : '') + '<button class="danger" id="mg-revoke">撤销</button><button class="danger" id="mg-delete">删除记录</button></div>')
-  $('mg-save').onclick = async () => { try { await api('/api/grants/update', { method: 'POST', body: JSON.stringify({ agent, name, seconds: Number($('mg-seconds').value), maxReads: $('mg-max').value || null }) }); show('modal', false); await refreshAll(); toast('已更新授权') } catch (error) { toast(error.message, true) } }
-  if ($('mg-restore')) $('mg-restore').onclick = async () => { try { await api('/api/grants/restore', { method: 'POST', body: JSON.stringify({ agent, name, seconds: Number($('mg-seconds').value) }) }); show('modal', false); await refreshAll(); toast('已恢复授权') } catch (error) { toast(error.message, true) } }
-  $('mg-revoke').onclick = async () => { try { await api('/api/grants/revoke', { method: 'POST', body: JSON.stringify({ agent, name }) }); show('modal', false); await refreshAll(); toast('已撤销') } catch (error) { toast(error.message, true) } }
-  $('mg-delete').onclick = async () => { if (!(await askYes('删除这条授权记录？'))) return; try { await api('/api/grants/delete', { method: 'POST', body: JSON.stringify({ agent, name }) }); show('modal', false); await refreshAll(); toast('已删除') } catch (error) { toast(error.message, true) } }
+  const usageHtml = '<div class="hint" style="margin-bottom:8px">Created: ' + (grant.createdAt ? new Date(grant.createdAt).toLocaleString('en-GB', { hour12: false }) : '-') + ' · Reads: ' + (grant.reads ?? 0) + ' · Expires: ' + (grant.expiresAt ? new Date(grant.expiresAt).toLocaleString('en-GB', { hour12: false }) : 'Permanent') + '</div><div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px"><b>Usage</b>' + (usage.length ? '<table><tr><th>Time</th><th>Action</th><th>Method</th></tr>' + usage.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('en-GB', { hour12: false }) : '') + '</td><td>' + esc(describeEvent(entry)) + '</td><td>' + esc(entry.mode || entry.source || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">No records yet</div>') + '</div>'
+  openModal('Grant “' + agent + ' → ' + name + '”', usageHtml + '<label class="field">Duration</label><select id="mg-seconds"><option value="3600" ' + (nearest === 3600 ? 'selected' : '') + '>1 hour</option><option value="86400" ' + (nearest === 86400 ? 'selected' : '') + '>24 hours</option><option value="604800" ' + (nearest === 604800 ? 'selected' : '') + '>7 days</option><option value="2592000" ' + (nearest === 2592000 ? 'selected' : '') + '>30 days</option><option value="0" ' + (nearest === 0 ? 'selected' : '') + '>Permanent</option></select><label class="field">Max reads (leave empty for no limit)</label><input id="mg-max" type="number" min="1" value="' + (grant.maxReads ?? '') + '"><div class="row" style="margin-top:14px"><button class="primary" id="mg-save">Save grant</button>' + (grant.revokedAt || (grant.expiresAt && grant.expiresAt <= Date.now()) || (grant.maxReads && (grant.reads ?? 0) >= grant.maxReads) ? '<button id="mg-restore">Restore grant</button>' : '') + '<button class="danger" id="mg-revoke">Revoke</button><button class="danger" id="mg-delete">Delete record</button></div>')
+  $('mg-save').onclick = async () => { try { await api('/api/grants/update', { method: 'POST', body: JSON.stringify({ agent, name, seconds: Number($('mg-seconds').value), maxReads: $('mg-max').value || null }) }); show('modal', false); await refreshAll(); toast('Grant updated') } catch (error) { toast(error.message, true) } }
+  if ($('mg-restore')) $('mg-restore').onclick = async () => { try { await api('/api/grants/restore', { method: 'POST', body: JSON.stringify({ agent, name, seconds: Number($('mg-seconds').value) }) }); show('modal', false); await refreshAll(); toast('Grant restored') } catch (error) { toast(error.message, true) } }
+  $('mg-revoke').onclick = async () => { try { await api('/api/grants/revoke', { method: 'POST', body: JSON.stringify({ agent, name }) }); show('modal', false); await refreshAll(); toast('Revoked') } catch (error) { toast(error.message, true) } }
+  $('mg-delete').onclick = async () => { if (!(await askYes('Delete this grant record?'))) return; try { await api('/api/grants/delete', { method: 'POST', body: JSON.stringify({ agent, name }) }); show('modal', false); await refreshAll(); toast('Deleted') } catch (error) { toast(error.message, true) } }
 }
 async function loadProfile() {
   try {
@@ -6001,11 +6001,11 @@ async function loadProfile() {
       const trail = await auditPage({ event: 'login', limit: 50 })
       logins = (trail.entries || []).filter((entry) => ['admin.login', 'admin.oidc-login', 'vault.unlock', 'admin.logout'].includes(entry.event)).slice(0, 12)
     } catch {}
-    $('login-history').innerHTML = '<div class="hint">当前在线：' + (app.me?.unlocked ? '本浏览器已解锁' : '本浏览器未解锁') + '</div>' + (logins.length ? '<table><tr><th>时间</th><th>事件</th><th>方式</th></tr>' + logins.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('zh-CN', { hour12: false }) : '') + '</td><td>' + esc(entry.event) + '</td><td>' + esc(entry.source || entry.channel || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">暂无登录记录</div>')
+    $('login-history').innerHTML = '<div class="hint">Online now: ' + (app.me?.unlocked ? 'this browser is unlocked' : 'this browser is locked') + '</div>' + (logins.length ? '<table><tr><th>Time</th><th>Event</th><th>Method</th></tr>' + logins.map((entry) => '<tr><td>' + esc(entry.time ? new Date(entry.time).toLocaleString('en-GB', { hour12: false }) : '') + '</td><td>' + esc(entry.event) + '</td><td>' + esc(entry.source || entry.channel || '') + '</td></tr>').join('') + '</table>' : '<div class="hint">No logins yet</div>')
     try {
       const data = await api('/api/sessions')
       const sessions = data.sessions || []
-      $('sessions-box').innerHTML = sessions.length ? '<table><tr><th>客户端</th><th>IP</th><th>创建</th><th>最后活跃</th><th>操作</th></tr>' + sessions.map((session) => '<tr><td class="hint" title="' + esc(session.ua || '') + '">' + esc(uaLabel(session.ua)) + (session.current ? ' <b>(当前)</b>' : '') + '</td><td class="hint">' + esc(session.ip || '-') + '</td><td class="hint">' + esc(session.createdAt ? new Date(session.createdAt).toLocaleString('zh-CN', { hour12: false }) : '-') + '</td><td class="hint">' + esc(session.lastSeen ? new Date(session.lastSeen).toLocaleString('zh-CN', { hour12: false }) : '-') + '</td><td>' + (session.current ? '' : '<button class="small danger" data-revoke-session="' + esc(session.id) + '">下线</button>') + '</td></tr>').join('') + '</table>' : '<div class="hint">没有可管理的会话（旧版登录或服务端未记录）</div>'
+      $('sessions-box').innerHTML = sessions.length ? '<table><tr><th>Client</th><th>IP</th><th>Created</th><th>Last active</th><th>Actions</th></tr>' + sessions.map((session) => '<tr><td class="hint" title="' + esc(session.ua || '') + '">' + esc(uaLabel(session.ua)) + (session.current ? ' <b>(current)</b>' : '') + '</td><td class="hint">' + esc(session.ip || '-') + '</td><td class="hint">' + esc(session.createdAt ? new Date(session.createdAt).toLocaleString('en-GB', { hour12: false }) : '-') + '</td><td class="hint">' + esc(session.lastSeen ? new Date(session.lastSeen).toLocaleString('en-GB', { hour12: false }) : '-') + '</td><td>' + (session.current ? '' : '<button class="small danger" data-revoke-session="' + esc(session.id) + '">Sign out</button>') + '</td></tr>').join('') + '</table>' : '<div class="hint">No sessions to manage (older login, or not recorded by the server)</div>'
     } catch {} 
     renderAvatar(profile.name || profile.oidcName || profile.email || profile.oidcEmail, profile.avatarUrl)
     $('who').textContent = profile.name || profile.oidcName || profile.email || profile.oidcEmail || $('who').textContent
@@ -6015,31 +6015,31 @@ async function loadProfile() {
       const binding = data.oidcBindings ? data.oidcBindings[provider.id] : null
       providerRows.push('<div class="row" style="justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">')
       providerRows.push('<div><b>' + esc(provider.label || provider.id) + '</b> <span class="hint">' + esc(provider.issuer || '') + '</span>')
-      if (binding) providerRows.push('<br><span class="hint">已绑定：<code>' + esc(binding.email || binding.sub) + '</code></span>')
+      if (binding) providerRows.push('<br><span class="hint">Linked: <code>' + esc(binding.email || binding.sub) + '</code></span>')
       providerRows.push('</div><div>')
-      if (!binding) providerRows.push('<a class="link-button primary" href="/oidc/login?provider=' + encodeURIComponent(provider.id) + '&next=profile&prompt=login">绑定</a>')
-      else providerRows.push('<button class="danger" data-oidc-unbind="' + esc(provider.id) + '">解绑</button>')
+      if (!binding) providerRows.push('<a class="link-button primary" href="/oidc/login?provider=' + encodeURIComponent(provider.id) + '&next=profile&prompt=login">Link</a>')
+      else providerRows.push('<button class="danger" data-oidc-unbind="' + esc(provider.id) + '">Unlink</button>')
       providerRows.push('</div></div>')
     }
     const oidc = data.oidcEnabled
-      ? '<div class="hint">可以绑定多个身份服务商，每个单独绑定、单独解绑。用主密码解锁一次保险库后，OIDC 登录会自动解锁；点「锁定」会撤销这个行为。旧版绑定没有记住所属账户，重新绑定一次即可启用。</div>' + (providerRows.join('') || '<div class="hint">还没有可用的身份服务商。</div>')
-      : '<div class="hint">未配置 OIDC。先在「设置」里添加身份服务商。</div>'
+      ? '<div class="hint">You can link several identity providers and link or unlink each one separately. Once you unlock the vault with the master password, OIDC login unlocks it automatically; clicking “Lock” turns this off. Older links did not record their account; link again to enable this.</div>' + (providerRows.join('') || '<div class="hint">No identity providers available yet.</div>')
+      : '<div class="hint">OIDC is not configured. Add an identity provider in “Settings” first.</div>'
     $('oidc-box').innerHTML = oidc
     for (const button of $('oidc-box').querySelectorAll('[data-oidc-unbind]')) button.onclick = async () => {
       const id = button.getAttribute('data-oidc-unbind')
-      if (!(await askYes('解绑这个身份服务商？下次登录会重新绑定。'))) return
-      try { await api('/api/profile/oidc/bindings', { method: 'DELETE', body: JSON.stringify({ id }) }); await loadProfile(); toast('已解绑') } catch (error) { status('oidc-status', error.message, 'error') }
+      if (!(await askYes('Unlink this identity provider? It will be linked again at your next login.'))) return
+      try { await api('/api/profile/oidc/bindings', { method: 'DELETE', body: JSON.stringify({ id }) }); await loadProfile(); toast('Unlinked') } catch (error) { status('oidc-status', error.message, 'error') }
     }
     await loadSecurity()
   } catch (error) { status('profile-status', error.message, 'error') }
 }
-async function saveProfile() { try { const name = $('profile-name').value.trim(); const email = $('profile-email').value.trim(); const avatarUrl = $('profile-avatar').value.trim(); await api('/api/profile', { method: 'POST', body: JSON.stringify({ name, email, avatarUrl }) }); status('profile-status', '已保存', 'ok'); $('who').textContent = name || email.split('@')[0] || $('who').textContent; renderAvatar(name || email, avatarUrl) } catch (error) { status('profile-status', error.message, 'error') } }
-async function switchAccount() { const email = $('vault-email').value; if (!email) return; if (!(await askYes('切换到 ' + email + '？当前解锁会话会被清除，需要用该账户主密码重新解锁。'))) return; try { status('settings-status', '切换中…'); await api('/api/settings', { method: 'POST', body: JSON.stringify({ vaultEmail: email }) }); status('settings-status', '已切换，请重新解锁', 'ok'); await boot() } catch (error) { status('settings-status', error.message, 'error') } }
-async function saveFolder() { const folder = $('vault-folder').value; try { status('vault-folder-status', '保存中…'); await api('/api/settings', { method: 'POST', body: JSON.stringify({ vaultFolder: folder }) }); status('vault-folder-status', folder ? '已保存，只读取：' + folder : '已保存，读取全部文件夹', 'ok'); await Promise.all([loadItems(), loadSettings()]) } catch (error) { status('vault-folder-status', error.message, 'error') } }
+async function saveProfile() { try { const name = $('profile-name').value.trim(); const email = $('profile-email').value.trim(); const avatarUrl = $('profile-avatar').value.trim(); await api('/api/profile', { method: 'POST', body: JSON.stringify({ name, email, avatarUrl }) }); status('profile-status', 'Saved', 'ok'); $('who').textContent = name || email.split('@')[0] || $('who').textContent; renderAvatar(name || email, avatarUrl) } catch (error) { status('profile-status', error.message, 'error') } }
+async function switchAccount() { const email = $('vault-email').value; if (!email) return; if (!(await askYes('Switch to ' + email + '? The current unlocked session will be cleared, and you will need that account’s master password to unlock again.'))) return; try { status('settings-status', 'Switching…'); await api('/api/settings', { method: 'POST', body: JSON.stringify({ vaultEmail: email }) }); status('settings-status', 'Switched. Please unlock again', 'ok'); await boot() } catch (error) { status('settings-status', error.message, 'error') } }
+async function saveFolder() { const folder = $('vault-folder').value; try { status('vault-folder-status', 'Saving…'); await api('/api/settings', { method: 'POST', body: JSON.stringify({ vaultFolder: folder }) }); status('vault-folder-status', folder ? 'Saved. Reading only: ' + folder : 'Saved. Reading all folders', 'ok'); await Promise.all([loadItems(), loadSettings()]) } catch (error) { status('vault-folder-status', error.message, 'error') } }
 async function loadSecurity() {
   try {
-    const data = await api('/api/security'); $('password-source').textContent = data.passwordSource === 'custom' ? '当前使用自定义密码（保存在 Durable Object）' : '当前使用环境变量 ADMIN_PASSWORD，修改后会保存自定义密码'
-    $('totp-status').textContent = data.totpEnabled ? '已启用两步验证' : '未启用'
+    const data = await api('/api/security'); $('password-source').textContent = data.passwordSource === 'custom' ? 'Using a custom password (stored in the Durable Object)' : 'Using the ADMIN_PASSWORD environment variable; changing it saves a custom password'
+    $('totp-status').textContent = data.totpEnabled ? 'Two-factor authentication enabled' : 'Not enabled'
     $('totp-disable').classList.toggle('hidden', !data.totpEnabled)
     const settings = await api('/api/settings').catch(() => ({}))
     $('mat-paths').value = (settings.materializePaths ?? []).join('\n')
@@ -6053,16 +6053,16 @@ async function loadSecurity() {
     $('bs-rotate-days').value = String(app.rotateReminderDays)
   } catch (error) { status('profile-status', error.message, 'error') }
 }
-async function changePassword() { try { await api('/api/security/password', { method: 'POST', body: JSON.stringify({ currentPassword: $('current-password').value, newPassword: $('new-password').value }) }); $('current-password').value = ''; $('new-password').value = ''; status('password-status', '密码已修改', 'ok'); await loadSecurity() } catch (error) { status('password-status', error.message, 'error') } }
-async function setup2fa() { try { const data = await api('/api/2fa/setup', { method: 'POST' }); $('totp-secret').textContent = data.secret; $('totp-setup-box').classList.remove('hidden'); status('totp-message', '把密钥加入验证器后输入验证码', 'ok') } catch (error) { status('totp-message', error.message, 'error') } }
-async function enable2fa() { try { await api('/api/2fa/enable', { method: 'POST', body: JSON.stringify({ code: $('totp-enable-code').value }) }); $('totp-setup-box').classList.add('hidden'); $('totp-enable-code').value = ''; status('totp-message', '两步验证已启用', 'ok'); await loadSecurity() } catch (error) { status('totp-message', error.message, 'error') } }
+async function changePassword() { try { await api('/api/security/password', { method: 'POST', body: JSON.stringify({ currentPassword: $('current-password').value, newPassword: $('new-password').value }) }); $('current-password').value = ''; $('new-password').value = ''; status('password-status', 'Password changed', 'ok'); await loadSecurity() } catch (error) { status('password-status', error.message, 'error') } }
+async function setup2fa() { try { const data = await api('/api/2fa/setup', { method: 'POST' }); $('totp-secret').textContent = data.secret; $('totp-setup-box').classList.remove('hidden'); status('totp-message', 'Add the secret to your authenticator app, then enter the code', 'ok') } catch (error) { status('totp-message', error.message, 'error') } }
+async function enable2fa() { try { await api('/api/2fa/enable', { method: 'POST', body: JSON.stringify({ code: $('totp-enable-code').value }) }); $('totp-setup-box').classList.add('hidden'); $('totp-enable-code').value = ''; status('totp-message', 'Two-factor authentication enabled', 'ok'); await loadSecurity() } catch (error) { status('totp-message', error.message, 'error') } }
 async function disable2fa() {
-  // prompt() is silently refused inside the desktop WebView, so 关闭两步验证 did
+  // prompt() is silently refused inside the desktop WebView, so “Disable 2FA” did
   // nothing there. The in-page field keeps the same one-field flow; an empty or
   // cancelled answer sends no request at all.
-  const password = await askCode('关闭两步验证会降低账户安全。请输入当前登录密码后继续。', { type: 'password', inputmode: 'text', placeholder: '当前登录密码', maxlength: 0, label: '当前登录密码', trim: false })
+  const password = await askCode('Turning off two-factor authentication makes the account less secure. Enter your current console password to continue.', { type: 'password', inputmode: 'text', placeholder: 'Current console password', maxlength: 0, label: 'Current console password', trim: false })
   if (!password) return
-  try { await api('/api/2fa/disable', { method: 'POST', body: JSON.stringify({ password }) }); status('totp-message', '两步验证已关闭', 'ok'); await loadSecurity() } catch (error) { status('totp-message', error.message, 'error') }
+  try { await api('/api/2fa/disable', { method: 'POST', body: JSON.stringify({ password }) }); status('totp-message', 'Two-factor authentication turned off', 'ok'); await loadSecurity() } catch (error) { status('totp-message', error.message, 'error') }
 }
 // Replaced by the create modal (openAgentCreate). Kept as a thin alias so any
 // stale inline handler still works.

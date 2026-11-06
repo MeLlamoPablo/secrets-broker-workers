@@ -141,7 +141,7 @@ async function askCustom({ endpoint, apiKey, model, messages, timeoutMs }) {
       // Name what arrived, so an empty reply is diagnosable rather than a shrug.
       const shape = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 6).join(',') : typeof payload
       const finish = payload?.choices?.[0]?.finish_reason ?? ''
-      return { ok: false, reason: 'provider returned no text（返回字段：' + shape + (finish ? '，finish_reason=' + finish : '') + '）' }
+      return { ok: false, reason: 'provider returned no text (returned fields: ' + shape + (finish ? ', finish_reason=' + finish : '') + ')' }
     }
     return { ok: true, text: String(answer).trim(), provider: 'custom' }
   } catch (error) {
@@ -155,32 +155,32 @@ async function askCustom({ endpoint, apiKey, model, messages, timeoutMs }) {
 // or on a laptop.
 export async function askAi(env, settings, { question, snapshot, history = [] }) {
   const ai = settings?.ai ?? {}
-  if (ai.enabled === false) return { ok: false, reason: 'AI 助手已在设置里关闭' }
+  if (ai.enabled === false) return { ok: false, reason: 'The AI assistant is turned off in Settings' }
   const apiKey = ai.apiKey || env.AI_API_KEY
-  if (!ai.endpoint) return { ok: false, reason: '自建 API 未配置（需要 endpoint / key / model）' }
-  if (!apiKey) return { ok: false, reason: '自建 API 未配置（需要 endpoint / key / model）' }
-  if (!ai.model) return { ok: false, reason: '自建 API 未配置（需要 endpoint / key / model）' }
+  if (!ai.endpoint) return { ok: false, reason: 'Custom API not configured (needs endpoint / key / model)' }
+  if (!apiKey) return { ok: false, reason: 'Custom API not configured (needs endpoint / key / model)' }
+  if (!ai.model) return { ok: false, reason: 'Custom API not configured (needs endpoint / key / model)' }
   const messages = aiMessages(question, snapshot, history)
   const timeoutMs = Math.max(5000, Math.min(60000, Number(ai.timeoutMs) || 25000))
   const result = await askCustom({ endpoint: ai.endpoint, apiKey, model: ai.model, messages, timeoutMs })
   if (result.ok) return result
-  return { ok: false, reason: '自建 API：' + result.reason }
+  return { ok: false, reason: 'Custom API: ' + result.reason }
 }
 
 async function listCustomModels({ endpoint, apiKey, timeoutMs = 15000 }) {
   const base = String(endpoint || '').replace(/\/$/, '')
-  if (!base) return { ok: false, reason: '还没有填接口地址' }
+  if (!base) return { ok: false, reason: 'No endpoint URL entered yet' }
   const url = /\/chat\/completions$/.test(base) ? base.replace(/\/chat\/completions$/, '/models') : base + '/models'
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await fetch(url, { headers: { authorization: 'Bearer ' + apiKey } , signal: controller.signal })
     const payload = await response.json().catch(() => ({}))
-    if (!response.ok) return { ok: false, reason: '接口返回 ' + response.status + '：' + String(payload?.error?.message ?? payload?.error ?? '').slice(0, 140) }
+    if (!response.ok) return { ok: false, reason: 'Endpoint returned ' + response.status + ': ' + String(payload?.error?.message ?? payload?.error ?? '').slice(0, 140) }
     // Two shapes exist in the wild: {data:[{id}]} and a bare array of ids.
     const rows = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []
     const models = rows.map((row) => (typeof row === 'string' ? row : row?.id)).filter(Boolean).map(String)
-    if (!models.length) return { ok: false, reason: '接口没有返回任何模型' }
+    if (!models.length) return { ok: false, reason: 'The endpoint returned no models' }
     return { ok: true, models: models.sort((a, b) => a.localeCompare(b)).slice(0, 300) }
   } catch (error) {
     return { ok: false, reason: String(error.message ?? error).slice(0, 160) }
@@ -194,8 +194,8 @@ export async function aiModelCatalog(env, settings, { fetchCustom = false } = {}
   const out = { custom: { ok: false, models: [], reason: '' } }
   if (fetchCustom) {
     const key = ai.apiKey || env.AI_API_KEY
-    if (!ai.endpoint) out.custom.reason = '先填接口地址'
-    else if (!key) out.custom.reason = '先填 API Key'
+    if (!ai.endpoint) out.custom.reason = 'Enter the endpoint URL first'
+    else if (!key) out.custom.reason = 'Enter the API Key first'
     else out.custom = await listCustomModels({ endpoint: ai.endpoint, apiKey: key })
   }
   return out
@@ -209,27 +209,27 @@ export function aiInsights(snapshot) {
   const out = []
   const expiredGrants = snapshot.capabilities.filter((cap) => cap.status === 'expired')
   if (expiredGrants.length) {
-    out.push({ level: 'warn', text: expiredGrants.length + ' 条授权已过期，例如 ' + expiredGrants[0].agent + ' → ' + expiredGrants[0].item + '（' + expiredGrants[0].action + '）。到「授权」页点时长可以延期。' })
+    out.push({ level: 'warn', text: expiredGrants.length + ' grant(s) expired, e.g. ' + expiredGrants[0].agent + ' → ' + expiredGrants[0].item + ' (' + expiredGrants[0].action + '). Click the duration on the Grants page to extend.' })
   }
-  if (snapshot.pending.length) out.push({ level: 'warn', text: '有 ' + snapshot.pending.length + ' 个请求在等你批准。' })
-  if (!snapshot.vaultUnlocked) out.push({ level: 'warn', text: 'vault 当前是锁定的，Agent 无法读取任何值。' })
+  if (snapshot.pending.length) out.push({ level: 'warn', text: 'Requests waiting for your approval: ' + snapshot.pending.length + '.' })
+  if (!snapshot.vaultUnlocked) out.push({ level: 'warn', text: 'The vault is locked, so no Agent can read any values.' })
   const expiredOauth = snapshot.oauthAgents.filter((token) => token.expired)
-  if (expiredOauth.length) out.push({ level: 'warn', text: expiredOauth.length + ' 个 OAuth token 已过期，客户端需要重新授权。' })
+  if (expiredOauth.length) out.push({ level: 'warn', text: expiredOauth.length + ' OAuth token(s) expired; the clients need to authorize again.' })
   const expiredAgents = snapshot.agents.filter((agent) => agent.expired)
-  if (expiredAgents.length) out.push({ level: 'warn', text: expiredAgents.length + ' 个 Agent 的授权窗口已过，需要延期：' + expiredAgents.map((a) => a.name).slice(0, 3).join('、') })
+  if (expiredAgents.length) out.push({ level: 'warn', text: expiredAgents.length + ' Agent(s) past their grant window and need extending: ' + expiredAgents.map((a) => a.name).slice(0, 3).join(', ') })
   const websNoOrigin = snapshot.items.filter((item) => item.kind === 'web' && !(item.origins || []).length)
-  if (websNoOrigin.length) out.push({ level: 'warn', text: websNoOrigin.length + ' 个 web 条目没有填允许的站点，填充永远不会成功。' })
+  if (websNoOrigin.length) out.push({ level: 'warn', text: websNoOrigin.length + ' web item(s) without allowed sites; filling them will never succeed.' })
   if (!snapshot.executors.length && snapshot.items.some((item) => item.kind === 'web')) {
-    out.push({ level: 'warn', text: '有条目是 web 类型，但没有注册执行器，所以无法自动填充。' })
+    out.push({ level: 'warn', text: 'Some items are of type web, but no executor is registered, so they can’t be filled automatically.' })
   }
   const denied = snapshot.deniedAttempts
   if (denied.length) {
     const top = denied.slice().sort((a, b) => (b.count ?? 0) - (a.count ?? 0))[0]
-    out.push({ level: 'info', text: '有 ' + denied.length + ' 类请求被拦下；最多的是 ' + top.agent + ' → ' + top.name + '（' + (top.count ?? 1) + ' 次，' + top.reason + '）。「被拦下的请求」里可以一键授权。' })
+    out.push({ level: 'info', text: 'Blocked request types: ' + denied.length + '; most frequent: ' + top.agent + ' → ' + top.name + ' (' + (top.count ?? 1) + '×, ' + top.reason + '). Grant them in one click under “Blocked requests”.' })
   }
   const revoked = snapshot.capabilities.filter((cap) => cap.status === 'revoked')
-  if (revoked.length) out.push({ level: 'info', text: revoked.length + ' 条授权已被撤销，不再生效。' })
+  if (revoked.length) out.push({ level: 'info', text: revoked.length + ' grant(s) revoked and no longer in effect.' })
   const unclassified = snapshot.items.filter((item) => item.kind === 'unclassified')
-  if (unclassified.length) out.push({ level: 'info', text: unclassified.length + ' 个条目还没分类，Agent 读不到它们。到「密钥」页标成 api 或 web。' })
+  if (unclassified.length) out.push({ level: 'info', text: unclassified.length + ' item(s) not classified yet, so no Agent can read them. Mark them as api or web on the Secrets page.' })
   return out.slice(0, 10)
 }

@@ -10,7 +10,7 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
 // empty dashboard never renders a blank panel that looks broken.
 {
   const markup = /<tbody id="aging-rows">[\s\S]{0,160}<td colspan="5" class="aging-msg">/.test(ui)
-  const copy = ui.includes('没有可排期的条目') && ui.includes('正在读取条目')
+  const copy = ui.includes('Nothing to schedule') && ui.includes('Loading items')
   if (markup && copy) pass('G1 aging table ships an explicit loading/empty state')
   else fail('G1', JSON.stringify({ markup, copy }))
 }
@@ -28,7 +28,7 @@ const ui = fs.readFileSync('src/ui.js', 'utf8')
 }
 // G4: genuine failures still surface a message
 {
-  const errors = ui.includes('地球组件不可用') && ui.includes('全球态势未启用')
+  const errors = ui.includes('Globe unavailable') && ui.includes('Live globe is off')
   if (errors) pass('G4 real failures still report a reason')
   else fail('G4', 'error messages removed')
 }

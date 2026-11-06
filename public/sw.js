@@ -6,7 +6,7 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     let title = 'Secrets Broker'
-    let body = '有新的授权请求，点击查看'
+    let body = 'New access request. Click to view'
     try {
       const response = await fetch('/api/state', { cache: 'no-store', headers: { accept: 'application/json' } })
       if (response.ok) {
@@ -17,11 +17,11 @@ self.addEventListener('push', (event) => {
         const connection = ((state.connections || {}).pending || [])[0]
         const pending = (state.pending || [])[0]
         if (connection) {
-          title = 'Secrets Broker 连接请求'
-          body = `${connection.agent || 'Agent'} 请求首次连接，点击打开待审批面板`
+          title = 'Secrets Broker connection request'
+          body = `${connection.agent || 'Agent'} is requesting its first connection. Click to open pending requests`
         } else if (pending) {
-          title = 'Secrets Broker 授权请求'
-          body = `${pending.agent || 'Agent'} 请求读取「${pending.name || ''}」`
+          title = 'Secrets Broker access request'
+          body = `${pending.agent || 'Agent'} is requesting to read “${pending.name || ''}”`
         }
       }
       // A 401 or any other failure keeps the generic text above: the session is

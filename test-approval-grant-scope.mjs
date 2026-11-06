@@ -110,7 +110,7 @@ async function decidedState(env) {
 
 // ============ 4. Expired grants leave the list but stay in the audit ============
 {
-  // A grant whose window has closed used to keep its row and its "已过期"
+  // A grant whose window has closed used to keep its row and its "Expired"
   // badge forever. The next state read has to delete it while the audit keeps
   // the trace, so the operator can still explain what authority once existed.
   const env = makeEnv()
@@ -223,14 +223,14 @@ async function decidedState(env) {
   } else {
     fail('5e write audit', JSON.stringify({ writes, valueLeaked }).slice(0, 300))
   }
-  if (uiHtml.includes('写入授权：仅本次仍是一次一确认') && uiHtml.includes("['always', '永久']")) {
-    pass('5f the console offers 仅本次 plus durations for a write approval')
+  if (uiHtml.includes('Write grant: Just once still asks every time') && uiHtml.includes("['always', 'Permanent']")) {
+    pass('5f the console offers Just once plus durations for a write approval')
   } else {
     fail('5f write duration UI', 'missing duration chips or hint')
   }
 }
 
-// ============ 6. 仅本次 stays the per-call confirmation ============
+// ============ 6. Just once stays the per-call confirmation ============
 {
   const env = makeEnv()
   await putSession(env)
@@ -258,7 +258,7 @@ async function decidedState(env) {
   const ticket = state1.writeTickets?.[HARNESS.AGENT + '\u0000once-item']
   const tenMinutes = ticket && Math.abs((ticket.expiresAt - before) - 600e3) < 5000
   if (first.status === 'pending-approval' && ticket?.singleUse === true && ticket?.mode === 'once' && tenMinutes) {
-    pass('6a 仅本次 mints a single-use ten-minute ticket')
+    pass('6a Just once mints a single-use ten-minute ticket')
   } else {
     fail('6a once ticket', JSON.stringify({ first, ticket }).slice(0, 240))
   }

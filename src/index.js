@@ -1541,7 +1541,7 @@ function oidcProviders(state) {
   const ids = hasLegacy ? new Set(['default']) : new Set()
   const unique = list.filter((entry) => (ids.has(entry.id) ? false : (ids.add(entry.id), true)))
   // The legacy slot carries its own label now, so renaming it sticks.
-  return hasLegacy ? [{ ...legacy, id: 'default', legacy: true, label: legacy.label || '默认' }, ...unique] : unique
+  return hasLegacy ? [{ ...legacy, id: 'default', legacy: true, label: legacy.label || 'Default' }, ...unique] : unique
 }
 
 // The provider a request refers to. Without a name the enabled one is used.
@@ -1770,12 +1770,12 @@ async function totpSecret(env, state) {
 async function secondFactorWall(request, env, event, code) {
   const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
   const state = await loadState(env)
-  if (loginBlocked(state, ip)) return fail('尝试次数过多，请 15 分钟后再试', 429)
+  if (loginBlocked(state, ip)) return fail('Too many attempts, try again in 15 minutes', 429)
   if (state.security?.totpEnabled !== true) return fail('totp not configured', 428)
   if (!(await verifyTotp(await totpSecret(env, state), code))) {
     await recordLoginFailure(env, ip)
     await addAudit(env, { event: event + '-deny', reason: 'bad-totp', via: 'web' })
-    return fail('验证码错误', 401)
+    return fail('Wrong verification code', 401)
   }
   await clearLoginFailures(env, ip)
   return null
@@ -1788,14 +1788,14 @@ async function confirmSensitive(request, env, body, event, always = false) {
   if (!always && !(await consoleConfirmRequired(env))) return null
   const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
   const state = await loadState(env)
-  if (loginBlocked(state, ip)) return fail('尝试次数过多，请 15 分钟后再试', 429)
+  if (loginBlocked(state, ip)) return fail('Too many attempts, try again in 15 minutes', 429)
   const code = String(body.confirmCode ?? body.code ?? '').replace(/\s+/g, '')
   if (/^\d{6}$/.test(code)) {
     if (state.security?.totpEnabled !== true) return fail('totp not configured', 428)
     if (!(await verifyTotp(await totpSecret(env, state), code))) {
       await recordLoginFailure(env, ip)
       await addAudit(env, { event: event + '-deny', reason: 'bad-totp', via: 'web' })
-      return fail('验证码错误', 401)
+      return fail('Wrong verification code', 401)
     }
     await clearLoginFailures(env, ip)
     return null
@@ -1803,12 +1803,12 @@ async function confirmSensitive(request, env, body, event, always = false) {
   const password = String(body.confirmPassword ?? '')
   if (!password) {
     await addAudit(env, { event: event + '-deny', reason: 'missing-confirmation', via: 'web' })
-    return fail('这个操作需要再确认一次（密码或动态验证码）', 428)
+    return fail('Confirm this action again (password or one-time verification code)', 428)
   }
   if (!(await verifyAdminPassword(env, state, password))) {
     await recordLoginFailure(env, ip)
     await addAudit(env, { event: event + '-deny', reason: 'bad-password', via: 'web' })
-    return fail('确认密码错误', 401)
+    return fail('Wrong confirmation password', 401)
   }
   await clearLoginFailures(env, ip)
   return null
@@ -2058,13 +2058,13 @@ function v2UnlockTtlMs(duration, explicit) {
 const CONNECTION_ADMISSION_EPOCH = '2026-11-05T16:00:00.000Z'
 
 const CONNECTION_MESSAGES = {
-  'connection-pending': '这台设备还没有获得连接许可。请管理员在面板里批准后再试。',
-  'connection-denied': '管理员拒绝了这台设备的连接请求。',
-  'connection-expired': '这次连接许可已到期，或申请超时作废。请让管理员重新批准。',
-  'connection-item-not-approved': '这次连接许可没有包含这个条目。',
-  'connection-plaintext-denied': '这次连接许可只允许使用凭据，不允许显示明文值。',
+  'connection-pending': 'This device isn’t approved to connect yet. Ask the admin to approve it in the console, then try again.',
+  'connection-denied': 'The admin denied this device’s connection request.',
+  'connection-expired': 'This connection’s approval has expired, or the request timed out. Ask the admin to approve it again.',
+  'connection-item-not-approved': 'This connection’s approval doesn’t cover this item.',
+  'connection-plaintext-denied': 'This connection may use credentials but not reveal plaintext values.',
 }
-function connectionMessage(code) { return CONNECTION_MESSAGES[code] ?? '这次连接没有获得许可。' }
+function connectionMessage(code) { return CONNECTION_MESSAGES[code] ?? 'This connection isn’t approved.' }
 
 // The address is hashed so the console can tell "same source" from "another
 // source" without keeping an IP address it does not need. An unknown source
@@ -2145,7 +2145,7 @@ function connectionSweepNeeded(state, now = Date.now()) {
   return false
 }
 
-// Expired grants are deleted here rather than left in the list as "已过期"
+// Expired grants are deleted here rather than left in the list as "Expired"
 // rows. The audit line written by the caller keeps the trace, so removing the
 // record does not remove the fact that the authority existed. Permanent grants
 // (expiresAt 0) and revoked ones are untouched: revocation is an explicit act
@@ -2499,7 +2499,7 @@ function connectionBlockedPayload(admission, origin) {
 
 // Restore is revoke's inverse, and it has to undo the same two things: the
 // grant row AND the capability minted from it. Un-revoking only the row left the
-// capability revoked, so the console said 生效中 while the agent still got
+// capability revoked, so the console said Active while the agent still got
 // "capability revoked" — the restore looked like text and nothing else.
 function restoreGrantState(state, { agent, name, seconds, now = nowIso() }) {
   const grant = state.grants?.[grantKey(agent, name)]
@@ -2661,7 +2661,7 @@ async function listCiphers(env, db, session) {
     if (folderId && row.folder_id !== folderId) continue
     try {
       const decrypted = await decryptCipherRow(row, session)
-      const name = decrypted.name || '(未命名)'
+      const name = decrypted.name || '(unnamed)'
       items.push({
         id: row.id, type: decrypted.type, name, url: cipherUrl(decrypted.data), folderId: row.folder_id ?? null,
         createdAt: row.created_at ?? '', creator: session.email,
@@ -3298,7 +3298,7 @@ async function aiSnapshotFor(env, state, session = null) {
 function maskName(name) {
   const text = String(name ?? '')
   const chars = Array.from(text)
-  if (!chars.length) return '（未命名）'
+  if (!chars.length) return '(unnamed)'
   if (chars.length <= 2) return '•'.repeat(chars.length)
   if (chars.length <= 6) return chars[0] + '•'.repeat(chars.length - 1)
   return chars.slice(0, 2).join('') + '•'.repeat(Math.min(8, chars.length - 4)) + chars.slice(-2).join('')
@@ -3705,20 +3705,20 @@ async function signedApprovalLinks(env, id, origin, source = 'notification') {
 
 // ── Notification templates ───────────────────────────────────────────────
 // One approval template shared by all channels, editable in Settings →
-// 通知模板 (stored at settings.notifications.templates) so copy changes do
+// Notification templates (stored at settings.notifications.templates) so copy changes do
 // not need a redeploy. Missing/empty fields fall back to the defaults below,
 // which reproduce the previously hardcoded wording. Placeholders: {agent},
 // {name}, {time}, {origin} for approvals; {lines}, {origin} for reminders.
 // Channels differ only in rendering: Telegram/ntfy/Gotify turn the labels
 // into buttons/actions, wxpush has no buttons so it appends the signed links.
 const DEFAULT_APPROVAL_TEMPLATE = {
-  title: 'Secrets Broker 授权请求',
-  body: 'Secrets Broker 授权请求\nAgent: {agent}\n条目: {name}\n时间: {time}\n\n请在 Secrets Broker 页面处理: {origin}/',
-  labels: { once: '仅本次', '24h': '24 小时', deny: '拒绝', always: '永久' },
+  title: 'Secrets Broker access request',
+  body: 'Secrets Broker access request\nAgent: {agent}\nItem: {name}\nTime: {time}\n\nHandle it in Secrets Broker: {origin}/',
+  labels: { once: 'Once', '24h': '24 hours', deny: 'Deny', always: 'Permanent' },
 }
 const DEFAULT_REMINDER_TEMPLATE = {
-  title: 'Secrets Broker 授权提醒',
-  body: 'Secrets Broker 授权提醒\n\n{lines}\n\n前往延长：{origin}/#/agents',
+  title: 'Secrets Broker grant reminder',
+  body: 'Secrets Broker grant reminder\n\n{lines}\n\nExtend here: {origin}/#/agents',
 }
 function notificationTemplates(notifications) {
   const t = notifications?.templates ?? {}
@@ -3779,18 +3779,18 @@ async function handleTelegramMessage(env, message, telegram) {
 
   if (verb === 'grants') return reply(formatGrants(state))
 
-  if (verb === 'asksettings') return reply(describeAutoRule(state) + '\n\n用 /auto <agent|*> <时长> <分钟> 设置；/auto off 关闭。')
+  if (verb === 'asksettings') return reply(describeAutoRule(state) + '\n\n/auto <agent|*> <duration> <minutes> sets it; /auto off turns it off.')
 
   if (verb === 'auto') {
     if (args[0] === 'off' || args[0] === 'cancel') {
       await updateState(env, (next) => { delete next.settings.telegramAuto; return next })
       await addAudit(env, { event: 'telegram.auto-off', source: 'telegram' })
-      return reply('自动审批已关闭。')
+      return reply('Auto-approval is off.')
     }
     const agent = String(args[0] ?? '').trim()
     const minutes = Number(args[1] ?? 0)
     if (!agent || !Number.isFinite(minutes) || minutes <= 0 || minutes > 1440) {
-      return reply('用法：/auto <agent|*> <分钟>，例如 /auto Muse 60。最多 1440 分钟（24 小时）。')
+      return reply('Usage: /auto <agent|*> <minutes>, e.g. /auto Muse 60. Max 1440 minutes (24 hours).')
     }
     const until = Date.now() + Math.floor(minutes) * 60000
     await updateState(env, (next) => {
@@ -3800,37 +3800,37 @@ async function handleTelegramMessage(env, message, telegram) {
     await addAudit(env, { event: 'telegram.auto-on', agent, minutes: Math.floor(minutes), source: 'telegram' })
     // Say plainly what was just enabled: an auto-approval rule is a standing
     // permission and the operator must not be surprised by it later.
-    return reply('已开启：' + (agent === '*' ? '所有 Agent' : agent) + ' 的请求将在未来 ' + Math.floor(minutes) + ' 分钟内自动批准。\n\n这段时间内这些请求不会征求你的意见，审批仍会记入日志。用 /auto off 立即关闭。')
+    return reply('Auto-approval on: requests from ' + (agent === '*' ? 'every Agent' : agent) + ' will be approved automatically for the next ' + Math.floor(minutes) + ' min.\n\n/auto off stops it right away. Until then you won’t be asked about these requests; approvals are still logged.')
   }
 
   if (verb === 'approve' || verb === 'deny') {
     const entry = resolvePending(state, args[0])
-    if (!entry) return reply('找不到这个请求。先发 /pending 看看有哪些。')
+    if (!entry) return reply('Request not found. Send /pending to see what’s waiting.')
     const decision = verb === 'deny' ? 'deny' : (String(args[1] ?? 'once').toLowerCase())
     if (verb === 'approve' && !['once', '1h', '24h', '7d', 'always'].includes(decision)) {
-      return reply('时长只能是 once / 1h / 24h / 7d / always。')
+      return reply('Duration must be once / 1h / 24h / 7d / always.')
     }
     const outcome = await decidePending(env, entry.id, decision, 'telegram')
-    if (!outcome) return reply('这个请求已经处理过了。')
-    if (outcome.denied) return reply('已拒绝：' + outcome.agent + ' → ' + outcome.name)
-    if (outcome.error) return reply('没能批准：' + outcome.error)
+    if (!outcome) return reply('This request was already handled.')
+    if (outcome.denied) return reply('Denied: ' + outcome.agent + ' → ' + outcome.name)
+    if (outcome.error) return reply('Couldn’t approve: ' + outcome.error)
     await recordGeoEvent(env, { headers: new Headers() }, {}, { agent: outcome.agent, kind: 'token', action: 'secret.approve', ok: true }).catch(() => {})
-    return reply('已批准：' + outcome.agent + ' → ' + outcome.name + '（' + (outcome.mode || decision) + '）')
+    return reply('Approved: ' + outcome.agent + ' → ' + outcome.name + ' (' + (outcome.mode || decision) + ')')
   }
 
   if (verb === 'extend') {
     const [agent, item, span, action = 'secret.read'] = args
-    if (!agent || !item || !span) return reply('用法：/extend <agent> <条目> <天数|permanent> [secret.read|secret.use|secret.fill]')
+    if (!agent || !item || !span) return reply('Usage: /extend <agent> <item> <days|permanent> [secret.read|secret.use|secret.fill]')
     const days = span === 'permanent' ? 'permanent' : Number(span)
     if (days !== 'permanent' && (!Number.isFinite(days) || days <= 0 || days > 3650)) {
-      return reply('天数只能是 1-3650，或 permanent。')
+      return reply('Days must be 1-3650, or permanent.')
     }
     const state2 = await loadState(env)
     const itemId = telegramItemId(state2, item)
-    if (!itemId) return reply('找不到条目「' + item + '」。控制台解锁一次密码库后再试，或直接抄 itemId（条目详情里有）。')
+    if (!itemId) return reply('Item “' + item + '” not found. Unlock the vault once in the console and try again, or paste the itemId directly (it’s in the item details).')
     const key = capabilityKey(agent, itemId, action)
     const cap = state2.capabilities?.[key]
-    if (!cap) return reply('「' + agent + '」没有对「' + item + '」的 ' + action + ' 授权；用 /approve 或网页授权。')
+    if (!cap) return reply('“' + agent + '” has no grant on “' + item + '” for ' + action + '; use /approve or grant it on the web.')
     const until = days === 'permanent' ? null : Date.now() + days * 86400e3
     await updateState(env, (next) => {
       const c = next.capabilities[key]
@@ -3840,19 +3840,19 @@ async function handleTelegramMessage(env, message, telegram) {
       return next
     })
     await addAudit(env, { event: 'grant.extend', agent, name: item, action, days: String(span), source: 'telegram' })
-    return reply('已延长：' + agent + ' → ' + item + '（' + action + '）到 ' + (until ? new Date(until).toLocaleString('zh-CN', { hour12: false }) : '永久'))
+    return reply('Extended: ' + agent + ' → ' + item + ' (' + action + '), expires ' + (until ? new Date(until).toLocaleString('en-GB', { hour12: false }) : 'never'))
   }
 
   if (verb === 'revoke') {
     const [agent, item, action = 'secret.read'] = args
-    if (!agent || !item) return reply('用法：/revoke <agent> <条目> [secret.read|secret.use|secret.fill]')
+    if (!agent || !item) return reply('Usage: /revoke <agent> <item> [secret.read|secret.use|secret.fill]')
     const state2 = await loadState(env)
     const itemId = telegramItemId(state2, item)
-    if (!itemId) return reply('找不到条目「' + item + '」。控制台解锁一次密码库后再试，或直接抄 itemId。')
+    if (!itemId) return reply('Item “' + item + '” not found. Unlock the vault once in the console and try again, or paste the itemId directly.')
     const key = capabilityKey(agent, itemId, action)
     const cap = state2.capabilities?.[key]
     const legacyKey = grantKey(agent, item)
-    if (!cap && !state2.grants?.[legacyKey]) return reply('没有这条授权。')
+    if (!cap && !state2.grants?.[legacyKey]) return reply('No such grant.')
     await updateState(env, (next) => {
       const c = next.capabilities[key]
       if (c) { c.revokedAt = nowIso(); c.revokedBy = 'telegram' }
@@ -3861,14 +3861,14 @@ async function handleTelegramMessage(env, message, telegram) {
       return next
     })
     await addAudit(env, { event: 'grant.revoke', agent, name: item, action, source: 'telegram' })
-    return reply('已撤销：' + agent + ' → ' + item + '（' + action + '）')
+    return reply('Revoked: ' + agent + ' → ' + item + ' (' + action + ')')
   }
 
   // Not a command: answer as the assistant, which cannot change anything.
   const session = await getSession(env)
   const snapshot = await aiSnapshotFor(env, state, session)
   const answer = await askAi(env, state.settings, { question: parsed.text, snapshot, history: [] })
-  if (!answer.ok) return reply('回答不了：' + answer.reason + '\n\n发 /help 看命令。')
+  if (!answer.ok) return reply('Can’t answer: ' + answer.reason + '\n\n/help lists the commands.')
   return reply(answer.text)
 }
 
@@ -3938,8 +3938,8 @@ async function sendWebPush(env) {
 }
 
 async function notifyDenied(env, origin, entry, notifications) {
-  const actionLabel = { 'secret.read': '读取明文', 'secret.use': '代持调用（http_request）', 'secret.fill': '网页填充' }[entry.action] || entry.action || ''
-  const text = `${entry.agent} 尝试${actionLabel}「${entry.name}」但被拦下：${entry.reason}\n在控制台的「被拦下的请求」里可以一键授权：${origin}/#items`
+  const actionLabel = { 'secret.read': 'reading the plaintext of', 'secret.use': 'making a proxied call (http_request) with', 'secret.fill': 'web-filling' }[entry.action] || entry.action || ''
+  const text = `${entry.agent} was blocked from ${actionLabel} “${entry.name}”: ${entry.reason}\nGrant it in one click under “Blocked requests” in the console: ${origin}/#items`
   const tasks = []
   if (notifications.telegram?.botToken && notifications.telegram?.chatId) {
     tasks.push(fetch(`https://api.telegram.org/bot${notifications.telegram.botToken}/sendMessage`, {
@@ -3949,19 +3949,19 @@ async function notifyDenied(env, origin, entry, notifications) {
   }
   if (notifications.ntfy?.url && notifications.ntfy?.topic) {
     tasks.push(fetch(`${String(notifications.ntfy.url).replace(/\/$/, '')}/${encodeURIComponent(notifications.ntfy.topic)}`, {
-      method: 'POST', headers: { title: 'Secrets Broker · 被拦下的请求', tags: 'warning' }, body: text,
+      method: 'POST', headers: { title: 'Secrets Broker · Blocked request', tags: 'warning' }, body: text,
     }))
   }
   if (notifications.gotify?.url && notifications.gotify?.token) {
     tasks.push(fetch(`${String(notifications.gotify.url).replace(/\/$/, '')}/message`, {
       method: 'POST', headers: { 'content-type': 'application/json', 'x-gotify-key': notifications.gotify.token },
-      body: JSON.stringify({ title: 'Secrets Broker · 被拦下的请求', message: text, priority: 5 }),
+      body: JSON.stringify({ title: 'Secrets Broker · Blocked request', message: text, priority: 5 }),
     }))
   }
   if (notifications.wxpush?.url) {
     tasks.push(fetch(String(notifications.wxpush.url), {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: 'Secrets Broker · 被拦下的请求', content: text }),
+      body: JSON.stringify({ title: 'Secrets Broker · Blocked request', content: text }),
     }))
   }
   tasks.push(sendWebPush(env).catch(() => ({ sent: 0 })))
@@ -3976,9 +3976,9 @@ async function notifyConnectionPending(env, origin, record) {
   const state = await loadState(env)
   const notifications = liveChannels(state.settings?.notifications ?? {})
   const when = String(record.createdAt || nowIso()).replace('T', ' ').slice(0, 16) + ' UTC'
-  const where = origin ? `\n在控制台的待审批面板处理：${String(origin).replace(/\/$/, '')}/#pending` : '\n在控制台的待审批面板处理'
-  const text = `${record.agent} 申请首次连接（${when}）${where}`
-  const title = 'Secrets Broker · 连接申请'
+  const where = origin ? `\nReview it under Pending requests in the console: ${String(origin).replace(/\/$/, '')}/#pending` : '\nReview it under Pending requests in the console'
+  const text = `${record.agent} is requesting its first connection (${when})${where}`
+  const title = 'Secrets Broker · Connection request'
   const tasks = []
   if (notifications.telegram?.botToken && notifications.telegram?.chatId) {
     tasks.push(fetch(`https://api.telegram.org/bot${notifications.telegram.botToken}/sendMessage`, {
@@ -4051,7 +4051,7 @@ async function notifyPending(env, origin, entry, ctx) {
   if (notifications.gotify?.url && notifications.gotify?.token) {
     // Gotify clients (Gotify+ / notify inbox) render notify::actions as buttons,
     // mirroring the Telegram inline keyboard: short body, no raw signed URLs.
-    // '拒绝' sits third so it survives the 3-action cap of Android notifications;
+    // 'Deny' sits third so it survives the 3-action cap of Android notifications;
     // the detail view shows all four. click.url opens the console on tap.
     const extras = {
       'client::notification.click': { url: `${origin}/` },
@@ -4114,17 +4114,17 @@ function buildReminders(state, now = Date.now(), audit = state.audit ?? []) {
     if (typeof expiresAt === 'number') {
       const msLeft = expiresAt - now
       if (msLeft <= 0) {
-        reminders.push({ kind: 'expired', agent: name, oauth, severity: 'critical', daysLeft: 0, expiresAt, message: '授权已过期' })
+        reminders.push({ kind: 'expired', agent: name, oauth, severity: 'critical', daysLeft: 0, expiresAt, message: 'Grant expired' })
       } else {
         const daysLeft = Math.ceil(msLeft / 86400e3)
         if (daysLeft <= 5) {
-          reminders.push({ kind: 'expiring', agent: name, oauth, severity: reminderSeverity(daysLeft), daysLeft, expiresAt, message: daysLeft <= 1 ? '授权将在 1 天内过期' : '授权将在 ' + daysLeft + ' 天内过期' })
+          reminders.push({ kind: 'expiring', agent: name, oauth, severity: reminderSeverity(daysLeft), daysLeft, expiresAt, message: daysLeft <= 1 ? 'Grant expires within 1 day' : 'Grant expires within ' + daysLeft + ' days' })
         }
       }
     }
     const last = lastActivity.get(name)
     if (!last || now - last > IDLE_DAYS * 86400e3) {
-      reminders.push({ kind: 'idle', agent: name, oauth, severity: 'notice', daysIdle: last ? Math.floor((now - last) / 86400e3) : null, lastActivityAt: last ? new Date(last).toISOString() : null, message: last ? '已 ' + Math.floor((now - last) / 86400e3) + ' 天无读取记录' : '从未有读取记录' })
+      reminders.push({ kind: 'idle', agent: name, oauth, severity: 'notice', daysIdle: last ? Math.floor((now - last) / 86400e3) : null, lastActivityAt: last ? new Date(last).toISOString() : null, message: last ? 'No reads for ' + Math.floor((now - last) / 86400e3) + ' days' : 'Never read' })
     }
   }
   for (const [name, agent] of Object.entries(state.agents ?? {})) consider(name, false, agent.expiresAt)
@@ -4144,12 +4144,12 @@ function buildReminders(state, now = Date.now(), audit = state.audit ?? []) {
     if (!entry || typeof entry.expiresAt !== 'number') continue
     const msLeft = entry.expiresAt - now
     if (msLeft <= 0) {
-      reminders.push({ kind: 'secret-expired', agent: name, name, oauth: false, severity: 'critical', daysLeft: 0, expiresAt: entry.expiresAt, message: '密钥已过期' })
+      reminders.push({ kind: 'secret-expired', agent: name, name, oauth: false, severity: 'critical', daysLeft: 0, expiresAt: entry.expiresAt, message: 'Secret expired' })
       continue
     }
     const daysLeft = Math.ceil(msLeft / 86400e3)
     if (daysLeft <= 5) {
-      reminders.push({ kind: 'secret-expiring', agent: name, name, oauth: false, severity: reminderSeverity(daysLeft), daysLeft, expiresAt: entry.expiresAt, message: daysLeft <= 1 ? '密钥今天到期' : '密钥即将到期' })
+      reminders.push({ kind: 'secret-expiring', agent: name, name, oauth: false, severity: reminderSeverity(daysLeft), daysLeft, expiresAt: entry.expiresAt, message: daysLeft <= 1 ? 'Secret expires today' : 'Secret expires soon' })
     }
   }
   const order = { critical: 0, warning: 1, notice: 2 }
@@ -4163,10 +4163,10 @@ function buildReminders(state, now = Date.now(), audit = state.audit ?? []) {
 function reminderMessage(reminders, origin, notifications) {
   const tpl = notificationTemplates(notifications).reminder
   const lines = reminders.map((r) => {
-    const kind = r.oauth ? 'OAuth' : (r.kind.startsWith('secret-') ? '密钥' : 'Token')
-    if (r.kind === 'expired' || r.kind === 'secret-expired') return '- ' + r.agent + ' (' + kind + ')：' + r.message
-    if (r.kind === 'expiring' || r.kind === 'secret-expiring') return '- ' + r.agent + ' (' + kind + ')：' + r.message + '，剩余 ' + r.daysLeft + ' 天'
-    return '- ' + r.agent + ' (' + kind + ')：' + r.message
+    const kind = r.oauth ? 'OAuth' : (r.kind.startsWith('secret-') ? 'Secret' : 'Token')
+    if (r.kind === 'expired' || r.kind === 'secret-expired') return '- ' + r.agent + ' (' + kind + '): ' + r.message
+    if (r.kind === 'expiring' || r.kind === 'secret-expiring') return '- ' + r.agent + ' (' + kind + '): ' + r.message + ', days left: ' + r.daysLeft + ''
+    return '- ' + r.agent + ' (' + kind + '): ' + r.message
   })
   return { title: tpl.title, text: renderTemplate(tpl.body, { lines: lines.join('\n'), origin }) }
 }
@@ -4391,11 +4391,11 @@ function itemNameOf(state, itemId) {
 // The guard answers in stable codes. An agent that only sees
 // "web-credential-is-fill-only" does not know that request_fill is the way in.
 const READ_GUARD_HINTS = {
-  'item-id-unresolved': '这个条目的 id 解析不到；让操作员在面板里重新授权一次',
-  'account-mismatch': '这份授权属于另一个 vault 账户；先切回那个账户再试',
-  'web-credential-is-fill-only': '这是网站登录条目，只能 request_fill 填进白名单站点，永远取不到明文',
-  'unclassified-plaintext-off': '条目没有分类，默认不给明文；让操作员把它设为 api 条目',
-  'no-read-grant': '这个 Agent 还没有读取授权；先 request_access，批准后重试',
+  'item-id-unresolved': 'This item’s id can’t be resolved; ask the operator to grant it again in the console',
+  'account-mismatch': 'This grant belongs to another vault account; switch back to that account and try again',
+  'web-credential-is-fill-only': 'This is a website login item: request_fill can fill it into allowlisted sites, but its plaintext is never returned',
+  'unclassified-plaintext-off': 'This item is unclassified, so it gets no plaintext by default; ask the operator to mark it as an api item',
+  'no-read-grant': 'This Agent has no read grant yet; call request_access and retry once it’s approved',
 }
 // The code stays in brackets: the sentence is for the agent, the code is for
 // whoever greps the audit trail later.
@@ -4460,7 +4460,7 @@ function plaintextReadAllowed(state, itemId, { noApproval = false, granted = fal
 }
 
 // Whether an unclassified credential must be refused. Defaults to true so a
-// fresh install is safe; the operator can turn it off in 设置.
+// fresh install is safe; the operator can turn it off in Settings.
 // One switch per question, because a single "mode" preset never fits: an
 // operator may want plaintext for one website credential and not the next.
 // Every default is the safe answer, and an explicit per-item or per-agent
@@ -5155,8 +5155,8 @@ async function explainAccess(env, { resolved, session, name, action, origin = ''
   if (!itemId) {
     return {
       item: itemName, action, decision: 'deny',
-      reasons: ['当前账户里没有这个条目（名字必须与面板上完全一致）'],
-      suggestions: ['list_secrets 看一遍可用的名字'],
+      reasons: ['No such item in the current account (the name must match the console exactly)'],
+      suggestions: ['list_secrets to see the available names'],
     }
   }
   const kind = state.credentialKinds?.[itemId] ?? ''
@@ -5168,34 +5168,34 @@ async function explainAccess(env, { resolved, session, name, action, origin = ''
   const guard = plaintextReadAllowed(state, itemId, { agent: resolved.name, noApproval: policy?.noApproval === true, granted: cap && status !== 'revoked' ? { subject: resolved.name, accountId } : null })
   const reasons = []
   const suggestions = []
-  if (kind === 'web') reasons.push('这是网页登录，只能填充到白名单站点，不能取明文')
-  else if (!kind) reasons.push('还没有分类（未分类条目默认不给明文）')
-  else reasons.push('分类：' + kind + '（可以取明文）')
-  if (policy?.noApproval === true) reasons.push('已设为免审批：in-scope 的 Agent 读它不用问')
-  if (cap) reasons.push('能力：' + ({ valid: '有效', expiring: '有效（24 小时内到期）', expired: '已过期', revoked: '已撤销', exhausted: '次数已用完', missing: '无' })[status] + (cap.expiresAt ? '，到期 ' + new Date(cap.expiresAt).toISOString() : '') + (cap.maxUses != null ? '，已用 ' + (cap.usedCount ?? 0) + '/' + cap.maxUses : ''))
-  else reasons.push('能力：无')
-  if (cap?.targets?.length) reasons.push('已批准的目标：' + cap.targets.join('、'))
-  if (decision.targetNotApproved) reasons.push('这次的目标 ' + (target?.origin ?? '') + ' 没有批准过；每次批准只管它当时写明的站点')
-  if (decision.ok) reasons.push('判定：放行（' + decision.reason + '）')
-  else if (decision.grantEligible) reasons.push('判定：需要你批准（' + decision.reason + '）')
-  else reasons.push('判定：拒绝（' + decision.reason + '）')
-  if (action === 'secret.read' && !guard.ok) reasons.push('明文读取限制：' + guard.reason)
+  if (kind === 'web') reasons.push('This is a web login: it can only be filled into allowlisted sites, never read as plaintext')
+  else if (!kind) reasons.push('Not classified yet (unclassified items get no plaintext by default)')
+  else reasons.push('Type: ' + kind + ' (plaintext readable)')
+  if (policy?.noApproval === true) reasons.push('Set to skip approval: an in-scope Agent can read it without asking')
+  if (cap) reasons.push('Capability: ' + ({ valid: 'valid', expiring: 'valid (expires within 24 hours)', expired: 'expired', revoked: 'revoked', exhausted: 'read limit reached', missing: 'none' })[status] + (cap.expiresAt ? ', expires ' + new Date(cap.expiresAt).toISOString() : '') + (cap.maxUses != null ? ', used ' + (cap.usedCount ?? 0) + '/' + cap.maxUses : ''))
+  else reasons.push('Capability: none')
+  if (cap?.targets?.length) reasons.push('Approved targets: ' + cap.targets.join(', '))
+  if (decision.targetNotApproved) reasons.push('This target ' + (target?.origin ?? '') + ' was never approved; each approval only covers the site it named at the time')
+  if (decision.ok) reasons.push('Decision: allow (' + decision.reason + ')')
+  else if (decision.grantEligible) reasons.push('Decision: needs your approval (' + decision.reason + ')')
+  else reasons.push('Decision: deny (' + decision.reason + ')')
+  if (action === 'secret.read' && !guard.ok) reasons.push('Plaintext read restriction: ' + guard.reason)
   if (action === 'secret.fill') {
     const fill = fillPolicyFor(state, itemId, origin)
-    if (!fill.ok) reasons.push('填充策略：' + fill.reason)
-    else reasons.push('填充策略：允许 ' + fill.origins.join('、') + '（动作 ' + fill.actions.join('/') + '）')
+    if (!fill.ok) reasons.push('Fill policy: ' + fill.reason)
+    else reasons.push('Fill policy: allows ' + fill.origins.join(', ') + ' (actions ' + fill.actions.join('/') + ')')
   }
   if (action === 'secret.use') {
     const use = usePolicyFor(state, itemId, accountId)
-    if (!use) reasons.push('调用策略：没有配置（secret.use 需要逐条目站点白名单）')
-    else reasons.push('调用策略：' + (use.anyTarget ? '任意站点（经审批）' : (use.origins ?? []).join('、')))
+    if (!use) reasons.push('Call policy: not configured (secret.use needs a per-item site allowlist)')
+    else reasons.push('Call policy: ' + (use.anyTarget ? 'any site (with approval)' : (use.origins ?? []).join(', ')))
   }
-  if (resolved.agent?.account && accountId && String(resolved.agent.account).toLowerCase() !== String(accountId).toLowerCase()) reasons.push('这个 Agent 绑定的是另一个 vault 账户')
-  if (decision.ok) suggestions.push(action === 'secret.read' ? 'get_secret / get_credential 取用' : action === 'secret.fill' ? 'request_fill' : 'http_request')
-  else if (decision.grantEligible) suggestions.push('request_access 发起申请，等审批页批准后重试')
-  else if (kind === 'web') suggestions.push('request_fill（让浏览器执行器填进允许的站点）')
-  else if (status === 'expired' || status === 'revoked' || status === 'exhausted') suggestions.push('让操作员在面板里重新授权这个条目')
-  else suggestions.push('让操作员在「动作授权」里给这个条目加上 ' + action + '，或在同意页勾上「允许读取明文」')
+  if (resolved.agent?.account && accountId && String(resolved.agent.account).toLowerCase() !== String(accountId).toLowerCase()) reasons.push('This Agent is bound to another vault account')
+  if (decision.ok) suggestions.push(action === 'secret.read' ? 'get_secret / get_credential to read it' : action === 'secret.fill' ? 'request_fill' : 'http_request')
+  else if (decision.grantEligible) suggestions.push('request_access to file a request, then retry once it’s approved')
+  else if (kind === 'web') suggestions.push('request_fill (the browser executor fills it into an allowed site)')
+  else if (status === 'expired' || status === 'revoked' || status === 'exhausted') suggestions.push('Ask the operator to grant this item again in the console')
+  else suggestions.push('Ask the operator to add ' + action + ' for this item under “Action grants”, or tick “Also allow reading plaintext values” on the consent page')
   return {
     item: itemName, itemId, action,
     kind: kind || 'unclassified',
@@ -5346,7 +5346,7 @@ function itemNotFoundFor(action, createRequest, name) {
   const verb = action === 'secret.use' ? 'use this credential (http_request)' : action === 'secret.fill' ? 'fill with this credential' : 'read this item'
   return {
     status: 'forbidden', code: 'not-found', reason: 'not-granted', reasonCode: 'item-not-found',
-    error: 'agent not allowed to ' + verb + '：当前账户里没有名为「' + name + '」的条目（名字必须与面板完全一致，空格也算）',
+    error: 'agent not allowed to ' + verb + ': No item named “' + name + '” in the current account (the name must match the console exactly, spaces included)',
   }
 }
 
@@ -5425,7 +5425,7 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
     if (!createRequest) {
       await recordDeniedAttempt(env, {
         state, agentName, name, itemId, account: session.email, action,
-        reason: '当前账户里没有名为「' + name + '」的条目（名字必须与面板完全一致，空格也算）',
+        reason: 'No item named “' + name + '” in the current account (the name must match the console exactly, spaces included)',
         reasonCode: 'item-not-found', origin, target, ctx,
       })
     }
@@ -5456,15 +5456,15 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
     // decisive.
     // An active auto-approval rule is a deliberate "yes" from the operator for
     // this agent, time-boxed. It makes the request eligible, which is exactly
-    // what pressing 批准 would do — the only difference is who answered.
+    // what pressing Approve would do — the only difference is who answered.
     const autoRuleLive = autoRuleActive(state, agentName)
     const inScope = Boolean(itemId) && agentInScope(agent, state.itemGroups, name)
     if (!decision.grantEligible && !decision.legacy && !autoRuleLive && !createRequest) {
-      const why = !itemId ? '当前账户里没有名为「' + name + '」的条目（名字必须与面板完全一致，空格也算）'
-        : !inScope ? '该条目不在 Agent 的可申请范围内；请管理员在「Agent 权限矩阵」里把它加入该 Agent 的可申请范围（先勾选范围，再批准一次）'
-        : '在可申请范围内，但缺少这条授权'
+      const why = !itemId ? 'No item named “' + name + '” in the current account (the name must match the console exactly, spaces included)'
+        : !inScope ? 'This item is outside the Agent’s requestable scope; ask the admin to add it to the Agent’s requestable scope in “Agent permission matrix” (tick the scope first, then approve once more)'
+        : 'Within the requestable scope, but this grant is missing'
       // The prose is for the agent; the code is for whoever greps the audit.
-      // "not-in-scope" (未授权) and "no-grant" (缺少该条授权) are different
+      // "not-in-scope" (not granted) and "no-grant" (this grant is missing) are different
       // answers and need different remedies, so both records carry both.
       const whyCode = !itemId ? 'item-not-found' : !inScope ? 'not-in-scope' : 'no-grant'
       await recordDeniedAttempt(env, {
@@ -5476,7 +5476,7 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
       const verb = action === 'secret.use' ? 'use this credential (http_request)' : action === 'secret.fill' ? 'fill with this credential' : 'read this item'
       // The reason is in the message: the generic "run explain_access" line made
       // an agent investigate permissions when the name was simply misspelled.
-      return { status: 'forbidden', code: !itemId ? 'not-found' : 'not-granted', reason: 'not-granted', reasonCode: whyCode, error: 'agent not allowed to ' + verb + '：' + why }
+      return { status: 'forbidden', code: !itemId ? 'not-found' : 'not-granted', reason: 'not-granted', reasonCode: whyCode, error: 'agent not allowed to ' + verb + ': ' + why }
     }
   }
   const policy = state.policies?.[name]
@@ -5569,7 +5569,7 @@ async function agentAccess(env, { session, agentName, agent, state, name, origin
       }
       return next
     })
-    return { status: 'forbidden', error: '不能读明文：' + readGuardMessage(readGuard.reason), reason: readGuard.reason }
+    return { status: 'forbidden', error: 'Can’t read plaintext: ' + readGuardMessage(readGuard.reason), reason: readGuard.reason }
   }
   // Unified atomic consume: capability is the sole counter. Checks passed
   // above; consume now, before decrypt/fetch, inside the DO transaction.
@@ -5642,7 +5642,7 @@ function statsFor(state, range, audit = state.audit ?? []) {
   })
   const countBy = (field) => {
     const map = new Map()
-    for (const entry of reads) { const key = entry[field] ?? (field === 'agent' ? '网页/管理员' : '未知'); map.set(key, (map.get(key) ?? 0) + 1) }
+    for (const entry of reads) { const key = entry[field] ?? (field === 'agent' ? 'Web/admin' : 'Unknown'); map.set(key, (map.get(key) ?? 0) + 1) }
     return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
   }
   const grants = Object.values(state.grants ?? {}).filter((grant) => !grant.revokedAt && (!grant.expiresAt || grant.expiresAt > Date.now()))
@@ -5749,55 +5749,55 @@ function oauthConsentPage(origin, params, client, catalog = { items: [], groups:
     ? '<div class="group pick">' + values.map((value) =>
         '<label class="row"><input type="checkbox" name="' + name + '" value="' + escape(value) + '"><span>' + escape(value) + '</span></label>'
       ).join('') + '</div>'
-    : '<p class="hint">还没有可选的内容，可以先在控制台创建密钥，或稍后到 Agents 页勾选。</p>'
+    : '<p class="hint">Nothing to pick yet. Create secrets in the console first, or tick them later on the Agents page.</p>'
   // Client names are self-reported, so an unfamiliar one is the only signal the
   // operator gets that this is a new application asking for keys. Say it plainly
   // the first time, and let that one approval stop the question coming back.
   const firstVisit = client && !client.trustedAt
-    ? '<div class="group"><label class="row"><span class="row__label">新应用：<code>' + escape(client.clientName || client.clientId) + '</code> 第一次请求访问</span>' +
+    ? '<div class="group"><label class="row"><span class="row__label">New app: <code>' + escape(client.clientName || client.clientId) + '</code> is requesting access for the first time</span>' +
       '<input type="checkbox" name="remember_app" value="1" checked></label></div>' +
-      '<p class="hint">这个名称由客户端自己填写，不能当作身份证明。若不是你刚才在自己的 Agent 里点开授权，直接点「拒绝」。取消勾选则下次还会再问一次。</p>'
-    : '<p class="hint">这个应用已经在本站确认过：<code>' + escape(client?.clientName || client?.clientId || '') + '</code>。</p>'
-  return '<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>MCP 授权 · Secrets Broker</title><style>' + consolePageCss() + '</style>' + consoleThemeBoot() + '</head><body><div class="wrap wrap--wide">' +
-    '<div class="brand"><img src="/logo.png" alt=""><div><h1>MCP 授权</h1><p class="sub">客户端 <code>' + escape(client?.clientName ?? params.get('client_id')) + '</code> 请求访问你的密钥库</p></div></div>' +
+      '<p class="hint">The client sets this name itself, so it proves nothing about who is asking. If you didn’t just start this authorization from your own Agent, click “Deny”. Untick the box to be asked again next time.</p>'
+    : '<p class="hint">This app was already confirmed on this site: <code>' + escape(client?.clientName || client?.clientId || '') + '</code>.</p>'
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>MCP authorization · Secrets Broker</title><style>' + consolePageCss() + '</style>' + consoleThemeBoot() + '</head><body><div class="wrap wrap--wide">' +
+    '<div class="brand"><img src="/logo.png" alt=""><div><h1>MCP authorization</h1><p class="sub">Client <code>' + escape(client?.clientName ?? params.get('client_id')) + '</code> is requesting access to your vault</p></div></div>' +
     '<form method="post" action="/oauth/authorize">' + field('client_id') + field('redirect_uri') + field('state') + field('code_challenge') + field('code_challenge_method') +
     firstVisit + field('scope') +
-    '<p class="hint">Scope: ' + escape(params.get('scope') ?? 'secrets.read') + ' · 勾选只给它申请和读取的资格，值本身还要看同类里的明文开关。不勾则暂时不给任何条目。</p>' +
-    '<div class="group-head">可申请条目</div>' + boxes('grant_items', catalog.items) +
-    '<div class="group-head">可申请分组</div>' + boxes('grant_groups', catalog.groups) +
+    '<p class="hint">Scope: ' + escape(params.get('scope') ?? 'secrets.read') + ' · Ticking only makes items eligible to request and read; the values themselves still depend on the plaintext switch for their type. Tick nothing to give it no items for now.</p>' +
+    '<div class="group-head">Requestable items</div>' + boxes('grant_items', catalog.items) +
+    '<div class="group-head">Requestable groups</div>' + boxes('grant_groups', catalog.groups) +
     '<div class="group">' +
-    // Checked by default: an operator who clicks 允许 without touching anything
+    // Checked by default: an operator who clicks Allow without touching anything
     // used to hand the client a token with an empty scope, and every read then
     // failed with no hint about why. Scope is the cheap part; the plaintext
     // switch below is the one that stays opt-in.
-    '<label class="row"><input type="checkbox" name="grant_all" value="1" checked><span>允许全部条目（含以后新增的）</span></label>' +
+    '<label class="row"><input type="checkbox" name="grant_all" value="1" checked><span>Allow all items (including ones added later)</span></label>' +
     // Off by default, and short: granting scope must not silently open the
     // plaintext door for a month. The operator opts in and picks the window.
-    '<label class="row"><input type="checkbox" name="grant_plaintext" value="1"><span>同时允许读取明文值</span></label>' +
-    '<label class="row"><span class="row__label">明文有效期</span>' +
-    '<select name="grant_hours"><option value="1">1 小时</option><option value="24" selected>24 小时</option><option value="168">7 天</option><option value="720">30 天</option></select></label>' +
+    '<label class="row"><input type="checkbox" name="grant_plaintext" value="1"><span>Also allow reading plaintext values</span></label>' +
+    '<label class="row"><span class="row__label">Plaintext valid for</span>' +
+    '<select name="grant_hours"><option value="1">1 hour</option><option value="24" selected>24 hours</option><option value="168">7 days</option><option value="720">30 days</option></select></label>' +
     '</div>' +
-    '<p class="hint">不勾选明文时，Agent 只能看到条目名称并提交审批申请，读不到值。web 类型的网站登录无论是否勾选都不会给明文。</p>' +
-    '<div class="btn-row"><button class="primary" name="decision" value="allow">允许</button><button class="secondary" name="decision" value="deny">拒绝</button></div></form></div></body></html>'
+    '<p class="hint">Without plaintext, the Agent only sees item names and can submit approval requests; it can’t read values. Website logins of type web never get plaintext, ticked or not.</p>' +
+    '<div class="btn-row"><button class="primary" name="decision" value="allow">Allow</button><button class="secondary" name="decision" value="deny">Deny</button></div></form></div></body></html>'
 }
 
 function standaloneLoginPage(next, providers = []) {
   const target = safeNext(next)
-  // One button per enabled provider. Adding a provider in 设置 is enough for it
+  // One button per enabled provider. Adding a provider in Settings is enough for it
   // to appear here; nothing needs to change on this page.
   const buttons = providers.map((provider) =>
-    '<a class="row row--link" href="/oidc/login?provider=' + encodeURIComponent(provider.id) + '&next=' + encodeURIComponent(target) + '">使用 ' + escapeHtml(provider.label || provider.id) + ' 登录<span class="row__chev">›</span></a>'
+    '<a class="row row--link" href="/oidc/login?provider=' + encodeURIComponent(provider.id) + '&next=' + encodeURIComponent(target) + '">Log in with ' + escapeHtml(provider.label || provider.id) + '<span class="row__chev">›</span></a>'
   ).join('')
   const oidcBlock = buttons
-    ? '<div class="sep"><span>或</span></div><div class="group">' + buttons + '</div>'
+    ? '<div class="sep"><span>or</span></div><div class="group">' + buttons + '</div>'
     : ''
-  return String.raw`<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>登录 · Secrets Broker</title><style>${consolePageCss()}</style>${consoleThemeBoot()}</head><body><div class="wrap">
-    <div class="brand"><img src="/logo.png" alt=""><div><h1>Secrets Broker</h1><p class="sub">管理登录，这不是 Bitwarden 主密码</p></div></div>
+  return String.raw`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>Log in · Secrets Broker</title><style>${consolePageCss()}</style>${consoleThemeBoot()}</head><body><div class="wrap">
+    <div class="brand"><img src="/logo.png" alt=""><div><h1>Secrets Broker</h1><p class="sub">Console login, not your Bitwarden master password</p></div></div>
     <div class="group">
-      <div class="row"><span class="row__label">管理密码</span><input id="password" type="password" autocomplete="current-password" placeholder="••••••••"></div>
-      <div class="row" id="totp" style="display:none"><span class="row__label">验证码</span><input id="code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 位数字"></div>
+      <div class="row"><span class="row__label">Console password</span><input id="password" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <div class="row" id="totp" style="display:none"><span class="row__label">Code</span><input id="code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 digits"></div>
     </div>
-    <button class="primary" id="go">登录</button>
+    <button class="primary" id="go">Log in</button>
     <div id="status" class="status" role="status"></div>
     ${oidcBlock}
   </div><script>
@@ -5811,8 +5811,8 @@ function standaloneLoginPage(next, providers = []) {
         const response=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:document.getElementById('password').value,code:document.getElementById('code').value})})
         const data=await response.json()
         if(!response.ok){
-          if(data.totpRequired){document.getElementById('totp').style.display='flex';status.textContent=data.error||'请输入验证码'}
-          else status.textContent=data.error||'登录失败'
+          if(data.totpRequired){document.getElementById('totp').style.display='flex';status.textContent=data.error||'Enter your verification code'}
+          else status.textContent=data.error||'Login failed'
           return
         }
         location.href=next
@@ -5830,29 +5830,29 @@ function standaloneLoginPage(next, providers = []) {
 function pairPage({ code, entry }) {
   const gone = !entry
   const approved = Boolean(entry?.approved)
-  const status = gone ? '这个配对码不存在，或者已经过期（五分钟内有效）。' : approved ? '这台设备已经批准过了。' : '确认终端上显示的公钥指纹与下面这串一致，再点批准。'
-  return String.raw`<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>配对设备 · Secrets Broker</title><style>${consolePageCss()}</style>${consoleThemeBoot()}</head><body><div class="wrap">
-    <div class="brand"><img src="/logo.png" alt=""><div><h1>配对设备</h1><p class="sub">批准后这台机器会拿到一把只能自己解开的信封</p></div></div>
+  const status = gone ? 'This pairing code doesn’t exist or has expired (codes are valid for five minutes).' : approved ? 'This device is already approved.' : 'Check that the public-key fingerprint shown in the terminal matches the one below, then approve.'
+  return String.raw`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>Pair device · Secrets Broker</title><style>${consolePageCss()}</style>${consoleThemeBoot()}</head><body><div class="wrap">
+    <div class="brand"><img src="/logo.png" alt=""><div><h1>Pair device</h1><p class="sub">Once approved, this machine gets an envelope that only it can open</p></div></div>
     <div class="group">
-      <div class="row"><span class="row__label">配对码</span><b>${escapeHtml(code || '—')}</b></div>
-      <div class="row"><span class="row__label">设备</span><b>${escapeHtml(entry?.name || '—')}</b></div>
-      <div class="row"><span class="row__label">公钥指纹</span><code id="fp" style="font-size:15px;letter-spacing:1px">${escapeHtml(entry?.fingerprint || '—')}</code></div>
-      <div class="row"><span class="row__label">过期时间</span><span>${entry?.expiresAt ? new Date(entry.expiresAt).toLocaleTimeString('zh-CN') : '—'}</span></div>
+      <div class="row"><span class="row__label">Pairing code</span><b>${escapeHtml(code || '—')}</b></div>
+      <div class="row"><span class="row__label">Device</span><b>${escapeHtml(entry?.name || '—')}</b></div>
+      <div class="row"><span class="row__label">Public-key fingerprint</span><code id="fp" style="font-size:15px;letter-spacing:1px">${escapeHtml(entry?.fingerprint || '—')}</code></div>
+      <div class="row"><span class="row__label">Expires at</span><span>${entry?.expiresAt ? new Date(entry.expiresAt).toLocaleTimeString('en-GB') : '—'}</span></div>
     </div>
     <p class="sub" id="status">${escapeHtml(status)}</p>
-    ${gone || approved ? '' : '<button class="primary" id="approve">批准这台设备</button>'}
+    ${gone || approved ? '' : '<button class="primary" id="approve">Approve this device</button>'}
   </div><script>
     const code=${jsonForScript(code || '')}
     const button=document.getElementById('approve')
     if(button)button.onclick=async()=>{
       const status=document.getElementById('status')
       button.disabled=true
-      status.textContent='正在批准…'
+      status.textContent='Approving…'
       try{
         const response=await fetch('/api/v2/pair/approve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code})})
         const data=await response.json()
-        if(!response.ok)throw new Error(data.error||'批准失败')
-        status.textContent='已批准：'+data.name+' · '+data.fingerprint
+        if(!response.ok)throw new Error(data.error||'Approval failed')
+        status.textContent='Approved: '+data.name+' · '+data.fingerprint
         button.remove()
       }catch(error){status.textContent=String(error.message||error);button.disabled=false}
     }
@@ -5861,30 +5861,30 @@ function pairPage({ code, entry }) {
 
 function connectPage(request) {
   const item = request
-  return String.raw`<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>连接密钥 · Secrets Broker</title><style>${consolePageCss()}</style>${consoleThemeBoot()}</head><body><div class="wrap">
-    <div class="brand"><img src="/logo.png" alt=""><div><h1>连接密钥</h1><p class="sub">保存到当前解锁的 vault，并授权给请求的 Agent</p></div></div>
-    <div class="agent"><b>${escapeHtml(item.agent || 'Agent')}</b> 需要：<code>${escapeHtml(item.name || '')}</code>${item.description ? '<br><span class="sub">' + escapeHtml(item.description) + '</span>' : ''}</div>
+  return String.raw`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>Connect secret · Secrets Broker</title><style>${consolePageCss()}</style>${consoleThemeBoot()}</head><body><div class="wrap">
+    <div class="brand"><img src="/logo.png" alt=""><div><h1>Connect secret</h1><p class="sub">Saved to the currently unlocked vault and granted to the requesting Agent</p></div></div>
+    <div class="agent"><b>${escapeHtml(item.agent || 'Agent')}</b> needs: <code>${escapeHtml(item.name || '')}</code>${item.description ? '<br><span class="sub">' + escapeHtml(item.description) + '</span>' : ''}</div>
     <div class="group">
-      <div class="row"><span class="row__label">名称</span><input id="name" value="${escapeHtml(item.name || '')}"></div>
-      <div class="row"><span class="row__label">用户名</span><input id="username" placeholder="可选"></div>
-      <div class="row"><span class="row__label">密钥值</span><input id="value" type="password" autocomplete="off" placeholder="粘贴 API key / 密码"></div>
-      <div class="row"><span class="row__label">分组</span><input id="group" placeholder="例如 api/prod"></div>
+      <div class="row"><span class="row__label">Name</span><input id="name" value="${escapeHtml(item.name || '')}"></div>
+      <div class="row"><span class="row__label">Username</span><input id="username" placeholder="Optional"></div>
+      <div class="row"><span class="row__label">Secret value</span><input id="value" type="password" autocomplete="off" placeholder="Paste API key / password"></div>
+      <div class="row"><span class="row__label">Group</span><input id="group" placeholder="e.g. api/prod"></div>
     </div>
-    <button class="primary" id="save">保存并授权</button>
+    <button class="primary" id="save">Save and grant</button>
     <div id="status" class="status"></div>
   </div><script>
     const id=${jsonForScript(item.id)}
     document.getElementById('save').onclick=async()=>{
       const status=document.getElementById('status')
       const value=document.getElementById('value').value
-      if(!value){status.textContent='请填写密钥值';return}
-      status.style.color='';status.textContent='保存中…'
+      if(!value){status.textContent='Enter the secret value';return}
+      status.style.color='';status.textContent='Saving…'
       try{
         const response=await fetch('/api/connect/save',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,name:document.getElementById('name').value,username:document.getElementById('username').value,value,group:document.getElementById('group').value})})
         const data=await response.json()
-        if(!response.ok)throw new Error(data.error||'保存失败')
+        if(!response.ok)throw new Error(data.error||'Save failed')
         status.style.color='var(--green)'
-        status.textContent='已保存并授权，可以关闭此页面'
+        status.textContent='Saved and granted. You can close this page'
         setTimeout(()=>location.href='/',1200)
       }catch(error){status.style.color='';status.textContent=String(error.message||error)}
     }
@@ -5949,7 +5949,7 @@ export default {
       // The account is NOT listed here. This page is the only unauthenticated
       // entry point, so rendering vault account emails on it would publish them
       // to anyone who can reach the URL. A pre-auth caller learns nothing about
-      // who has an account. The account is chosen after login, in 设置 → 账户.
+      // who has an account. The account is chosen after login, in Settings → Accounts.
       return htmlResponse(standaloneLoginPage(nextTarget, providers))
     }
     if (url.pathname === '/connect' && request.method === 'GET') {
@@ -5957,10 +5957,10 @@ export default {
       const state = await loadState(env)
       const id = url.searchParams.get('id') ?? ''
       const item = state.credentialRequests?.[id]
-      if (!item) return new Response('连接请求不存在或已完成', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      if (!item) return new Response('Connection request not found or already completed', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       const session = await getSession(env)
       if (!session) return Response.redirect(new URL('/?login=1', url).toString(), 302)
-      if (item.account && String(item.account).toLowerCase() !== String(session.email).toLowerCase()) return new Response('请先切换到请求对应的 vault 账户并解锁', { status: 409, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      if (item.account && String(item.account).toLowerCase() !== String(session.email).toLowerCase()) return new Response('Switch to the vault account this request is for and unlock it first', { status: 409, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       return htmlResponse(connectPage(item))
     }
     if (url.pathname === '/api/credential-requests/cancel' && request.method === 'POST') {
@@ -6297,13 +6297,13 @@ export default {
       const body = await request.json().catch(() => ({}))
       const state = await loadState(env)
       const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
-      if (loginBlocked(state, ip)) return fail('登录尝试过多，请 15 分钟后再试', 429)
+      if (loginBlocked(state, ip)) return fail('Too many login attempts, try again in 15 minutes', 429)
       let passwordValid = await verifyAdminPassword(env, state, body.password)
       if (!passwordValid && env.ADMIN_PASSWORD && constantTimeEqual(encoder.encode(String(body.password ?? '')), encoder.encode(env.ADMIN_PASSWORD))) passwordValid = true
       if (!passwordValid) {
         await recordLoginFailure(env, ip)
         await addAudit(env, { event: 'admin.login-fail', ip })
-        return fail('密码错误', 401)
+        return fail('Wrong password', 401)
       }
       if (state.security?.totpEnabled) {
         if (!body.code) return json({ totpRequired: true }, 401)
@@ -6311,7 +6311,7 @@ export default {
         if (!secret || !(await verifyTotp(secret, body.code))) {
           await recordLoginFailure(env, ip)
           await addAudit(env, { event: 'admin.totp-fail', ip })
-          return json({ totpRequired: true, error: '两步验证码错误' }, 401)
+          return json({ totpRequired: true, error: 'Wrong two-factor verification code' }, 401)
         }
       }
       await clearLoginFailures(env, ip)
@@ -6322,7 +6322,7 @@ export default {
       const wantedAccount = String(body.account ?? '').trim()
       if (wantedAccount) {
         const exists = await env.NODEWARDEN_DB.prepare('SELECT id FROM users WHERE lower(email) = lower(?)').bind(wantedAccount).first()
-        if (!exists) return fail('账户不存在：' + wantedAccount, 400)
+        if (!exists) return fail('Account not found: ' + wantedAccount, 400)
         await updateState(env, (state) => {
           state.settings ??= { notifications: {} }
           // Scope name-only legacy policies to the vault they were created in
@@ -6429,9 +6429,9 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
       const state = await loadState(env)
-      if (!(await verifyAdminPassword(env, state, body.currentPassword))) return fail('当前密码错误', 401)
+      if (!(await verifyAdminPassword(env, state, body.currentPassword))) return fail('Wrong current password', 401)
       const next = String(body.newPassword ?? '')
-      if (next.length < 8) return fail('新密码至少 8 位', 400)
+      if (next.length < 8) return fail('The new password must be at least 8 characters', 400)
       const salt = bytesToB64(crypto.getRandomValues(new Uint8Array(16)))
       const hash = await hashAdminPassword(next, salt)
       await updateState(env, (nextState) => { nextState.security ??= {}; nextState.security.passwordSalt = salt; nextState.security.passwordHash = hash; nextState.security.passwordIterations = ADMIN_PBKDF2_ITERATIONS; return nextState })
@@ -6451,9 +6451,9 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
       const state = await loadState(env)
-      if (!state.security?.totpPendingWrapped) return fail('请先生成两步验证密钥', 400)
+      if (!state.security?.totpPendingWrapped) return fail('Generate a two-factor authentication secret first', 400)
       const secret = new TextDecoder().decode(await unwrapWithKek(state.security.totpPendingWrapped, await kekBytes(env)))
-      if (!(await verifyTotp(secret, body.code))) return fail('验证码错误', 400)
+      if (!(await verifyTotp(secret, body.code))) return fail('Wrong verification code', 400)
       await updateState(env, (next) => { next.security ??= {}; next.security.totpSecretWrapped = state.security.totpPendingWrapped; next.security.totpEnabled = true; next.security.totpPendingWrapped = ''; return next })
       await addAudit(env, { event: 'security.2fa-enable' })
       return json({ ok: true })
@@ -6462,7 +6462,7 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
       const state = await loadState(env)
-      if (!(await verifyAdminPassword(env, state, body.password))) return fail('密码错误', 401)
+      if (!(await verifyAdminPassword(env, state, body.password))) return fail('Wrong password', 401)
       await updateState(env, (next) => { next.security ??= {}; next.security.totpEnabled = false; next.security.totpSecretWrapped = ''; next.security.totpPendingWrapped = ''; return next })
       await addAudit(env, { event: 'security.2fa-disable' })
       return json({ ok: true })
@@ -6672,7 +6672,7 @@ export default {
           const text = await check.text().catch(() => '')
           const combined = String(check.headers.get('location') ?? '') + ' ' + text
           if (/invalid_client|client not found|unknown client/i.test(combined)) {
-            return fail(`OIDC 服务商「${oidc.label || oidc.id}」不认这个 client id（${oidc.clientId}）。请到该服务商后台登记这个 client，并在「设置 → OIDC 登录」里改成它分配给你的 client id 和 secret。`, 400)
+            return fail(`OIDC provider “${oidc.label || oidc.id}” doesn’t recognize this client id (${oidc.clientId}). Register this client with the provider, then enter the client id and secret it gives you under “Settings → OIDC login”.`, 400)
           }
         } catch { /* the provider may not allow a probe; the real redirect still runs */ }
         return new Response(null, { status: 302, headers: { location: target.toString(), 'set-cookie': `oidc_state=${cookie}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600` } })
@@ -6687,7 +6687,7 @@ export default {
         const reason = String(consumed?.reason ?? 'invalid')
         if (reason === 'replay') return failOidc('OIDC state already used (replay)', 400)
         if (reason === 'expired') return failOidc('OIDC state expired', 400)
-        return new Response('<meta charset="utf-8"><h2>OIDC 状态校验失败</h2><p>这个链接是回调地址，不能直接打开；请从「个人资料 → 使用 OIDC 登录 / 绑定」重新发起。</p><p><a href="/?view=profile">回到个人资料</a></p>', { status: 400, headers: { 'content-type': 'text/html; charset=utf-8', 'set-cookie': clearOidcCookie } })
+        return new Response('<meta charset="utf-8"><h2>OIDC state check failed</h2><p>This link is a callback URL and can’t be opened directly; start again from “Profile → Log in with OIDC / Link”.</p><p><a href="/?view=profile">Back to profile</a></p>', { status: 400, headers: { 'content-type': 'text/html; charset=utf-8', 'set-cookie': clearOidcCookie } })
       }
       // The provider comes from the signed state cookie, so the callback
       // uses the configuration the sign-in actually started with. The state is
@@ -6721,19 +6721,19 @@ export default {
         if (user.email_verified === false) return failOidc('OIDC email is not verified', 403)
         if (user.iss != null && String(user.iss).replace(/\/$/, '') !== oidc.issuer) return failOidc('OIDC userinfo issuer mismatch', 403)
         const isAdmin = await adminAuthorized(request, env)
-        if (stateData.next === 'profile' && !isAdmin) return failOidc('请先在 Secrets Broker 登录后再绑定 OIDC', 401)
+        if (stateData.next === 'profile' && !isAdmin) return failOidc('Log in to Secrets Broker before linking OIDC', 401)
         // The check is per provider. The old global issuer/sub check ran on
         // every sign-in, so any second identity was rejected as "not the bound
         // one" and every existing binding looked broken.
         const binding = oidcBindingFor(state, oidc)
-        if (binding?.sub && claims.sub !== binding.sub) return failOidc('这个服务商已绑定另一个身份，请先在个人资料里解绑再绑定', 403)
+        if (binding?.sub && claims.sub !== binding.sub) return failOidc('This provider is already linked to another identity; unlink it in your profile first, then link again', 403)
         const boundSub = String(binding?.sub ?? '')
         if (!boundSub && !isAdmin) {
           const allowedSub = String(env.OIDC_ALLOWED_SUB ?? '')
           const allowedEmail = String(env.OIDC_ALLOWED_EMAIL ?? '')
-          if (!allowedSub && !allowedEmail) return failOidc('首次 OIDC 登录需要管理员先登录绑定，或配置 OIDC_ALLOWED_SUB / OIDC_ALLOWED_EMAIL', 403)
-          if (allowedSub && claims.sub !== allowedSub) return failOidc('OIDC 身份不在允许列表', 403)
-          if (allowedEmail && String(user.email ?? '').toLowerCase() !== allowedEmail.toLowerCase()) return failOidc('OIDC 邮箱不在允许列表', 403)
+          if (!allowedSub && !allowedEmail) return failOidc('The first OIDC login needs an admin to log in and link first, or OIDC_ALLOWED_SUB / OIDC_ALLOWED_EMAIL to be configured', 403)
+          if (allowedSub && claims.sub !== allowedSub) return failOidc('OIDC identity is not on the allowlist', 403)
+          if (allowedEmail && String(user.email ?? '').toLowerCase() !== allowedEmail.toLowerCase()) return failOidc('OIDC email is not on the allowlist', 403)
         }
         await updateState(env, (next) => {
           next.profile ??= {}
@@ -6813,7 +6813,7 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
       const state = await loadState(env)
-      if (!(await verifyAdminPassword(env, state, body.password))) return fail('管理密码错误', 401)
+      if (!(await verifyAdminPassword(env, state, body.password))) return fail('Wrong console password', 401)
       await stateStub(env).fetch('https://state/session', { method: 'DELETE' })
       // An explicit lock must also drop the Vault 2.0 key cache. Without this
       // the same cookie keeps a live DEK (and its plainOk pass), so
@@ -6875,7 +6875,7 @@ export default {
         }
         return json({ ok: true, name: nextName })
       } catch (error) {
-        if (error.code === 'ambiguous_item_name') return json({ ok: false, error: '同名条目不止一个，请改用 itemId 指定要改哪一个', ids: error.ids }, 409)
+        if (error.code === 'ambiguous_item_name') return json({ ok: false, error: 'More than one item has this name; use itemId to pick the one to change', ids: error.ids }, 409)
         return fail(String(error.message ?? error), error.status ?? 500)
       }
     }
@@ -6926,7 +6926,7 @@ export default {
         await addAudit(env, { event: 'item.rotate', name: nextName, itemId: itemId || undefined, source: snapshot ? 'v2' : 'legacy', actor, keepOldDays })
         return json({ ok: true, name: nextName, itemId, backup: Boolean(backup), backupUntil: until, backupUnavailable: keepOldDays > 0 && !backup })
       } catch (error) {
-        if (error.code === 'ambiguous_item_name') return json({ ok: false, error: '同名条目不止一个，请改用 itemId 指定要轮换哪一个', ids: error.ids }, 409)
+        if (error.code === 'ambiguous_item_name') return json({ ok: false, error: 'More than one item has this name; use itemId to pick the one to rotate', ids: error.ids }, 409)
         return fail(String(error.message ?? error), error.status ?? 500)
       }
     }
@@ -6985,7 +6985,7 @@ export default {
         if (!deleted) return fail('item not found', 404)
         return json({ ok: true })
       } catch (error) {
-        if (error.code === 'ambiguous_item_name') return json({ ok: false, error: '同名条目不止一个，请改用 itemId 指定要删哪一个', ids: error.ids }, 409)
+        if (error.code === 'ambiguous_item_name') return json({ ok: false, error: 'More than one item has this name; use itemId to pick the one to delete', ids: error.ids }, 409)
         return fail(String(error.message ?? error), error.status ?? 500)
       }
     }
@@ -7129,7 +7129,7 @@ export default {
           return {
             ...item,
             lastActivityAt: hit ? new Date(hit.time).toISOString() : '',
-            lastActor: hit ? (hit.actor || '管理员') : '',
+            lastActor: hit ? (hit.actor || 'Admin') : '',
             lastEvent: hit ? hit.event : '',
             lastRotatedAt: meta?.lastRotatedAt || '',
             rotatedBy: meta?.rotatedBy || '',
@@ -7293,7 +7293,7 @@ export default {
       const itemId = await resolveItemId(env, env.NODEWARDEN_DB, session, itemName)
       // Name the item: a retry that only says "item not found" gives no way to
       // tell which credential is gone.
-      if (!itemId) return fail('凭据「' + itemName + '」在 vault 里已不存在，无法重新授权；请先删除这条旧授权', 404)
+      if (!itemId) return fail('Credential “' + itemName + '” no longer exists in the vault, so it can’t be granted again; delete this old grant first', 404)
       const accountId = String(session.email ?? '').trim()
       if (!isWellFormedAccountId(accountId)) return fail('account scope unavailable', 403)
       const state = await loadState(env)
@@ -8426,7 +8426,7 @@ export default {
       await addAudit(env, { event: 'grant.restore', agent: body.agent, name: body.name, seconds, source: 'web' })
       return json({ ok: true })
     }
-    // Batch operations from the 授权 page. The per-grant routes take one key per
+    // Batch operations from the Grants page. The per-grant routes take one key per
     // request, so a twenty-row selection was twenty round trips that could stop
     // halfway; one request over one state write either applies to every row or
     // reports the rows it could not find.
@@ -8520,7 +8520,7 @@ export default {
         if (request.method !== 'POST') return json({
           error: 'confirmation_required',
           code: 'audit_export_post_only',
-          message: '审计导出已改为 POST + 二次验证：GET 不再返回 CSV。请用 POST /api/audit，body 带 {"format":"csv","confirmPassword":"<密码或动态验证码>"}；控制台右上角「导出」按钮已按新流程实现。',
+          message: 'Audit export now uses POST + a second check: GET no longer returns CSV. Use POST /api/audit with body {"format":"csv","confirmPassword":"<password or one-time verification code>"}; the “Export” button at the top right of the console already uses the new flow.',
           next_step: 'POST /api/audit with {"format":"csv","confirmPassword":"<password or TOTP>"}',
           docs: 'docs/upgrade-notes.md',
         }, 428)
@@ -8534,7 +8534,7 @@ export default {
           return /[",\n]/.test(text) ? '"' + text.split('"').join('""') + '"' : text
         }
         const lines = [fields.join(',')].concat(filtered.map((entry) => fields.map((field) => cell(entry[field])).join(',')))
-        if (masked) lines.unshift('# 因未解锁，条目名称已脱敏（本文件由锁定态控制台导出）')
+        if (masked) lines.unshift('# Item names are redacted because the vault is locked (exported from a locked console)')
         const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
         const range = fromMs != null && toMs != null ? 'range' : fromMs != null ? 'since' : toMs != null ? 'until' : 'all'
         await addAudit(env, { event: 'audit.export', scope: 'audit', count: filtered.length, masked, range })
@@ -8603,13 +8603,13 @@ export default {
       const notifications = liveChannels(allChannels)
       if (body.simulateApproval === true) {
         const id = crypto.randomUUID()
-        const entry = { id, agent: 'test-agent', name: '通知测试条目', account: await vaultEmail(env, env.NODEWARDEN_DB, state), createdAt: nowIso() }
+        const entry = { id, agent: 'test-agent', name: 'Notification test item', account: await vaultEmail(env, env.NODEWARDEN_DB, state), createdAt: nowIso() }
         await updateState(env, (next) => { next.pending ??= {}; next.pending[id] = entry; return next })
         await notifyPending(env, new URL(request.url).origin, entry, {})
         await addAudit(env, { event: 'notify.test-approval', agent: 'test-agent', name: entry.name, id })
         return json({ ok: true, simulated: true, id, pending: entry })
       }
-      const text = 'Secrets Broker 测试通知：通知渠道工作正常。'
+      const text = 'Secrets Broker test notification: the notification channel works.'
       const results = {}
       if (notifications.telegram?.botToken && notifications.telegram?.chatId) {
         try { const response = await fetch(`https://api.telegram.org/bot${notifications.telegram.botToken}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: notifications.telegram.chatId, text }) }); results.telegram = response.status } catch (error) { results.telegram = String(error.message ?? error) }
@@ -8669,20 +8669,20 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
       const raw = String(body.url ?? '').trim().replace(/\/+$/, '')
-      if (!raw) return fail('需要一个地址，例如 https://broker.example.com', 400)
+      if (!raw) return fail('An address is required, e.g. https://broker.example.com', 400)
       let parsed
-      try { parsed = new URL(raw) } catch { return fail('地址不合法', 400) }
-      if (parsed.username || parsed.password) return fail('地址里不要带账号密码，令牌单独填', 400)
+      try { parsed = new URL(raw) } catch { return fail('Invalid address', 400) }
+      if (parsed.username || parsed.password) return fail('Don’t put a username or password in the address; the token goes in its own field', 400)
       const local = parsed.hostname === 'localhost' || isPrivateHost(parsed.hostname)
       if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && local)) {
-        return fail('只接受 https（本机地址可以用 http）', 400)
+        return fail('Only https is accepted (local addresses may use http)', 400)
       }
       const token = String(body.token ?? '').trim()
-      if (token.length < 16) return fail('令牌看起来不完整（至少 16 个字符）', 400)
+      if (token.length < 16) return fail('The token looks incomplete (at least 16 characters)', 400)
       // Prove it works before storing anything: a 401 from the other side is a
       // better answer now than a mystery later.
       let reached
-      try { reached = await pullRemote(raw, token) } catch (error) { return fail('连不上对面：' + error.message, 400) }
+      try { reached = await pullRemote(raw, token) } catch (error) { return fail('Can’t reach the remote: ' + error.message, 400) }
       await mutateState(env, [{ op: 'set', path: ['settings', 'remoteBroker'], value: { url: raw, label: String(body.label ?? '').trim().slice(0, 48), tokenWrapped: await wrapWithKek(encoder.encode(token), await kekBytes(env)), addedAt: nowIso(), lastCount: reached.count ?? 0, lastCompareAt: null } }])
       await addAudit(env, { event: 'sync.remote.set', url: raw, count: reached.count ?? 0 })
       return json({ ok: true, url: raw, count: reached.count ?? 0 })
@@ -8697,20 +8697,20 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const state = await loadState(env)
       const remote = state.settings?.remoteBroker
-      if (!remote?.url || !remote?.tokenWrapped) return fail('还没有配置远端，先填地址和令牌', 409)
+      if (!remote?.url || !remote?.tokenWrapped) return fail('No remote configured yet; enter the address and token first', 409)
       const session = await getSession(env)
       let account = session?.email || ''
       if (session && account !== (state.settings?.vaultEmail ?? '')) account = ''
       if (!account) account = await vaultEmail(env, env.NODEWARDEN_DB, state).catch(() => '')
-      if (!account) return fail('这台 broker 还没有配置 vault 账户', 409)
+      if (!account) return fail('This broker has no vault account configured yet', 409)
       const mine = await vaultCipherRows(env, account)
-      if (!mine) return fail('vault 数据库里没有这个用户（是不是还没初始化？）', 409)
+      if (!mine) return fail('This user isn’t in the vault database (not initialized yet?)', 409)
       let peerToken = ''
-      try { peerToken = decoder.decode(await unwrapWithKek(remote.tokenWrapped, await kekBytes(env))) } catch (error) { return fail('保存的远端令牌解不开（SESSION_KEK 换过？），请重新填一次', 409) }
+      try { peerToken = decoder.decode(await unwrapWithKek(remote.tokenWrapped, await kekBytes(env))) } catch (error) { return fail('Can’t decrypt the saved remote token (was SESSION_KEK changed?); enter it again', 409) }
       let theirs
       try { theirs = await pullRemote(remote.url, peerToken) } catch (error) {
         await addAudit(env, { event: 'sync.compare-deny', url: remote.url, reason: error.message.slice(0, 120) })
-        return fail('远端没有给出结果：' + error.message, 502)
+        return fail('The remote returned no result: ' + error.message, 502)
       }
       // Trash is not content. A row with deleted_at set is a deletion signal,
       // which apply refuses to act on, so counting it as "will pull" or as
@@ -8737,29 +8737,29 @@ export default {
       if (await vault2Context(env)) return fail('Vault 2.0 is the active store; use /api/v2/sync/push', 410)
       const state = await loadState(env)
       const remote = state.settings?.remoteBroker
-      if (!remote?.url || !remote?.tokenWrapped) return fail('还没有配置远端，先填地址和令牌', 409)
+      if (!remote?.url || !remote?.tokenWrapped) return fail('No remote configured yet; enter the address and token first', 409)
       const session = await getSession(env)
       let account = session?.email || ''
       if (session && account !== (state.settings?.vaultEmail ?? '')) account = ''
       if (!account) account = await vaultEmail(env, env.NODEWARDEN_DB, state).catch(() => '')
-      if (!account) return fail('这台 broker 还没有配置 vault 账户', 409)
+      if (!account) return fail('This broker has no vault account configured yet', 409)
       const mine = await vaultCipherRows(env, account)
-      if (!mine) return fail('vault 数据库里没有这个用户（是不是还没初始化？）', 409)
+      if (!mine) return fail('This user isn’t in the vault database (not initialized yet?)', 409)
       const owner = await env.NODEWARDEN_DB.prepare('SELECT id FROM users WHERE lower(email) = lower(?)').bind(account).first().catch(() => null)
-      if (!owner) return fail('vault 数据库里没有这个用户（是不是还没初始化？）', 409)
+      if (!owner) return fail('This user isn’t in the vault database (not initialized yet?)', 409)
       let peerToken = ''
-      try { peerToken = decoder.decode(await unwrapWithKek(remote.tokenWrapped, await kekBytes(env))) } catch (error) { return fail('保存的远端令牌解不开（SESSION_KEK 换过？），请重新填一次', 409) }
+      try { peerToken = decoder.decode(await unwrapWithKek(remote.tokenWrapped, await kekBytes(env))) } catch (error) { return fail('Can’t decrypt the saved remote token (was SESSION_KEK changed?); enter it again', 409) }
       let theirs
       try { theirs = await pullRemote(remote.url, peerToken) } catch (error) {
         await addAudit(env, { event: 'sync.apply-deny', url: remote.url, reason: error.message.slice(0, 120) })
-        return fail('远端没有给出结果：' + error.message, 502)
+        return fail('The remote returned no result: ' + error.message, 502)
       }
       const localById = new Map(mine.map((row) => [row.id, row]))
       // Ciphertext travels, the key does not. A row from a vault with a different
       // master password decrypts to an empty name here, which used to land in the
-      // list as "(未命名)" and read as corruption. Ask before writing: if the name
+      // list as "(unnamed)" and read as corruption. Ask before writing: if the name
       // does not decrypt with this vault's key, the row is not ours to hold.
-      if (!session) return fail('先解锁 vault 再同步：要验证对面的密文能不能用这台 broker 的钥匙解开', 423)
+      if (!session) return fail('Unlock the vault before syncing: it’s needed to check that this broker’s key can decrypt the remote ciphertext', 423)
       const keyMatch = await syncKeyMatch(env, account, theirs)
       const wanted = []
       let unreadable = 0
@@ -8780,11 +8780,11 @@ export default {
       if (!wanted.length && unreadable) {
         await addAudit(env, { event: 'sync.apply-deny', url: remote.url, reason: 'unreadable-ciphertext', count: unreadable, keyMatch })
         const verdict = keyMatch === false
-          ? '对面的账户密钥和这台不一样（同一个邮箱在两个 broker 上各自初始化过，账户密钥就不同），密文不能互用。'
+          ? 'The remote’s account key differs from this one (the same email initialized separately on each broker gets a different account key), so the ciphertext isn’t interchangeable.'
           : keyMatch === true
-            ? '两边的账户密钥是一样的，所以这 ' + unreadable + ' 条多半是从别的账户带过来的旧数据。'
-            : '对面没报账户密钥，判断不了是不是同一把钥匙。'
-        return fail('远端的 ' + unreadable + ' 条密文用这台 broker 的主密码解不开——' + verdict + '没有写入任何条目。', 409)
+            ? 'Both sides have the same account key, so the unreadable ones (' + unreadable + ') are most likely old data carried over from another account.'
+            : 'The remote didn’t report its account key, so there’s no telling whether both use the same key.'
+        return fail('Remote ciphertexts this broker’s master password can’t decrypt: ' + unreadable + '. ' + verdict + ' No items were written.', 409)
       }
       const insert = env.NODEWARDEN_DB.prepare(
         'INSERT OR REPLACE INTO ciphers (id, user_id, type, folder_id, name, notes, data, key, favorite, reprompt, created_at, updated_at, deleted_at, archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?)',
@@ -8809,13 +8809,13 @@ export default {
     }
 
     // Rows that cannot be decrypted with this vault's key are dead weight: they
-    // show up as "(未命名)" and can never be read, so offer to sweep them out.
+    // show up as "(unnamed)" and can never be read, so offer to sweep them out.
     if (url.pathname === '/api/sync/prune-unreadable' && request.method === 'POST') {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const session = await getSession(env)
-      if (!session) return fail('先解锁 vault 再清理', 423)
+      if (!session) return fail('Unlock the vault before cleaning up', 423)
       const user = await env.NODEWARDEN_DB.prepare('SELECT id FROM users WHERE lower(email) = lower(?)').bind(session.email).first().catch(() => null)
-      if (!user) return fail('vault 数据库里没有这个用户（是不是还没初始化？）', 409)
+      if (!user) return fail('This user isn’t in the vault database (not initialized yet?)', 409)
       const rows = await env.NODEWARDEN_DB.prepare('SELECT id, user_id, type, folder_id, name, notes, data, key FROM ciphers WHERE user_id = ?').bind(user.id).all()
       const doomed = []
       for (const row of rows.results ?? []) if (!(await rowReadable(row, session))) doomed.push(row.id)
@@ -8841,9 +8841,9 @@ export default {
       if (!(await adminAuthorized(request, env))) return fail('unauthorized', 401)
       const body = await request.json().catch(() => ({}))
       const name = String(body.name ?? '').trim().slice(0, 48)
-      if (!/^[\w .-]{1,48}$/.test(name)) return fail('名称只能包含字母、数字、空格、点、横线和下划线（1-48 字）', 400)
+      if (!/^[\w .-]{1,48}$/.test(name)) return fail('Names may only contain letters, digits, spaces, dots, hyphens and underscores (1-48 characters)', 400)
       const state = await loadState(env)
-      if (Object.keys(state.syncDevices ?? {}).length >= 20) return fail('同步设备最多 20 个', 400)
+      if (Object.keys(state.syncDevices ?? {}).length >= 20) return fail('At most 20 sync devices', 400)
       const token = randomToken() + randomToken()
       const id = 'sdev_' + randomToken().slice(0, 10)
       const account = state.settings?.vaultEmail ?? ''
@@ -8876,7 +8876,7 @@ export default {
       const device = state.syncDevices?.[id]
       if (!device) return fail('device not found', 404)
       // Deleting a live device would be an invisible revoke; make it explicit.
-      if (!device.revokedAt) return fail('先撤销这个设备再删除', 409)
+      if (!device.revokedAt) return fail('Revoke this device before deleting it', 409)
       await mutateState(env, [{ op: 'delete', path: ['syncDevices', id] }])
       await addAudit(env, { event: 'sync.device.delete', name: device.name, device: id })
       return json({ ok: true })
@@ -9083,15 +9083,15 @@ export default {
               await fetch(`https://api.telegram.org/bot${current.botToken}/setMyCommands`, {
                 method: 'POST', headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ commands: [
-                  { command: 'pending', description: '列出待审批请求' },
-                  { command: 'approve', description: '批准：#1 或 #1 24h' },
-                  { command: 'deny', description: '拒绝：#1' },
-                  { command: 'grants', description: '列出授权' },
-                  { command: 'extend', description: '延长：agent 条目 天数' },
-                  { command: 'revoke', description: '撤销：agent 条目' },
-                  { command: 'auto', description: '自动审批：agent 分钟 / off' },
-                  { command: 'status', description: '概览' },
-                  { command: 'help', description: '帮助' },
+                  { command: 'pending', description: 'List pending requests' },
+                  { command: 'approve', description: 'Approve: #1 or #1 24h' },
+                  { command: 'deny', description: 'Deny: #1' },
+                  { command: 'grants', description: 'List grants' },
+                  { command: 'extend', description: 'Extend: agent item days' },
+                  { command: 'revoke', description: 'Revoke: agent item' },
+                  { command: 'auto', description: 'Auto-approve: agent minutes / off' },
+                  { command: 'status', description: 'Overview' },
+                  { command: 'help', description: 'Help' },
                 ] }),
               }).catch(() => {})
             }
@@ -9108,10 +9108,10 @@ export default {
       let params = url.searchParams
       if (request.method === 'POST') {
         if (String(request.headers.get('sec-fetch-site') ?? '').toLowerCase() === 'cross-site') {
-          return new Response('跨站提交被拒绝', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+          return new Response('Cross-site submission refused', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } })
         }
         params = await request.formData().catch(() => null)
-        if (!params) return new Response('表单格式无效', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+        if (!params) return new Response('Invalid form data', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       } else if (request.method !== 'GET') {
         return new Response('method not allowed', { status: 405, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       }
@@ -9119,29 +9119,29 @@ export default {
       const decision = String(params.get('d') ?? '')
       const exp = Number(params.get('exp') ?? '0')
       const signature = String(params.get('sig') ?? '')
-      if (!id || !['once', '24h', 'always', 'deny'].includes(decision) || !Number.isFinite(exp) || exp < Date.now()) return new Response('链接已过期或无效', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      if (!id || !['once', '24h', 'always', 'deny'].includes(decision) || !Number.isFinite(exp) || exp < Date.now()) return new Response('Link expired or invalid', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       const expected = await hmacToken(await cookieKey(env), `${id}:${decision}:${exp}`)
-      if (!constantTimeEqual(encoder.encode(expected), encoder.encode(signature))) return new Response('签名无效', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      if (!constantTimeEqual(encoder.encode(expected), encoder.encode(signature))) return new Response('Invalid signature', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       if (request.method === 'GET') {
         const pending = (await loadState(env)).pending?.[id]
-        if (!pending) return new Response('请求不存在或已处理', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })
-        const verb = decision === 'deny' ? '拒绝' : '允许'
-        const scope = decision === 'once' ? '本次' : decision === '24h' ? '24 小时内' : decision === 'always' ? '长期' : '所有'
+        if (!pending) return new Response('Request not found or already handled', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+        const verb = decision === 'deny' ? 'Deny' : 'Allow'
+        const scope = decision === 'once' ? 'for this request only' : decision === '24h' ? 'for 24 hours' : decision === 'always' ? 'long-term' : 'for everything'
         const fields = [['id', id], ['d', decision], ['exp', String(exp)], ['sig', signature], ['ch', String(params.get('ch') ?? 'notification')]]
           .map(([name, value]) => `<input type="hidden" name="${name}" value="${escapeHtml(value)}">`).join('')
         return htmlResponse(`<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-          `<title>确认授权 · Secrets Broker</title>` +
+          `<title>Confirm grant · Secrets Broker</title>` +
           `<div style="font:15px/1.7 system-ui;max-width:520px;margin:48px auto;padding:0 18px;color:#152033">` +
-          `<h2 style="font-size:19px;margin:0 0 12px">确认${verb}读取请求</h2>` +
-          `<p>Agent <strong>${escapeHtml(String(pending.agent ?? '').slice(0, 80))}</strong> 请求读取 <strong>${escapeHtml(String(pending.name ?? '').slice(0, 120))}</strong>。</p>` +
-          `<p style="color:#6b7890;font-size:14px">${decision === 'deny' ? '确认后不会授予任何访问。' : `确认后将在${scope}范围内授权。`}</p>` +
+          `<h2 style="font-size:19px;margin:0 0 12px">${verb} this read request?</h2>` +
+          `<p>Agent <strong>${escapeHtml(String(pending.agent ?? '').slice(0, 80))}</strong> is requesting to read <strong>${escapeHtml(String(pending.name ?? '').slice(0, 120))}</strong>.</p>` +
+          `<p style="color:#6b7890;font-size:14px">${decision === 'deny' ? 'Confirming grants no access.' : `Confirming grants access ${scope}.`}</p>` +
           `<form method="post" action="/approve" autocomplete="off">${fields}` +
           `<button type="submit" style="width:100%;padding:12px;border:1px solid #152033;border-radius:10px;background:#152033;color:#fff;font-size:15px">${verb}</button></form>` +
-          `<p style="color:#6b7890;font-size:12px;margin-top:14px">此页面只在你点击按钮后执行，链接本身不会再自动生效。</p></div>`)
+          `<p style="color:#6b7890;font-size:12px;margin-top:14px">This page only acts when you click the button; the link by itself no longer takes effect.</p></div>`)
       }
       const outcome = await decidePending(env, id, decision, String(params.get('ch') ?? 'notification'))
-      if (!outcome) return new Response('请求不存在或已处理', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })
-      const message = outcome.denied ? `已拒绝：${outcome.agent} 访问「${outcome.name}」` : `已授权：${outcome.agent} 访问「${outcome.name}」${outcome.mode ? `（${outcome.mode}）` : ''}`
+      if (!outcome) return new Response('Request not found or already handled', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      const message = outcome.denied ? `Denied: ${outcome.agent} access to “${outcome.name}”` : `Granted: ${outcome.agent} access to “${outcome.name}”${outcome.mode ? ` (${outcome.mode})` : ''}`
       return htmlResponse(`<meta charset="utf-8"><title>Secrets Broker</title><h2>${escapeHtml(message)}</h2>`)
     }
     if (url.pathname === '/telegram/webhook' && request.method === 'POST') {
@@ -9171,7 +9171,7 @@ export default {
       const outcome = await decidePending(env, id, decision, 'telegram')
       const token = telegram.botToken
       if (token) {
-        const answer = outcome ? (outcome.denied ? '已拒绝' : '已授权') : '请求不存在或已处理'
+        const answer = outcome ? (outcome.denied ? 'Denied' : 'Granted') : 'Request not found or already handled'
         await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ callback_query_id: callback.id, text: answer }) }).catch(() => {})
         if (callback.message?.chat?.id) {
           await fetch(`https://api.telegram.org/bot${token}/editMessageText`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: callback.message.chat.id, message_id: callback.message.message_id, text: `${callback.message.text ?? ''}\n\n${answer}`, reply_markup: { inline_keyboard: [] } }) }).catch(() => {})
@@ -9279,7 +9279,7 @@ export default {
         const fetchSite = String(request.headers.get('sec-fetch-site') ?? '').toLowerCase()
         if (fetchSite === 'cross-site') {
           await addAudit(env, { event: 'oauth.consent-deny', reason: 'cross-site', clientId: String(params.get('client_id') ?? '').slice(0, 40) }).catch(() => {})
-          return new Response('跨站提交被拒绝：请从本站打开授权页。', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+          return new Response('Cross-site submission refused: open the authorization page from this site.', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } })
         }
         if (origin) {
           let sameOrigin = false
@@ -9291,7 +9291,7 @@ export default {
           if (!sameOrigin && String(origin).toLowerCase() === 'null' && fetchSite === 'same-origin') sameOrigin = true
           if (!sameOrigin) {
             await addAudit(env, { event: 'oauth.consent-deny', reason: 'origin-mismatch', origin: String(origin).slice(0, 120) }).catch(() => {})
-            return new Response('跨站提交被拒绝：来源与本站不一致。', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+            return new Response('Cross-site submission refused: the origin doesn’t match this site.', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } })
           }
         }
       }
@@ -9305,13 +9305,13 @@ export default {
         const known = Object.keys(state.oauthClients ?? {}).length
         return new Response(
           '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-          '<title>OAuth 客户端未注册</title>' +
+          '<title>OAuth client not registered</title>' +
           '<div style="font:14px/1.7 system-ui;max-width:560px;margin:40px auto;padding:0 16px;color:#152033">' +
-          '<h2 style="font-size:18px">这个客户端 ID 已失效</h2>' +
-          '<p>服务端找不到 <code style="background:#eef1f6;padding:2px 5px;border-radius:5px">' + escapeHtml(clientId.slice(0, 40) || '(空)') + '</code>，所以无法继续授权。</p>' +
-          '<p style="color:#6b7890;font-size:13px">常见原因：客户端早前注册过，但注册记录在升级前丢失，或被管理员撤销。</p>' +
-          '<p><strong>解决办法：在客户端里断开这个连接，重新发起一次授权。</strong>客户端会重新注册一个新的 ID，就能正常授权了。</p>' +
-          '<p style="color:#6b7890;font-size:13px">当前已注册客户端数量：' + known + '</p>' +
+          '<h2 style="font-size:18px">This client ID is no longer valid</h2>' +
+          '<p>The server can’t find <code style="background:#eef1f6;padding:2px 5px;border-radius:5px">' + escapeHtml(clientId.slice(0, 40) || '(empty)') + '</code>, so authorization can’t continue.</p>' +
+          '<p style="color:#6b7890;font-size:13px">Common causes: the client registered earlier but its registration was lost before an upgrade, or an admin revoked it.</p>' +
+          '<p><strong>Fix: disconnect this connection in the client and start the authorization again.</strong> The client will register a new ID and authorization will work.</p>' +
+          '<p style="color:#6b7890;font-size:13px">Registered clients: ' + known + '</p>' +
           '</div>',
           { status: 400, headers: { 'content-type': 'text/html; charset=utf-8' } },
         )
@@ -9351,9 +9351,9 @@ export default {
         loginUrl.searchParams.set('next', returnTo)
         if (request.method === 'POST') {
           const body = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-            '<p style="font:14px/1.7 system-ui;max-width:560px;margin:40px auto;padding:0 16px">登录状态已过期。' +
-            '<a href="' + escapeHtml(loginUrl.pathname + loginUrl.search) + '">点此登录</a>，登录后会自动回到授权页，再点一次「允许」即可。' +
-            '<br><span style="font-size:12px;color:#6b7890">旧的登录凭据已自动清除。</span></p>'
+            '<p style="font:14px/1.7 system-ui;max-width:560px;margin:40px auto;padding:0 16px">Your login has expired. ' +
+            '<a href="' + escapeHtml(loginUrl.pathname + loginUrl.search) + '">Log in here</a>; you’ll come back to the authorization page afterwards, then click “Allow” once more.' +
+            '<br><span style="font-size:12px;color:#6b7890">The old login credentials were cleared automatically.</span></p>'
           return new Response(body, { status: 401, headers: [['content-type', 'text/html; charset=utf-8'], ...clearPairs] })
         }
         // Build the redirect manually: Response.redirect() yields immutable
@@ -9566,17 +9566,17 @@ export default {
 // MCP clients show annotations and titles in their approval prompts; without
 // them a destructive call looks the same as a read.
 const TOOL_META = {
-  list_secrets: { title: '列出密钥条目', readOnlyHint: true },
-  request_access: { title: '申请读取授权', readOnlyHint: false, destructiveHint: false },
-  explain_access: { title: '解释权限判定', readOnlyHint: true },
-  get_secret: { title: '读取明文', readOnlyHint: true },
-  get_credential: { title: '读取登录凭据', readOnlyHint: true },
-  request_fill: { title: '请求网页填充', readOnlyHint: false, destructiveHint: false },
-  materialize: { title: '写入本地文件', readOnlyHint: false, destructiveHint: true },
-  materialize_redeem: { title: '兑换一次性写入任务', readOnlyHint: false, destructiveHint: true },
-  request_credential: { title: '创建一次性填写链接', readOnlyHint: false, destructiveHint: false },
-  put_secret: { title: '写入密钥（需审批）', readOnlyHint: false, destructiveHint: true },
-  http_request: { title: '代调外部 API', readOnlyHint: false, openWorldHint: true },
+  list_secrets: { title: 'List secret items', readOnlyHint: true },
+  request_access: { title: 'Request read access', readOnlyHint: false, destructiveHint: false },
+  explain_access: { title: 'Explain access decision', readOnlyHint: true },
+  get_secret: { title: 'Read plaintext', readOnlyHint: true },
+  get_credential: { title: 'Read login credential', readOnlyHint: true },
+  request_fill: { title: 'Request web fill', readOnlyHint: false, destructiveHint: false },
+  materialize: { title: 'Write to local file', readOnlyHint: false, destructiveHint: true },
+  materialize_redeem: { title: 'Redeem one-time write task', readOnlyHint: false, destructiveHint: true },
+  request_credential: { title: 'Create one-time entry link', readOnlyHint: false, destructiveHint: false },
+  put_secret: { title: 'Write secret (needs approval)', readOnlyHint: false, destructiveHint: true },
+  http_request: { title: 'Proxied external API call', readOnlyHint: false, openWorldHint: true },
 }
     if (url.pathname === '/health' && (request.method === 'GET' || request.method === 'HEAD')) return json({ ok: true })
     // Deployment identity, deliberately unauthenticated: it carries build
@@ -9661,7 +9661,7 @@ const TOOL_META = {
         const text = (value, isError = false) => ({ content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }], ...(isError ? { isError: true } : {}) })
         // A pending answer is not a value and not a failure: say what it is, give the
         // request id, and tell the model to retry the same call after approval.
-        const pendingText = (access) => text({ status: 'pending-approval', requestId: access.requestId ?? '', approvalUrl: access.approvalUrl ?? '', retryAfterSeconds: 5, next: '批准后重新调用同一个工具即可取到值；不需要再申请一次', message: 'pending approval: ' + (access.approvalUrl ?? '') })
+        const pendingText = (access) => text({ status: 'pending-approval', requestId: access.requestId ?? '', approvalUrl: access.approvalUrl ?? '', retryAfterSeconds: 5, next: 'Once approved, call the same tool again to get the value; no need to request again', message: 'pending approval: ' + (access.approvalUrl ?? '') })
         const session = await getSession(env)
         if (!session) return result(text('vault locked; open the broker page or run unlock.mjs', true))
         // Per-agent MCP surface. An empty list means "every tool", so agents created
@@ -9683,7 +9683,7 @@ const TOOL_META = {
         })
         if (!admission.ok) {
           const blocked = connectionBlockedPayload(admission, url.origin)
-          return result(text({ ...blocked, next: admission.status === 'pending' ? '管理员批准后重新调用同一个工具即可；不需要重复申请' : '请让管理员重新批准这台设备' }, admission.status !== 'pending'))
+          return result(text({ ...blocked, next: admission.status === 'pending' ? 'Once the admin approves, call the same tool again; no need to request again' : 'Ask the admin to approve this device again' }, admission.status !== 'pending'))
         }
         try {
           if (name === 'put_secret') {
@@ -9822,9 +9822,9 @@ const TOOL_META = {
             // remedy travels as its own machine-readable field instead of living
             // inside a prose sentence.
             const nextStep = label.code === 'not-in-scope' || label.status === 'outside_scope'
-              ? 'admin: Agents → 权限矩阵 → this agent → add the item to its requestable scope, then call request_access again'
+              ? 'admin: Agents → Permission matrix → this agent → add the item to its requestable scope, then call request_access again'
               : label.code === 'no-grant'
-                ? 'admin: Agents → 权限矩阵 → this agent → grant 7 days for this item, or approve this pending request'
+                ? 'admin: Agents → Permission matrix → this agent → grant 7 days for this item, or approve this pending request'
                 : ''
             return result(text({
               status: label.status,
@@ -9856,7 +9856,7 @@ const TOOL_META = {
             if (!readGuard.ok) {
               await addAudit(env, { event: 'secret.read-deny', agent: resolved.name, name: secretName, reason: readGuard.reason })
               await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: resolved.agent.oauth ? 'oauth' : 'token', action: 'secret.read', ok: false })
-              return result(text('不能读明文：' + readGuardMessage(readGuard.reason), true))
+              return result(text('Can’t read plaintext: ' + readGuardMessage(readGuard.reason), true))
             }
             await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: resolved.agent.oauth ? 'oauth' : 'token', action: 'secret.read', ok: true })
             return result(text(access.value))
@@ -9882,7 +9882,7 @@ const TOOL_META = {
             if (!readGuard.ok) {
               await addAudit(env, { event: 'secret.read-deny', agent: resolved.name, name: secretName, reason: readGuard.reason })
               await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: credKind, action: 'secret.read', ok: false })
-              return result(text('不能读明文：' + readGuardMessage(readGuard.reason), true))
+              return result(text('Can’t read plaintext: ' + readGuardMessage(readGuard.reason), true))
             }
             // agentAccess already decrypted this item for this call. Reusing its
             // fields keeps one decrypt per get_credential instead of two.
@@ -9898,7 +9898,7 @@ const TOOL_META = {
             const dest = materializeTarget(resolved.state, { path: args.path, key: args.key })
             if (!dest) {
               await addAudit(env, { event: 'materialize.deny', agent: resolved.name, name: secretName, path: String(args.path ?? '').slice(0, 200), key: String(args.key ?? '').slice(0, 64), reason: 'target-not-allowed' })
-              return result(text('target path is not on the materialize allowlist; add it in 设置 → 安全 first', true))
+              return result(text('target path is not on the materialize allowlist; add it in Settings → Security first', true))
             }
             const access = await agentAccess(env, { session, agentName: resolved.name, agent: resolved.agent, state: resolved.state, name: secretName, origin: url.origin, ctx, action: 'secret.materialize', target: dest, connection: admission.record })
             // The request id is the job id once approved, so the caller can poll
@@ -9940,7 +9940,7 @@ const TOOL_META = {
             const guard = plaintextReadAllowed(live, found.id || job.itemId, { agent: resolved.name, noApproval: live.policies?.[job.name]?.noApproval === true, granted: { subject: resolved.name, accountId: session.email } })
             if (!guard.ok) {
               await addAudit(env, { event: 'materialize.deny', agent: resolved.name, name: job.name, path: job.target?.path ?? '', reason: guard.reason })
-              return result(text('不能读明文：' + readGuardMessage(guard.reason), true))
+              return result(text('Can’t read plaintext: ' + readGuardMessage(guard.reason), true))
             }
             let won = false
             await updateState(env, (next) => {
@@ -10293,7 +10293,7 @@ const TOOL_META = {
         const readGuard = plaintextReadAllowed(resolved.state, access.itemId ?? '', { agent: resolved.name, noApproval: resolved.state.policies?.[name]?.noApproval === true, granted: access.status === 'allowed' ? { subject: resolved.name, accountId: session.email } : null })
         if (!readGuard.ok) {
           await addAudit(env, { event: 'secret.read-deny', agent: resolved.name, name, reason: readGuard.reason })
-          return fail('不能读明文：' + readGuardMessage(readGuard.reason), 403)
+          return fail('Can’t read plaintext: ' + readGuardMessage(readGuard.reason), 403)
         }
         return json({ value: access.value })
       } catch (error) { return fail(String(error.message ?? error), 500) }
@@ -10364,7 +10364,7 @@ const TOOL_META = {
       const code = String(url.searchParams.get('code') ?? '').toUpperCase()
       // A pairing code is only ever digits/letters with an optional separator;
       // rejecting everything else keeps the page free of attacker-chosen markup.
-      if (!/^[A-Z0-9-]{4,16}$/.test(code)) return new Response('配对码无效', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      if (!/^[A-Z0-9-]{4,16}$/.test(code)) return new Response('Invalid pairing code', { status: 400, headers: { 'content-type': 'text/plain; charset=utf-8' } })
       if (!(await adminAuthorized(request, env))) return new Response(null, { status: 302, headers: { location: '/login?next=' + encodeURIComponent('/pair?code=' + code) } })
       const peek = await (await stateStub(env).fetch('https://state/pair', {
         method: 'POST',
@@ -10439,7 +10439,7 @@ const TOOL_META = {
           const cached = await keyCall('GET')
           // plainOk lets the console tell "locked" apart from "unlocked but the
           // plaintext listing has not passed its TOTP gate yet". They used to be
-          // collapsed into one "未解锁" message.
+          // collapsed into one "locked" message.
           return json({ ...status, unlocked: Boolean(cached.ok), keyExpiresAt: cached.expiresAt ?? null, plainOk: Boolean(cached.plainOk), confirmRequired: Boolean(cached.confirm) })
         }
         if (route === 'init' && request.method === 'POST') {
@@ -10461,7 +10461,7 @@ const TOOL_META = {
           const state = await loadState(env)
           // Unlock verifies a password with an expensive KDF, so an unthrottled
           // endpoint is both a brute-force target and a CPU amplification lever.
-          if (loginBlocked(state, ip)) return fail('尝试次数过多，请 15 分钟后再试', 429)
+          if (loginBlocked(state, ip)) return fail('Too many attempts, try again in 15 minutes', 429)
           let opened = null
           try {
             opened = await vault2Unlock(env, String(body.password ?? ''), { account })
@@ -10526,7 +10526,7 @@ const TOOL_META = {
           const dek = await unlockedKey()
           if (!dek) return fail('vault is locked', 423)
           const body = await request.json().catch(() => ({}))
-          const paired = await vault2Pair(env, dek, { name: String(body.name ?? '本机浏览器'), publicJwk: body.publicJwk, canWrite: false })
+          const paired = await vault2Pair(env, dek, { name: String(body.name ?? 'This browser'), publicJwk: body.publicJwk, canWrite: false })
           await addAudit(env, { event: 'vault.device-bind', agent: 'admin', name: paired.id, deviceId: paired.id, duration: 'device' })
           return json({ ok: true, deviceId: paired.id, name: paired.name, token: paired.token, canWrite: false })
         }
@@ -10652,7 +10652,7 @@ const TOOL_META = {
               const security = (await loadState(env)).security ?? {}
               if (security.totpEnabled === true) {
                 const code = String(url.searchParams.get('code') ?? request.headers.get('x-totp-code') ?? '').trim()
-                if (!code) return fail('需要验证码才能显示条目名称', 428)
+                if (!code) return fail('A verification code is required to show item names', 428)
                 const refused = await secondFactorWall(request, env, 'vault.plain', code)
                 if (refused) return refused
                 await addAudit(env, { event: 'vault.plain', via: 'web' }).catch(() => {})

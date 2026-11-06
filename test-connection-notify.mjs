@@ -58,7 +58,7 @@ const { pass, fail, finish } = makeReporter()
   const sent = telegram[0] ? JSON.parse(telegram[0].init.body) : {}
   // The agent and the request time are allowed; an item name or a secret would
   // turn a notification channel into a data leak.
-  if (sent.text && sent.text.includes(HARNESS.AGENT) && sent.text.includes('申请首次连接')) {
+  if (sent.text && sent.text.includes(HARNESS.AGENT) && sent.text.includes('is requesting its first connection')) {
     pass('1c the notification names the agent and the request')
   } else {
     fail('1c notification text', String(sent.text ?? '').slice(0, 200))
@@ -106,7 +106,7 @@ async function pushOnce({ ok = true, state = {} } = {}) {
       pending: [{ id: 'p1', agent: 'item-agent', name: 'secret-item' }],
     },
   })
-  if (notice && notice.title === 'Secrets Broker 连接请求' && notice.options.body.includes('connecting-agent')) {
+  if (notice && notice.title === 'Secrets Broker connection request' && notice.options.body.includes('connecting-agent')) {
     pass('2a a waiting connection outranks a waiting item request')
   } else {
     fail('2a connection notice', JSON.stringify(notice).slice(0, 200))
@@ -129,7 +129,7 @@ async function pushOnce({ ok = true, state = {} } = {}) {
 }
 {
   const { notice } = await pushOnce({ state: { connections: { pending: [] }, pending: [{ id: 'p1', agent: 'item-agent', name: 'secret-item' }] } })
-  if (notice && notice.title === 'Secrets Broker 授权请求' && notice.options.body.includes('secret-item')) {
+  if (notice && notice.title === 'Secrets Broker access request' && notice.options.body.includes('secret-item')) {
     pass('2d with no waiting connection the item request still produces its notice')
   } else {
     fail('2d item notice', JSON.stringify(notice).slice(0, 200))
@@ -139,7 +139,7 @@ async function pushOnce({ ok = true, state = {} } = {}) {
   // A logged-out browser gets 401: the worker keeps the generic copy instead of
   // rendering the agent or item that the session could not be checked against.
   const { notice } = await pushOnce({ ok: false, state: { connections: { pending: [{ agent: 'should-not-show' }] } } })
-  if (notice && notice.options.body === '有新的授权请求，点击查看') {
+  if (notice && notice.options.body === 'New access request. Click to view') {
     pass('2e a 401 keeps the generic copy and leaks no agent name')
   } else {
     fail('2e 401 copy', JSON.stringify(notice).slice(0, 200))
