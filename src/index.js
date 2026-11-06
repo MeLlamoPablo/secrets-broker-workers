@@ -1294,6 +1294,13 @@ async function updateState(env, mutate) {
 // longer turn into a 500 because the log write lost a race. Best-effort by
 // design: losing one log line must never fail the operation it describes.
 const LEGACY_AUDIT_LIMIT = 500
+// /api/state is polled every 30s by every open console and also feeds the home
+// page; it used to embed all 500 entries (~70 KB per poll). The console renders
+// only the newest rows, and the log page pages the full history through
+// /api/audit, so the embedded list is capped at what a screen can show.
+// buildReminders below still reads the full window: trimming that would make
+// it report active agents as "never read".
+const CONSOLE_STATE_AUDIT_LIMIT = 20
 const AUDIT_INSERT = 'INSERT INTO audit_v2 (at, event, subject, detail) VALUES (?, ?, ?, ?)'
 const AUDIT_SELECT = 'SELECT detail FROM audit_v2'
 
@@ -7468,7 +7475,7 @@ export default {
     // Locked sessions can still load this view: approvals are decided by id, and
     // the names they carry are masked server-side until the vault is unlocked.
     const masked = await shouldMaskConsole(env)
-    const view = publicState(state, { masked, audit })
+    const view = publicState(state, { masked, audit: audit.slice(0, CONSOLE_STATE_AUDIT_LIMIT) })
     const connections = connectionView(state, { masked })
     return json({ ...view, connections: { pending: connections.pending, recent: connections.recent }, pendingConnectionCount: connections.count, geoEnabled: GEO_ENABLED(env), fillPolicies: { ...view.fillPolicies, executionLayer: Boolean(String(env.FILL_EXECUTION_TOKEN ?? '')) }, reminders, pendingCount: Object.keys(state.pending ?? {}).length })
     }

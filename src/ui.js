@@ -5137,7 +5137,10 @@ function fillLogSelect(id, options, allLabel) {
   select.innerHTML = '<option value="">' + esc(allLabel) + '</option>' + options.map((option) => '<option value="' + esc(option.value) + '"' + (option.value === current ? ' selected' : '') + '>' + esc(option.label) + '</option>').join('')
 }
 function renderLogs() {
-  const all = app.data.audit || []
+  // /api/state now embeds only the newest entries; the log page pages the full
+  // history. Union both so the item/agent filters still offer names that exist
+  // outside the embedded window.
+  const all = (app.data.audit || []).concat(logState.rows || [])
   const names = [...new Set(all.map((entry) => entry.name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)))
   const agents = [...new Set(all.map((entry) => entry.agent).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)))
   fillLogSelect('logs-item-filter', names.map((name) => ({ value: name, label: name })), '全部条目')
