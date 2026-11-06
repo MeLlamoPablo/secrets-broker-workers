@@ -1539,7 +1539,7 @@ function renderLockedSurface() {
 async function boot() { try { app.me = await api('/api/me'); show('login-card', false); $('who').textContent = app.me.name || String(app.me.email || '').split('@')[0] || ''; $('site-title').textContent = app.me.siteName || 'Secrets Broker'; renderAvatar(app.me.name || app.me.email, app.me.avatarUrl); show('lock', true); const vault = await api('/api/v2/status').catch(() => null); app.v2 = vault; applyTierAvailability(); app.plainOk = vault?.initialized === true ? vault.plainOk !== false : true; if (!app.me.unlocked && sessionStorage.getItem('broker-lock-intent') !== '1') await tryDeviceOpen().catch(() => false); app.locked = app.me.unlocked !== true; // A vault that exists but is locked opens straight into the console: approvals
   // and masking work without the key. Only an uninitialized vault needs the
   // entry screen, because it has nothing to browse.
-  const canBrowse = app.me.unlocked === true || vault?.initialized === true; show('dashboard', canBrowse); show('unlock-card', !canBrowse); if (canBrowse) { await loadAll(); renderLockedSurface(); if (new URLSearchParams(location.search).get('view') === 'profile') { document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-profile')); document.querySelectorAll('#nav button').forEach((button) => button.classList.remove('active')); await loadProfile(); history.replaceState({}, '', '/') } } } catch { show('login-card', true); show('dashboard', false); show('unlock-card', false); loadOidcLogin() } }
+  const canBrowse = app.me.unlocked === true || vault?.initialized === true; show('dashboard', canBrowse); show('unlock-card', !canBrowse); if (canBrowse) { await loadAll(); renderLockedSurface(); if (new URLSearchParams(location.search).get('view') === 'profile') { document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-profile')); syncGlobeToView('profile'); document.querySelectorAll('#nav button').forEach((button) => button.classList.remove('active')); await loadProfile(); history.replaceState({}, '', '/') } } } catch { show('login-card', true); show('dashboard', false); show('unlock-card', false); loadOidcLogin() } }
 $('page-refresh').onclick = refreshCurrent
 $('site-title').onclick = () => { location.href = '/' }
 $('site-logo').onclick = () => { location.href = '/' }
@@ -1629,7 +1629,7 @@ document.addEventListener('click', async (event) => {
   try { await api('/api/sessions/revoke', { method: 'POST', body: JSON.stringify({ id: button.dataset.revokeSession }) }); await loadProfile(); toast('已下线') } catch (error) { toast(error.message, true) }
 })
 $('account-logout').onclick = async () => { try { await api('/api/logout', { method: 'POST' }) } catch {} location.reload() }
-document.querySelectorAll('#account-menu [data-view]').forEach((button) => { button.onclick = async () => { if (!(await confirmDiscard())) return; if (editor.dirty) closeItemPage(); show('account-menu', false); document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', false)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + button.dataset.view)); if (button.dataset.view === 'settings') loadSettings(); if (button.dataset.view === 'profile') loadProfile() } })
+document.querySelectorAll('#account-menu [data-view]').forEach((button) => { button.onclick = async () => { if (!(await confirmDiscard())) return; if (editor.dirty) closeItemPage(); show('account-menu', false); document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', false)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + button.dataset.view)); syncGlobeToView(button.dataset.view); if (button.dataset.view === 'settings') loadSettings(); if (button.dataset.view === 'profile') loadProfile() } })
 function applyTheme(mode) {
   const next = mode || localStorage.getItem('theme') || 'light'
   const effective = next === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : (next === 'dark' ? 'dark' : 'light')
@@ -1856,7 +1856,7 @@ document.querySelectorAll('#nav button').forEach((button) => { button.onclick = 
   // same unsaved edits must not vanish just because the exit is a tab.
   if (!(await confirmDiscard())) return
   if (editor.dirty) closeItemPage()
-  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b === button)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + view)); if (view === 'devices') loadVault2(false); if (view === 'settings') loadSettings(); if (view === 'profile') loadProfile() } })
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b === button)); document.querySelectorAll('.view').forEach((section) => section.classList.toggle('hidden', section.id !== 'view-' + view)); syncGlobeToView(view); if (view === 'devices') loadVault2(false); if (view === 'settings') loadSettings(); if (view === 'profile') loadProfile() } })
 document.querySelectorAll('#range-row button').forEach((button) => { button.onclick = () => { app.range = button.dataset.range; document.querySelectorAll('#range-row button').forEach((b) => b.classList.toggle('on', b === button)); loadStats() } })
 // ── Global search ───────────────────────────────────────────────────────────
 // One box on the overview searches every source the console already keeps in
@@ -3589,7 +3589,7 @@ function expiryLabel(expiresAt) {
 // ── Agent Live Globe (P3/P4) ────────────────────────────────────────────────
 // Loaded lazily and entirely optional: any failure hides the globe and leaves
 // the rest of the console untouched.
-const globe = { instance: null, loading: false, failed: false, range: '24h', cursor: 0, events: [], timer: null, paused: false, hidden: true, reduceMotion: false, operator: null, broker: null, showArcs: true, showOperator: true }
+const globe = { instance: null, loading: false, failed: false, range: '24h', cursor: 0, events: [], timer: null, paused: false, hidden: true, pausedByView: false, reduceMotion: false, operator: null, broker: null, showArcs: true, showOperator: true }
 function globeVisible() {
   return !globe.hidden && !document.hidden && !globe.paused
 }
@@ -3678,6 +3678,23 @@ function syncGlobePolling() {
   refreshGlobe(false)
   // 30s incremental polling; the globe is a monitoring view, not a ticker.
   globe.timer = setInterval(() => { if (globeVisible()) refreshGlobe(false) }, 30000)
+}
+// Leaving the overview hides the earth and stops its 30s poll: a background tab
+// already backs off via document.hidden, but a visible tab on another page was
+// still paying for a card nobody could see. Only a globe that was actually live
+// is resumed, so a card the operator never opened stays off.
+function syncGlobeToView(view) {
+  if (view === 'overview') {
+    if (!globe.pausedByView) return
+    globe.pausedByView = false
+    globe.hidden = false
+    syncGlobePolling()
+    return
+  }
+  globe.pausedByView = !globe.hidden
+  if (globe.hidden) return
+  globe.hidden = true
+  stopGlobePolling()
 }
 function toggleGlobeFullscreen() {
   const box = $('globe-box')
