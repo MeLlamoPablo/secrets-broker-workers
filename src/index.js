@@ -7340,7 +7340,9 @@ export default {
           for (const action of revokedActions) {
             const ckey = capabilityKey(agentName, entry.itemId, action)
             const cap = state.capabilities?.[ckey]
-            if (cap) { cap.revokedAt = now; cap.revokedBy = 'admin:' + session.email }
+            // The gate accepts a Vault 2.0 unlock, which has no v1 session;
+            // use the account consoleVault resolved instead of session.email.
+            if (cap) { cap.revokedAt = now; cap.revokedBy = 'admin:' + account }
             revoked.push({ itemId: entry.itemId, action, found: Boolean(cap), ckey, n: Object.keys(state.capabilities || {}).length })
           }
           if (!grant) continue
