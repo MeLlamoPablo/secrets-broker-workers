@@ -32,7 +32,12 @@ issued. Do not try to use an agent token against a different vault account.
 
 ## Tools
 
-- `list_secrets` — list item names/URLs only; no values.
+- `list_secrets` — list the items this connection may read, as
+  `{ "items": [{ "id", "name", "kind", "noApproval", "url", "requestable", "grant_status" }], "count", "hidden" }`;
+  no values. Parse `result.items`, not the result itself. A connection narrowed to
+  a scope gets only `items`, `count` and `hidden` (out-of-scope items are never
+  named or counted); a full-scope connection also gets `hiddenCount: 0` and
+  `totalCount`.
 - `request_access` — request approval for one item by name. May return an
   approval URL.
 - `get_secret` — return the value after approval (or immediately for an item
