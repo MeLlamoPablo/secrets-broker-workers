@@ -442,6 +442,23 @@ async function main() {
     ok('读取不可见与读取不存在的条目对外逐字节一致',
       mcpText(getHidden).split(ITEM2).join('<name>') === mcpText(getAbsent).split('no-such-item-xyz').join('<name>'),
       mcpText(getHidden) + ' / ' + mcpText(getAbsent))
+
+    // explain_access used to describe any name the agent asked about: it
+    // returned the itemId, classification and policies even for items outside
+    // the connection, which confirmed both existence and configuration.
+    const exHidden = await mcpCall(env, 'explain_access', { name: ITEM2 })
+    const exAbsent = await mcpCall(env, 'explain_access', { name: 'no-such-item-xyz' })
+    ok('explain_access 对范围外条目与读取路径同答复', mcpText(exHidden) === mcpText(getHidden), mcpText(exHidden))
+    ok('explain_access 对不存在条目与读取路径同答复', mcpText(exAbsent) === mcpText(getAbsent), mcpText(exAbsent))
+    ok('explain_access 范围外不再泄露 itemId/分类/策略',
+      !mcpText(exHidden).includes(HARNESS.ITEM_ID) && !mcpText(exHidden).includes('"kind"') && !mcpText(exHidden).includes('"policy"'),
+      mcpText(exHidden))
+    const exState = await readState(env)
+    ok('explain_access 范围外不生成待审批',
+      Object.keys(exState.pending ?? {}).length === 0
+      && env._vault.auditRows.some((entry) => entry.event === 'connection.access-deny'
+        && entry.detail === 'explain-outside-admitted-scope' && entry.itemExists === true),
+      JSON.stringify(env._vault.auditRows.filter((entry) => entry.event === 'connection.access-deny')))
   }
 
   report.finish()

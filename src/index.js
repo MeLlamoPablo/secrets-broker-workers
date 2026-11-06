@@ -9413,7 +9413,28 @@ const TOOL_META = {
             return result(text({ status: 'written', name: itemName, updated: Boolean(existing) }))
           }
           if (name === 'explain_access') {
-            const explained = await explainAccess(env, { resolved, session, name: argName(), action: String(args.action ?? 'secret.read'), origin: args.origin ? String(args.origin) : '', url: args.url ? String(args.url) : '' })
+            const explainName = argName()
+            const explainAction = String(args.action ?? 'secret.read')
+            // explain_access describes an item, so it must obey the same
+            // admitted scope as a read. Before this check it would happily
+            // return the itemId, classification and policies for any item the
+            // agent named, which confirmed both existence and configuration.
+            // An out-of-scope name now answers exactly like a missing one.
+            if (admission.record && explainName && SECRET_ACTIONS.has(explainAction)) {
+              let explainItemId = resolved.state?.itemIds?.[explainName] ?? ''
+              if (!explainItemId) {
+                const found = await resolveItemId(env, env.NODEWARDEN_DB, session, explainName)
+                if (found) { resolved.state.itemIds ??= {}; resolved.state.itemIds[explainName] = found; explainItemId = found }
+              }
+              if (!explainItemId || !connectionAllowsItem(admission.record, explainItemId)) {
+                await auditItemMiss(env, {
+                  agentName: resolved.name, name: explainName, itemId: explainItemId, action: explainAction,
+                  exists: Boolean(explainItemId), detail: explainItemId ? 'explain-outside-admitted-scope' : 'name-not-in-vault',
+                })
+                return result(text(itemNotFoundFor(explainAction, false, explainName).error, true))
+              }
+            }
+            const explained = await explainAccess(env, { resolved, session, name: explainName, action: explainAction, origin: args.origin ? String(args.origin) : '', url: args.url ? String(args.url) : '' })
             return result(text(explained))
           }
           if (name === 'list_secrets') {
