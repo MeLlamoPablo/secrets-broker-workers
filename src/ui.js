@@ -2592,7 +2592,18 @@ function schedulePendingPoll() {
   // tick, so hiding or showing the tab takes effect without a second timer.
   pendingTimer = setTimeout(async () => { await checkPendingNotifications(); schedulePendingPoll() }, pendingPollDelay())
 }
-function startPendingPolling() { updateBrowserNotifyStatus(); if (pendingTimer) return; checkPendingNotifications(); schedulePendingPoll() }
+// loadAll already fetched /api/state and loadState already rendered the queue.
+// Seeding the known set from that result removes the duplicate boot request:
+// the first poll then starts from the queue the operator can already see.
+function seedPendingFromState() {
+  if (!app.stateLoaded || !app.data) return false
+  const pending = app.data.pending || []
+  const connections = (app.data.connections && app.data.connections.pending) || []
+  knownPending = new Set(pending.map((entry) => entry.id).concat(connections.map((entry) => 'connection:' + entry.id)))
+  pendingInitialized = true
+  return true
+}
+function startPendingPolling() { updateBrowserNotifyStatus(); if (pendingTimer) return; if (!seedPendingFromState()) checkPendingNotifications(); schedulePendingPoll() }
 // Coming back to the tab is when a stale banner is most visible, so refresh
 // immediately; going away re-arms the timer with the slower interval.
 document.addEventListener('visibilitychange', () => { if (!pendingTimer) return; schedulePendingPoll(); if (!document.hidden) checkPendingNotifications() })
