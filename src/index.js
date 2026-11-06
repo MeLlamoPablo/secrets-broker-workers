@@ -9867,8 +9867,22 @@ const TOOL_META = {
             try { response = await fetch(target.toString(), init) } catch (error) {
               // Record the real outcome: the call was authorized but the upstream
               // request itself failed.
+              const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError' || error?.code === 'ETIMEDOUT'
+              const idempotentMethod = method === 'GET' || method === 'HEAD'
+              // The upstream's own message can name internal hosts or echo the
+              // injected header, so it goes to the audit trail and never back to
+              // the agent.
+              await addAudit(env, {
+                event: 'secret.use.error', agent: resolved.name, name: secretName, via: 'http_request',
+                method, host: normHost, path: target.pathname.slice(0, 200),
+                timeout: timedOut, idempotent: idempotentMethod, error: String(error?.message ?? error).slice(0, 200),
+              }).catch(() => {})
               await recordGeoEvent(env, request, ctx, { agent: resolved.name, kind: useKind, action: 'secret.use', ok: false })
-              return result(text(error?.name === 'TimeoutError' ? 'upstream request timed out (15s)' : `upstream fetch failed: ${String(error?.message ?? error).slice(0, 200)}`, true))
+              // A timed-out write may already have run upstream. Retrying it
+              // blindly can double-charge or double-create, so say that
+              // explicitly instead of handing the agent the same "failed" text.
+              if (timedOut && !idempotentMethod) return result(text('upstream request timed out (15s); the request may already have been executed upstream — verify the upstream state before retrying', true))
+              return result(text(timedOut ? 'upstream request timed out (15s)' : 'upstream request failed', true))
             }
             const rawBody = (await response.text()).slice(0, 8000)
             // Defense-in-depth only: strip the exact injected value and common

@@ -496,6 +496,9 @@ jobs:
       - name: v2 pull and push (sealed rows, write permission, revocation)
         shell: bash
         run: npm run test:v2-pushpull 2>&1 | tee "$RUNNER_TEMP/ci-logs/v2-pushpull.log"
+      - name: http_request failure semantics (pure Node)
+        shell: bash
+        run: npm run test:http-request 2>&1 | tee "$RUNNER_TEMP/ci-logs/http-request.log"
       - name: Full security suite (short path)
         shell: bash
         run: npm run test:security:short 2>&1 | tee "$RUNNER_TEMP/ci-logs/security-short.log"
